@@ -1,4 +1,5 @@
-import { NavigationIcon } from '@udi/ui';
+import { useState } from 'react';
+import { PixelRoom, PixelHeading } from './PixelRoom.js';
 import type { screens } from './App.js';
 
 type Destination = (typeof screens)[number];
@@ -64,12 +65,17 @@ export function ShipWorkspace({
   jobId: string | undefined;
   onNavigate: (screen: Destination) => void;
 }) {
+  const [active, setActive] = useState<string>();
   return (
     <section className="ship-workspace" aria-labelledby="ship-title">
       <div className="ship-heading">
         <div>
-          <p className="eyebrow">WORKSPACE VESSEL / DECK 01</p>
-          <h2 id="ship-title">One workspace. Every system within reach.</h2>
+          <p className="eyebrow">UDI EXPLORER / DECK 01</p>
+          <h2 id="ship-title">
+            <span className="pixel-sr-only">Mission control</span>
+            <PixelHeading />
+          </h2>
+          <p className="ship-subtitle">Your project. Your crew. One ship.</p>
         </div>
         <span className={`ship-engine ship-engine-${engine}`}>
           <span aria-hidden="true" />
@@ -79,7 +85,7 @@ export function ShipWorkspace({
       <div className="ship-manifest">
         <span>MISSION</span>
         <strong>{projectName ?? 'Select a project to load shared context'}</strong>
-        <span>LOCAL-FIRST CONTROL CENTER</span>
+        <span>LOCAL SYSTEM / NO CLOUD REQUIRED</span>
       </div>
       <nav className="ship-chart" aria-label="Ship compartments">
         <div className="ship-hull" aria-hidden="true" />
@@ -89,7 +95,7 @@ export function ShipWorkspace({
           <i />
         </div>
         <span className="ship-orientation" aria-hidden="true">
-          AFT <span>SCHEMATIC / TOP VIEW</span> FORWARD →
+          AFT <span>PIXEL DECK / TOP VIEW</span> FORWARD →
         </span>
         <div className="ship-deck">
           {rooms.map((room) => (
@@ -97,17 +103,21 @@ export function ShipWorkspace({
               key={room.id}
               className={`ship-room ship-room-${room.id}`}
               aria-label={`Open ${room.name}`}
+              onMouseEnter={() => setActive(room.name)}
+              onMouseLeave={() => setActive(undefined)}
+              onFocus={() => setActive(room.name)}
+              onBlur={() => setActive(undefined)}
               onClick={() => onNavigate(room.destination)}
             >
               <span className="ship-room-meta">
                 <span>
                   {room.number} / {room.destination.toUpperCase()}
                 </span>
-                <span aria-hidden="true">↗</span>
+                <span className="room-enter" aria-hidden="true">
+                  ENTER ↗
+                </span>
               </span>
-              <span className="ship-room-icon" aria-hidden="true">
-                <NavigationIcon name={room.icon} />
-              </span>
+              <PixelRoom room={room.id} />
               <strong>{room.name}</strong>
               <span className="ship-room-description">{room.description}</span>
               {room.id === 'engineering' && (
@@ -119,14 +129,19 @@ export function ShipWorkspace({
           ))}
           <div className="ship-corridor" aria-hidden="true">
             <span />
-            <span>SHARED PROJECT CONTEXT</span>
+            <span className="corridor-node" />
+            <span>CONTEXT BUS</span>
+            <span className="corridor-node" />
             <span />
           </div>
         </div>
       </nav>
       <div className="ship-legend">
-        <span>Choose a compartment to open its workspace.</span>
-        <span>Live data stays in each workspace · No simulated systems</span>
+        <span className="ship-prompt">
+          <span aria-hidden="true">▸</span>{' '}
+          {active ? `Enter ${active}` : 'Choose a compartment to begin'}
+        </span>
+        <span>CLICK / TAB + ENTER TO BOARD</span>
       </div>
     </section>
   );

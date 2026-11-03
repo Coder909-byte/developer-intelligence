@@ -669,229 +669,333 @@ summary {
   font-size: 12px;
   margin: 16px 0;
 }
-/* Interactive vessel home: schematic decoration never carries live status. */
+/* Original pixel deck. Room artwork is decorative; daemon status is real. */
+.pixel-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .ship-workspace {
+  --pixel-ink: #0b1525;
+  --pixel-edge: #536c83;
   margin-bottom: 32px;
-  border: 1px solid var(--border);
-  background: #0e1216;
+  border: 2px solid #3e5066;
+  background: #111d2d;
+  box-shadow:
+    4px 4px 0 #060b13,
+    inset 0 0 0 3px #18273a;
 }
 .ship-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 24px 26px 18px;
-}
-.ship-heading h2 {
-  font-size: 20px;
-  letter-spacing: -0.5px;
-  font-weight: 500;
+  padding: 26px 28px 18px;
 }
 .ship-heading .eyebrow {
-  font-size: 10px;
+  color: #9daec4;
+  font:
+    10px Consolas,
+    monospace;
   letter-spacing: 2px;
-  margin: 0 0 10px;
+  margin: 0 0 16px;
+}
+.pixel-heading {
+  display: block;
+  width: min(370px, 100%);
+  height: 26px;
+  color: #dce9d1;
+  image-rendering: pixelated;
+}
+.ship-heading h2 {
+  width: 370px;
+  max-width: 100%;
+}
+.ship-subtitle {
+  color: #a5b6cb;
+  font:
+    12px Consolas,
+    monospace;
+  margin: 14px 0 0;
 }
 .ship-engine {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 9px;
+  font:
+    11px Consolas,
+    monospace;
   white-space: nowrap;
-  color: var(--muted);
+  color: #c0cddd;
+  padding: 9px 12px;
+  background: #0e1826;
+  border: 2px solid #41536b;
+  box-shadow: 2px 2px 0 #07101c;
 }
 .ship-engine > span {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: #9299a5;
+  background: #9fadc0;
+  box-shadow: 0 0 0 2px #26364a;
 }
 .ship-engine-connected > span {
-  background: var(--accent);
+  background: #a4d4b4;
 }
 .ship-engine-disconnected > span {
-  background: #e5b66b;
+  background: #edbb78;
 }
 .ship-manifest {
-  margin: 0 26px;
-  padding: 14px 0;
-  border-top: 1px solid var(--border);
+  margin: 0 28px;
+  padding: 15px 0;
+  border-top: 1px dashed #43546c;
   display: flex;
   gap: 16px;
   align-items: center;
 }
 .ship-manifest > span {
   font:
-    9px 'Cascadia Code',
-    Consolas,
+    9px Consolas,
     monospace;
   letter-spacing: 1px;
-  color: var(--muted);
+  color: #99abc2;
+}
+.ship-manifest > span:first-child {
+  color: #e8c48e;
 }
 .ship-manifest > span:last-child {
   margin-left: auto;
+  font-size: 8px;
 }
 .ship-manifest strong {
-  font-size: 12px;
-  font-weight: 400;
+  color: #e0e7ef;
+  font:
+    12px Consolas,
+    monospace;
   overflow-wrap: anywhere;
 }
 .ship-chart {
   position: relative;
-  padding: 55px 44px 60px 62px;
+  padding: 58px 48px 62px 66px;
   isolation: isolate;
-  background-image: radial-gradient(#283039 1px, transparent 1px);
-  background-size: 22px 22px;
+  background-color: #0b1221;
+  background-image:
+    radial-gradient(circle at 12px 18px, #65748b 0 1px, transparent 1px),
+    radial-gradient(circle at 61px 43px, #384e6b 0 1px, transparent 1px);
+  background-size:
+    113px 97px,
+    173px 139px;
+  border-block: 2px solid #334258;
 }
 .ship-hull {
   position: absolute;
-  inset: 24px 12px 30px 28px;
+  inset: 28px 18px 32px 34px;
   z-index: -1;
-  background: #28343b;
-  clip-path: polygon(0 13%, 6% 0, 86% 0, 100% 27%, 100% 73%, 86% 100%, 6% 100%, 0 87%);
+  background: #6c8394;
+  clip-path: polygon(
+    0 14%,
+    4% 14%,
+    4% 7%,
+    9% 7%,
+    9% 0,
+    82% 0,
+    82% 7%,
+    90% 7%,
+    90% 14%,
+    96% 14%,
+    96% 28%,
+    100% 28%,
+    100% 72%,
+    96% 72%,
+    96% 86%,
+    90% 86%,
+    90% 93%,
+    82% 93%,
+    82% 100%,
+    9% 100%,
+    9% 93%,
+    4% 93%,
+    4% 86%,
+    0 86%
+  );
 }
 .ship-hull::after {
   content: '';
   position: absolute;
-  inset: 2px;
-  background: #12191e;
-  clip-path: polygon(0 13%, 6% 0, 86% 0, 100% 27%, 100% 73%, 86% 100%, 6% 100%, 0 87%);
+  inset: 4px;
+  background: repeating-linear-gradient(0deg, #24354a 0 11px, #293c51 11px 12px);
+  clip-path: inherit;
 }
 .ship-deck {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
-  grid-template-rows: 150px 62px 150px;
-  gap: 12px;
+  grid-template-rows: 230px 58px 230px;
+  gap: 14px;
 }
 .ship-room {
+  --room-tint: #9ab9d4;
   min-width: 0;
   position: relative;
   display: flex;
   flex-direction: column;
   text-align: left;
-  padding: 15px;
-  border: 1px solid #364149;
-  border-radius: 4px;
-  background: #192229;
-  color: var(--text);
+  padding: 12px;
+  border: 3px solid #4e667f;
+  border-top-color: #748ca2;
+  border-left-color: #748ca2;
+  border-radius: 0;
+  background: #162437;
+  color: #ecf0e7;
+  box-shadow:
+    3px 3px 0 #0a1423,
+    inset 0 0 0 2px #22374d;
   transition:
-    border-color 0.15s,
-    background 0.15s;
+    transform 0.12s steps(2),
+    border-color 0.12s steps(2);
 }
-.ship-room:hover {
-  background: #202e32;
-  border-color: var(--accent);
+.ship-room:hover,
+.ship-room:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--room-tint);
+  background: #1a2d40;
+  box-shadow:
+    3px 6px 0 #0a1423,
+    inset 0 0 0 2px #3a5665;
+  z-index: 2;
+}
+.ship-room:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #0a1423;
 }
 .ship-room:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-  z-index: 2;
+  outline: 2px dashed #e8d6a4;
+  outline-offset: 5px;
 }
 .ship-room::after {
   content: '';
   position: absolute;
-  width: 24px;
-  height: 3px;
-  background: #758b8b;
-  bottom: -2px;
-  left: calc(50% - 12px);
+  width: 22px;
+  height: 5px;
+  background: #b6aa83;
+  border-inline: 3px solid #5f5a4d;
+  bottom: -6px;
+  left: calc(50% - 11px);
 }
 .ship-room-meta {
   display: flex;
   justify-content: space-between;
-  gap: 4px;
+  align-items: center;
+  gap: 3px;
+  color: #b0c1d1;
   font:
-    8px 'Cascadia Code',
-    Consolas,
+    8px Consolas,
     monospace;
-  letter-spacing: 0.4px;
-  color: #a5b3bb;
+  letter-spacing: 0.3px;
+  min-height: 18px;
 }
-.ship-room-meta > span:last-child {
-  font-size: 14px;
+.room-enter {
+  opacity: 0;
+  color: #f4dba3;
+  font-size: 7px;
 }
-.ship-room-icon {
+.ship-room:hover .room-enter,
+.ship-room:focus-visible .room-enter {
+  opacity: 1;
+}
+.pixel-room-scene {
   display: block;
-  color: #8dd8bc;
-  margin: 13px 0 8px;
-}
-.ship-room-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 100%;
+  height: 112px;
+  flex-shrink: 0;
+  margin: 8px 0 12px;
+  image-rendering: pixelated;
 }
 .ship-room strong {
-  font-size: 14px;
-  font-weight: 500;
+  font:
+    700 13px Consolas,
+    monospace;
+  letter-spacing: -0.3px;
 }
 .ship-room-description {
-  color: #a8b2bd;
+  color: #afc0d1;
   font-size: 11px;
   line-height: 1.5;
-  margin-top: 5px;
+  margin-top: 6px;
 }
 .ship-room-note {
   margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #39444b;
-  font-size: 10px;
-  color: #e5b66b;
-  line-height: 1.6;
+  padding: 9px 8px;
+  border: 1px dashed #9a815c;
+  background: #2a2a2d;
+  color: #f0cc95;
+  font:
+    10px/1.5 Consolas,
+    monospace;
 }
 .ship-room-engineering {
   grid-column: 1;
   grid-row: 1 / 4;
   justify-content: center;
-  border-top: 2px solid #b69c75;
+  --room-tint: #e3bd7d;
+  border-top-color: #b3986c;
 }
-.ship-room-engineering .ship-room-meta {
+.ship-room-engineering .ship-room-meta,
+.ship-room-bridge .ship-room-meta {
   position: absolute;
-  top: 15px;
-  left: 15px;
-  right: 15px;
+  top: 14px;
+  left: 12px;
+  right: 12px;
 }
-.ship-room-engineering .ship-room-icon {
-  color: #e5b66b;
+.ship-room-engineering .pixel-room-scene {
+  height: 180px;
 }
 .ship-room-agents {
   grid-column: 2;
   grid-row: 1;
+  --room-tint: #a2bddc;
 }
 .ship-room-mcp {
   grid-column: 3;
   grid-row: 1;
+  --room-tint: #9ed0c0;
 }
 .ship-room-settings {
   grid-column: 2;
   grid-row: 3;
+  --room-tint: #bdadd4;
 }
 .ship-room-devices {
   grid-column: 3;
   grid-row: 3;
+  --room-tint: #b8c995;
 }
 .ship-room-settings::after,
 .ship-room-devices::after {
-  top: -2px;
+  top: -6px;
   bottom: auto;
 }
 .ship-room-bridge {
   grid-column: 4;
   grid-row: 1 / 4;
   justify-content: center;
-  background: #1b2c2c;
-  border-color: #52756b;
-  border-radius: 4px 38px 38px 4px;
+  --room-tint: #a3d0b4;
+  background: #1c333c;
+  border-color: #638e8d;
 }
-.ship-room-bridge .ship-room-meta {
-  position: absolute;
-  top: 28px;
-  left: 15px;
-  right: 20px;
+.ship-room-bridge .pixel-room-scene {
+  height: 180px;
 }
 .ship-room-bridge::after {
-  top: calc(50% - 12px);
-  left: -2px;
-  width: 3px;
-  height: 24px;
+  top: calc(50% - 11px);
+  left: -6px;
+  height: 22px;
+  width: 5px;
+  border-inline: 0;
+  border-block: 3px solid #5f5a4d;
 }
 .ship-corridor {
   grid-column: 2 / 4;
@@ -899,46 +1003,55 @@ summary {
   display: flex;
   gap: 8px;
   align-items: center;
-  color: #7e9398;
+  justify-content: center;
+  color: #a4b5c9;
   font:
-    8px 'Cascadia Code',
-    Consolas,
+    8px Consolas,
     monospace;
   letter-spacing: 1px;
   text-align: center;
+  background: repeating-linear-gradient(90deg, transparent 0 13px, #34485b 13px 14px);
 }
 .ship-corridor > span:first-child,
 .ship-corridor > span:last-child {
   flex: 1;
-  height: 1px;
-  background: #46575b;
+  height: 3px;
+  background: #597281;
+}
+.corridor-node {
+  width: 5px;
+  height: 5px;
+  background: #93aca9;
+  box-shadow: 2px 2px 0 #0e1e2e;
 }
 .ship-thrusters {
   position: absolute;
-  left: 18px;
-  top: 30%;
-  bottom: 30%;
+  left: 16px;
+  top: 28%;
+  bottom: 28%;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 .ship-thrusters i {
-  width: 12px;
-  height: 32px;
-  background: repeating-linear-gradient(0deg, #37464b 0 2px, #10161b 2px 6px);
-  border: 1px solid #46575b;
+  width: 18px;
+  height: 42px;
+  background: repeating-linear-gradient(0deg, #718b9e 0 3px, #213045 3px 7px);
+  border: 3px solid #455a70;
+  box-shadow:
+    -5px 0 0 #1f3048,
+    -9px 0 0 #102037;
 }
 .ship-orientation {
   position: absolute;
   bottom: 12px;
-  left: 62px;
-  right: 44px;
+  left: 66px;
+  right: 48px;
   display: flex;
   justify-content: space-between;
-  color: #819098;
+  color: #8fa4c0;
   font:
-    8px 'Cascadia Code',
-    Consolas,
+    8px Consolas,
     monospace;
   letter-spacing: 2px;
 }
@@ -946,20 +1059,28 @@ summary {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 26px;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 11px;
+  padding: 16px 28px;
+  color: #96abc3;
+  font:
+    10px Consolas,
+    monospace;
+}
+.ship-prompt {
+  color: #e3d4af;
+}
+.ship-prompt > span {
+  color: #a3d0b4;
 }
 #overview-panels {
   scroll-margin-top: 24px;
 }
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
   .ship-chart {
-    padding: 45px 24px 50px 40px;
+    padding: 48px 26px 52px 44px;
   }
   .ship-deck {
-    gap: 8px;
+    gap: 10px;
+    grid-template-rows: 236px 54px 236px;
   }
   .ship-room {
     padding: 10px;
@@ -967,31 +1088,30 @@ summary {
   .ship-room-meta {
     font-size: 7px;
   }
+  .room-enter {
+    display: none;
+  }
   .ship-room strong {
     font-size: 12px;
   }
   .ship-room-description {
-    font-size: 10px;
+    font-size: 11px;
   }
   .ship-legend {
     flex-direction: column;
   }
-}
-@media (max-width: 760px) {
-  .ship-heading {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 20px;
-  }
-  .ship-manifest {
-    margin: 0 20px;
-    flex-wrap: wrap;
-  }
   .ship-manifest > span:last-child {
     display: none;
   }
+}
+@media (max-width: 900px) {
+  .ship-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 22px;
+  }
   .ship-chart {
-    padding: 28px 20px;
+    padding: 26px 20px;
   }
   .ship-hull,
   .ship-thrusters,
@@ -1002,35 +1122,108 @@ summary {
   .ship-deck {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: none;
-    gap: 12px;
+    gap: 16px;
   }
   .ship-room {
     grid-column: auto;
     grid-row: auto;
-    min-height: 180px;
+    min-height: 250px;
     padding: 14px;
-    border-radius: 4px;
     justify-content: flex-start;
   }
   .ship-room .ship-room-meta {
     position: static;
     font-size: 8px;
   }
-  .ship-room strong {
-    font-size: 14px;
-  }
-  .ship-room-description {
-    font-size: 12px;
+  .ship-room .pixel-room-scene {
+    height: 126px;
   }
   .ship-room::after {
     display: none;
   }
   .ship-room-note {
-    margin-top: auto;
+    margin-top: 12px;
+  }
+  .ship-manifest {
+    margin: 0 22px;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 420px) {
+  .ship-chart {
+    padding: 20px 12px;
+  }
+  .ship-deck {
+    gap: 10px;
+  }
+  .ship-room {
+    padding: 8px;
+  }
+  .ship-room-meta {
+    letter-spacing: 0;
+  }
+  .ship-heading h2 {
+    width: 100%;
+  }
+  .ship-room .pixel-room-scene {
+    height: 95px;
+  }
+  .ship-legend {
+    padding: 16px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .ship-room {
     transition: none;
   }
+  .ship-room:hover,
+  .ship-room:focus-visible {
+    transform: none;
+  }
+}
+/* Quiet retro treatment extends to the functional shell, without pixelating data. */
+.retro-shell .sidebar {
+  background: #101a29;
+  border-right: 2px solid #304158;
+}
+.retro-shell .brand-mark {
+  border: 2px solid #607e87;
+  border-radius: 0;
+  background: #192d3c;
+  box-shadow: 3px 3px 0 #080f1a;
+  font-family: Consolas, monospace;
+}
+.retro-shell .topbar {
+  background: #101927;
+  border-bottom: 1px solid #304158;
+  font:
+    12px Consolas,
+    monospace;
+}
+.retro-shell .nav-item {
+  border-radius: 0;
+  font:
+    12px Consolas,
+    monospace;
+}
+.retro-shell .nav-item.active {
+  box-shadow: inset 3px 0 0 #a4d4b4;
+  background: #20363c;
+}
+.retro-shell .page-heading h1 {
+  font-family: Consolas, monospace;
+  font-weight: 600;
+  letter-spacing: -1.5px;
+}
+.retro-shell .project-picker select {
+  border-radius: 0;
+  background: #121e2d;
+}
+.retro-shell .button {
+  border-radius: 0;
+  box-shadow: 2px 2px 0 #050a11;
+}
+.retro-shell .badge {
+  border-radius: 0;
+  font-family: Consolas, monospace;
 }

@@ -148,6 +148,12 @@ describe('desktop user journeys', () => {
   it('opens real workspaces from ship compartments and keeps navigation usable offline', async () => {
     await render();
     expect(host.querySelector('nav[aria-label="Ship compartments"]')).not.toBeNull();
+    expect(host.querySelector('#ship-title')?.textContent).toBe('Mission control');
+    expect(host.querySelectorAll('.pixel-room-scene[aria-hidden="true"]')).toHaveLength(6);
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('button[aria-label="Open Engineering bay"]')!.focus(),
+    );
+    expect(host.querySelector('.ship-prompt')?.textContent).toContain('Enter Engineering bay');
     expect(host.textContent).toContain('Engine connected');
     for (const [room, screen] of [
       ['Crew quarters', 'Agent Workspace'],

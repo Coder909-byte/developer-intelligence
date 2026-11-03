@@ -566,7 +566,7 @@ export function App() {
   }
   return (
     <ConnectionReporter.Provider value={setReachable}>
-      <div className="app-shell">
+      <div className="app-shell retro-shell">
         <aside className="sidebar">
           <div className="brand">
             <span className="brand-mark">di</span>
