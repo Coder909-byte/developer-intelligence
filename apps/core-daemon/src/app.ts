@@ -153,6 +153,7 @@ export function buildApp(options: AppOptions) {
       ]);
     }
   }
+  const integrations = options.integrations?.(store) ?? {};
   const idFrom = (params: unknown) => z.object({ id: IdSchema }).parse(params).id;
   app.get(`${API_PREFIX}/health`, async (request) =>
     success(
@@ -164,8 +165,8 @@ export function buildApp(options: AppOptions) {
         capabilities: {
           projects: true,
           context: Boolean(integrations.context),
-          mcp: false,
-          engineering: false,
+          mcp: Boolean(integrations.mcp),
+          engineering: Boolean(integrations.engineering),
         },
       }),
       request.id,
@@ -216,7 +217,6 @@ export function buildApp(options: AppOptions) {
           meta: meta(request.id),
         });
   });
-  const integrations = options.integrations?.(store) ?? {};
   registerPlatformRoutes(app, store, integrations);
   return app;
 }

@@ -4,6 +4,7 @@ import { resolve, join } from 'node:path';
 import { z } from 'zod';
 import { fileURLToPath } from 'node:url';
 import { buildApp } from './app.js';
+import { createDefaultIntegrations } from './integrations.js';
 const port = z.coerce
   .number()
   .int()
@@ -34,7 +35,15 @@ if (!token) {
   }
   await chmod(tokenPath, 0o600);
 }
-const app = buildApp({ databasePath: join(dataDir, 'platform.sqlite'), token });
+const integrations =
+  process.env.UDI_INTEGRATIONS === 'true' || process.env.UDI_ENABLE_INTEGRATIONS === '1'
+    ? createDefaultIntegrations
+    : undefined;
+const app = buildApp({
+  databasePath: join(dataDir, 'platform.sqlite'),
+  token,
+  ...(integrations ? { integrations } : {}),
+});
 for (const signal of ['SIGINT', 'SIGTERM'] as const)
   process.once(signal, () => {
     void app.close().catch(() => {
