@@ -16,9 +16,11 @@
     "@udi/ui": "workspace:*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "@tauri-apps/api": "^2.0.0"
+    "@tauri-apps/api": "^2.0.0",
+    "@udi/contracts": "workspace:*"
   },
   "devDependencies": {
+    "happy-dom": "^21.0.4",
     "vite": "8.3.5",
     "tailwindcss": "^4.1.0",
     "@tailwindcss/vite": "^4.1.0",
