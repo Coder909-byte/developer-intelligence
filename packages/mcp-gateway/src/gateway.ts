@@ -46,6 +46,9 @@ export const READ_TOOL_NAMES = [
   'list_project_events',
   'get_validation_results',
   'list_available_tools',
+  'save_context_snapshot',
+  'load_context_snapshot',
+  'run_engineering_validation',
 ] as const;
 
 export class DefaultMcpGateway implements McpGateway {
@@ -354,6 +357,73 @@ export class DefaultMcpGateway implements McpGateway {
           const msg = err instanceof Error ? err.message : String(err);
           return {
             content: [{ type: 'text', text: `Error retrieving platform tools: ${msg}` }],
+          };
+        }
+      },
+    );
+
+    // 6. save_context_snapshot
+    this.registerTool(
+      'save_context_snapshot',
+      {
+        description:
+          'Saves current session ground truth and invariants into a named checkpoint for cross-harness recall.',
+        inputSchema: {
+          name: z.string().min(1).max(120),
+          description: z.string().max(2000).optional(),
+          projectId: z.string().uuid().optional(),
+        },
+      },
+      async ({ name, description, projectId }) => {
+        const targetProjectId = projectId ?? this.defaultProjectId;
+        try {
+          const snapshot = await this.client.createSnapshot(targetProjectId, {
+            name,
+            description: description ?? '',
+          });
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Checkpoint "${name}" saved successfully (ID: ${snapshot.id}, ${snapshot.recordCount} facts bundled). Inject into any agent via x-context-snapshot: "${name}".`,
+              },
+              { type: 'text', text: JSON.stringify(snapshot, null, 2) },
+            ],
+          };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            content: [{ type: 'text', text: `Error saving context checkpoint: ${msg}` }],
+          };
+        }
+      },
+    );
+
+    // 7. load_context_snapshot
+    this.registerTool(
+      'load_context_snapshot',
+      {
+        description:
+          'Loads a named context checkpoint and returns its rich prompt injection block for immediate ground truth recall.',
+        inputSchema: {
+          nameOrId: z.string().min(1),
+          projectId: z.string().uuid().optional(),
+        },
+      },
+      async ({ nameOrId, projectId }) => {
+        const targetProjectId = projectId ?? this.defaultProjectId;
+        try {
+          const snapshot = await this.client.getSnapshot(targetProjectId, nameOrId);
+          return {
+            content: [
+              { type: 'text', text: snapshot.injectedPromptBlock },
+              { type: 'text', text: JSON.stringify(snapshot, null, 2) },
+            ],
+          };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            content: [{ type: 'text', text: `Error loading context checkpoint: ${msg}` }],
           };
         }
       },

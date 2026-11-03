@@ -463,6 +463,90 @@ export const McpToolCallResponseSchema = z.strictObject({
 });
 export type McpToolCallResponse = z.infer<typeof McpToolCallResponseSchema>;
 
+// Classifier & Proxy Schemas (Round 2 Backend 1)
+export const ClassifierCategorySchema = z.enum([
+  'HARDWARE_SPEC',
+  'ARCHITECTURAL_DECISION',
+  'VALIDATED_OUTCOME',
+  'EPHEMERAL_NOISE',
+]);
+export type ClassifierCategory = z.infer<typeof ClassifierCategorySchema>;
+
+export const LayaClassificationResultSchema = z.strictObject({
+  id: IdSchema,
+  projectId: IdSchema,
+  timestamp: TimestampSchema,
+  rawLengthChars: z.number().int().nonnegative(),
+  signalScore: z.number().min(0).max(1),
+  category: ClassifierCategorySchema,
+  decision: z.enum(['preserve', 'discard']),
+  distilledFact: z.string().optional(),
+  sourceActor: z.string(),
+  sourceType: z.enum(['user_message', 'assistant_thought', 'tool_output', 'system_message']),
+});
+export type LayaClassificationResult = z.infer<typeof LayaClassificationResultSchema>;
+
+export const LayaClassificationListSchema = z.strictObject({
+  items: z.array(LayaClassificationResultSchema),
+});
+export type LayaClassificationList = z.infer<typeof LayaClassificationListSchema>;
+
+export const CompressionMetricsSchema = z.strictObject({
+  projectId: IdSchema,
+  totalRawTokens: z.number().int().nonnegative(),
+  totalCompressedTokens: z.number().int().nonnegative(),
+  compressionRatio: z.number().min(0).max(1),
+  preservedFactsCount: z.number().int().nonnegative(),
+  prunedNoiseCount: z.number().int().nonnegative(),
+  lastInjectedAt: TimestampSchema.optional(),
+});
+export type CompressionMetrics = z.infer<typeof CompressionMetricsSchema>;
+
+export const ChatCompletionMessageSchema = z.strictObject({
+  role: z.enum(['system', 'user', 'assistant', 'tool']),
+  content: z.string().nullable().optional(),
+  name: z.string().optional(),
+  tool_call_id: z.string().optional(),
+  tool_calls: z.array(z.record(z.string(), JsonValueSchema)).optional(),
+});
+export type ChatCompletionMessage = z.infer<typeof ChatCompletionMessageSchema>;
+
+export const ChatCompletionRequestSchema = z.object({
+  model: z.string().default('default'),
+  messages: z.array(ChatCompletionMessageSchema),
+  temperature: z.number().optional(),
+  stream: z.boolean().optional().default(false),
+  projectId: IdSchema.optional(),
+});
+export type ChatCompletionRequest = z.infer<typeof ChatCompletionRequestSchema>;
+
+export const ChatCompletionResponseSchema = z.strictObject({
+  id: z.string(),
+  object: z.literal('chat.completion'),
+  created: z.number().int().positive(),
+  model: z.string(),
+  choices: z.array(
+    z.strictObject({
+      index: z.number().int().nonnegative(),
+      message: ChatCompletionMessageSchema,
+      finish_reason: z.string(),
+    }),
+  ),
+  usage: z.strictObject({
+    prompt_tokens: z.number().int().nonnegative(),
+    completion_tokens: z.number().int().nonnegative(),
+    total_tokens: z.number().int().nonnegative(),
+  }),
+  injectedContext: z
+    .strictObject({
+      tokensSaved: z.number().int().nonnegative(),
+      compressionRatio: z.number().min(0).max(1),
+      preservedFactsCount: z.number().int().nonnegative(),
+    })
+    .optional(),
+});
+export type ChatCompletionResponse = z.infer<typeof ChatCompletionResponseSchema>;
+
 // Backend Spec 2: additive compression, category and host-bridge contracts.
 export const ToolCategorySchema = z.enum([
   'hardware_validation',
@@ -471,6 +555,7 @@ export const ToolCategorySchema = z.enum([
   'external_servers',
 ]);
 export type ToolCategory = z.infer<typeof ToolCategorySchema>;
+
 export const ToolCategoryConfigSchema = z.strictObject({
   category: ToolCategorySchema,
   enabled: z.boolean(),
@@ -479,17 +564,20 @@ export const ToolCategoryConfigSchema = z.strictObject({
   toolCount: z.number().int().nonnegative(),
 });
 export type ToolCategoryConfig = z.infer<typeof ToolCategoryConfigSchema>;
+
 export const ToolCategoryListSchema = z.strictObject({
   projectId: IdSchema,
   categories: z.array(ToolCategoryConfigSchema),
 });
 export type ToolCategoryList = z.infer<typeof ToolCategoryListSchema>;
+
 export const ToggleCategoryRequestSchema = z.strictObject({
   projectId: IdSchema,
   category: ToolCategorySchema,
   enabled: z.boolean(),
 });
 export type ToggleCategoryRequest = z.infer<typeof ToggleCategoryRequestSchema>;
+
 export const CompressedContextResultSchema = z.strictObject({
   projectId: IdSchema,
   mode: z.enum(['deterministic_delta', 'ai_distillation']),
@@ -502,9 +590,11 @@ export const CompressedContextResultSchema = z.strictObject({
   generatedAt: TimestampSchema,
 });
 export type CompressedContextResult = z.infer<typeof CompressedContextResultSchema>;
+
 export const CompressionQuerySchema = z.strictObject({
   mode: CompressedContextResultSchema.shape.mode.default('deterministic_delta'),
 });
+
 export const BridgedExtensionToolSchema = z.strictObject({
   projectId: IdSchema,
   hostId: IdSchema,
@@ -513,17 +603,21 @@ export const BridgedExtensionToolSchema = z.strictObject({
   commandIds: z.array(z.string().min(1).max(200)).max(100).default([]),
 });
 export type BridgedExtensionTool = z.infer<typeof BridgedExtensionToolSchema>;
+
 export const BridgedExtensionToolListSchema = z.strictObject({
   items: z.array(BridgedExtensionToolSchema),
 });
+
 export const BridgeCallSchema = z.strictObject({
   name: BridgedExtensionToolSchema.shape.name,
   arguments: z.record(z.string(), JsonValueSchema).default({}),
 });
+
 export const BridgeResultSchema = z.strictObject({
   isError: z.boolean(),
   content: JsonValueSchema,
 });
+
 export const BridgeInvocationSchema = z.strictObject({
   id: IdSchema,
   projectId: IdSchema,
@@ -545,6 +639,7 @@ export const NativeContextEntrySchema = z.strictObject({
   truncated: z.boolean(),
 });
 export type NativeContextEntry = z.infer<typeof NativeContextEntrySchema>;
+
 export const CodexClaudeHandoffSchema = z.strictObject({
   projectId: IdSchema,
   projectName: z.string(),
@@ -567,3 +662,82 @@ export const CodexClaudeHandoffSchema = z.strictObject({
   nativeClaudeSessionVerified: z.literal(false),
 });
 export type CodexClaudeHandoff = z.infer<typeof CodexClaudeHandoffSchema>;
+
+// Named Context Saves (Session Checkpoints / Snapshots for Cross-Harness Injection)
+export const ContextSnapshotSchema = z.strictObject({
+  id: IdSchema,
+  projectId: IdSchema,
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(2000).default(''),
+  createdAt: TimestampSchema,
+  recordCount: z.number().int().nonnegative(),
+  activeInvariants: z.array(z.string()),
+  injectedPromptBlock: z.string(),
+  metadata: z.record(z.string(), JsonValueSchema).optional(),
+});
+export type ContextSnapshot = z.infer<typeof ContextSnapshotSchema>;
+
+export const ContextSnapshotCreateSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(2000).optional().default(''),
+  metadata: z.record(z.string(), JsonValueSchema).optional(),
+});
+export type ContextSnapshotCreate = z.infer<typeof ContextSnapshotCreateSchema>;
+
+export const ContextSnapshotListSchema = z.strictObject({
+  items: z.array(ContextSnapshotSchema),
+});
+export type ContextSnapshotList = z.infer<typeof ContextSnapshotListSchema>;
+
+// Anthropic Messages API Schemas (for Claude Code CLI & Claude VS Code Extension)
+export const AnthropicMessageContentItemSchema = z.union([
+  z.string(),
+  z.strictObject({
+    type: z.literal('text'),
+    text: z.string(),
+  }),
+  z.record(z.string(), JsonValueSchema),
+]);
+
+export const AnthropicMessageSchema = z.strictObject({
+  role: z.enum(['user', 'assistant']),
+  content: z.union([z.string(), z.array(AnthropicMessageContentItemSchema)]),
+});
+export type AnthropicMessage = z.infer<typeof AnthropicMessageSchema>;
+
+export const AnthropicChatRequestSchema = z.object({
+  model: z.string().default('claude-3-5-sonnet-20241022'),
+  messages: z.array(AnthropicMessageSchema),
+  max_tokens: z.number().int().positive().optional().default(1024),
+  system: z.string().optional(),
+  stream: z.boolean().optional().default(false),
+  temperature: z.number().optional(),
+  projectId: IdSchema.optional(),
+});
+export type AnthropicChatRequest = z.infer<typeof AnthropicChatRequestSchema>;
+
+export const AnthropicChatResponseSchema = z.strictObject({
+  id: z.string(),
+  type: z.literal('message'),
+  role: z.literal('assistant'),
+  content: z.array(
+    z.strictObject({
+      type: z.literal('text'),
+      text: z.string(),
+    }),
+  ),
+  model: z.string(),
+  stop_reason: z.string().nullable().default('end_turn'),
+  usage: z.strictObject({
+    input_tokens: z.number().int().nonnegative(),
+    output_tokens: z.number().int().nonnegative(),
+  }),
+  injectedContext: z
+    .strictObject({
+      tokensSaved: z.number().int().nonnegative(),
+      compressionRatio: z.number().min(0).max(1),
+      preservedFactsCount: z.number().int().nonnegative(),
+    })
+    .optional(),
+});
+export type AnthropicChatResponse = z.infer<typeof AnthropicChatResponseSchema>;

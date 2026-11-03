@@ -7,6 +7,8 @@ export const TOOL_CATEGORIES: Record<string, ToolCategory> = {
   record_decision: 'context_memory',
   list_project_events: 'context_memory',
   list_available_tools: 'context_memory',
+  save_context_snapshot: 'context_memory',
+  load_context_snapshot: 'context_memory',
   vscode_execute_command: 'ide_extension_bridge',
   vscode_list_diagnostics: 'ide_extension_bridge',
 };

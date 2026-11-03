@@ -1,0 +1,22 @@
+{
+  "continue.models": [
+    {
+      "name": "UDI Proxy (Ground Truth)",
+      "provider": "openai",
+      "model": "default",
+      "apiBase": "http://127.0.0.1:4317/v1",
+      "apiKey": "0d69ec006f93fa45e9db8434680dc322b254d672f01fd4fcabacb2ea83336367",
+      "requestOptions": {
+        "headers": {
+          "x-project-id": "f21d195d-6900-4fd9-b240-d9ac168f120d"
+        }
+      }
+    }
+  ],
+  "cline.apiProvider": "openai-compatible",
+  "cline.openAiBaseUrl": "http://127.0.0.1:4317/v1",
+  "cline.openAiApiKey": "0d69ec006f93fa45e9db8434680dc322b254d672f01fd4fcabacb2ea83336367",
+  "cline.openAiCustomHeaders": {
+    "x-project-id": "f21d195d-6900-4fd9-b240-d9ac168f120d"
+  }
+}

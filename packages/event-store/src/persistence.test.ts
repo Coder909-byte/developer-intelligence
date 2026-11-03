@@ -265,7 +265,7 @@ describe('forward-only migrations', () => {
             .prepare('SELECT version FROM schema_migrations ORDER BY version')
             .all()
             .map((r) => r.version),
-        ).toEqual([1, 2]);
+        ).toEqual([1, 2, 3, 4]);
         expect(
           migrated.prepare('SELECT applied_at FROM schema_migrations WHERE version=1').get()
             ?.applied_at,
@@ -277,7 +277,7 @@ describe('forward-only migrations', () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
-  it.each([[1, 2, 3], [2]])(
+  it.each([[1, 2, 3, 4, 5], [2]])(
     'refuses newer or noncontiguous migration history %j without altering it',
     async (...versions) => {
       const directory = await mkdtemp(join(tmpdir(), 'udi-newer-'));
@@ -307,4 +307,51 @@ describe('forward-only migrations', () => {
       }
     },
   );
+  it('persists and retrieves classification results and compression metrics', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'udi-class-'));
+    const filename = join(directory, 'app.sqlite');
+    const store = openDatabase(filename);
+    try {
+      const project = await store.projects.create({
+        name: 'Rover AI',
+        rootPath: '/work/rover',
+      });
+      const classId = 'c0000000-0000-4000-8000-000000000001';
+      await store.classification.record({
+        id: classId,
+        projectId: project.id,
+        timestamp: new Date().toISOString(),
+        rawLengthChars: 120,
+        signalScore: 0.95,
+        category: 'HARDWARE_SPEC',
+        decision: 'preserve',
+        distilledFact: 'MOTOR_EN mapped to GPIO14',
+        sourceActor: 'engineering-core',
+        sourceType: 'tool_output',
+      });
+
+      const listed = await store.classification.list(project.id);
+      expect(listed).toHaveLength(1);
+      expect(listed[0]?.category).toBe('HARDWARE_SPEC');
+      expect(listed[0]?.signalScore).toBe(0.95);
+
+      await store.metrics.record({
+        projectId: project.id,
+        totalRawTokens: 5000,
+        totalCompressedTokens: 200,
+        compressionRatio: 0.96,
+        preservedFactsCount: 4,
+        prunedNoiseCount: 40,
+        lastInjectedAt: new Date().toISOString(),
+      });
+
+      const metrics = await store.metrics.get(project.id);
+      expect(metrics).toBeDefined();
+      expect(metrics?.totalRawTokens).toBe(5000);
+      expect(metrics?.compressionRatio).toBe(0.96);
+    } finally {
+      store.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
 });

@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "developer-intelligence": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/home/fev/GitRepos/developer-intelligence/packages/mcp-gateway/dist/cli.js"],
+      "env": {
+        "UDI_PROJECT_ID": "f21d195d-6900-4fd9-b240-d9ac168f120d",
+        "UDI_TOKEN": "0d69ec006f93fa45e9db8434680dc322b254d672f01fd4fcabacb2ea83336367",
+        "UDI_DAEMON_URL": "http://127.0.0.1:4317"
+      }
+    }
+  }
+}
