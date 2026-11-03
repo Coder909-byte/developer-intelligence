@@ -379,12 +379,11 @@ describe('Host compatibility adapters', () => {
 
   it('generates valid OpenCode config', () => {
     const config = generateHostConfig('opencode', servers) as {
-      mcp: { servers: Record<string, { type: string; command: string }> };
+      mcp: { servers: Record<string, { type: string; command: string[] }> };
     };
     expect(config.mcp.servers['rover-mcp']).toEqual({
-      type: 'stdio',
-      command: 'node',
-      args: ['dist/mcp-server.js'],
+      type: 'local',
+      command: ['node', 'dist/mcp-server.js'],
     });
   });
 

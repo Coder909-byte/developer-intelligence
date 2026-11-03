@@ -23,7 +23,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "doctor": "node scripts/doctor.mjs",
-    "smoke": "pnpm build && node scripts/smoke.mjs"
+    "smoke": "pnpm build && node scripts/smoke.mjs",
+    "test:mcp": "pnpm build && node scripts/verify-mcp-interop.mjs"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
