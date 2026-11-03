@@ -29,7 +29,7 @@ const inputReady = (title) =>
     title,
   );
 async function dismissCompletion() {
-  // The shipped extension awaits dismissal before its refresh; preserve its UI.
+  // Close presentation notifications after independently observing live refresh.
   await ui.command('Notifications: Clear All Notifications');
 }
 async function snapshot(name) {
@@ -93,6 +93,9 @@ try {
     assert.equal(job.status, status);
     assert.equal(job.exitCode, status === 'failed' ? 1 : 0);
     await ui.waitText(`Validation job recorded: ${job.id}`);
+    // Main's native completion-event polling must update the selected job even
+    // while the completed-job notification remains open.
+    await ui.waitText(`selected job ${job.id}`);
     await dismissCompletion();
     await ui.waitText(`selected job ${job.id}`);
     return job;
@@ -109,20 +112,19 @@ try {
   await snapshot('mismatch');
   await ui.command('Developer Intelligence: Review Engineering Findings');
   await ui.waitFor(
-    `document.querySelector('.quick-input-widget input')?.placeholder.includes('Inspect finding')`,
+    `document.querySelector('.quick-input-widget input:focus')?.placeholder.includes('Inspect finding') && Array.from(document.querySelectorAll('.quick-input-list .monaco-list-row')).some(e=>e.offsetParent!==null && e.innerText.includes('MOTOR_EN'))`,
     'finding picker',
   );
-  await ui.key('Enter');
+  await ui.evaluate(
+    `Array.from(document.querySelectorAll('.quick-input-list .monaco-list-row')).find(e=>e.offsetParent!==null && e.innerText.includes('MOTOR_EN')).click()`,
+  );
   await ui.waitFor(
-    `document.querySelector('.quick-input-widget input')?.placeholder.includes('Open source')`,
+    `document.querySelector('.quick-input-widget input:focus')?.placeholder.includes('Open source') && Array.from(document.querySelectorAll('.quick-input-list .monaco-list-row')).some(e=>e.offsetParent!==null && e.innerText.startsWith('src/pins.h'))`,
     'source evidence picker',
   );
-  await ui.insertText('src/pins.h');
-  await ui.waitFor(
-    `document.querySelector('.quick-input-list')?.innerText.includes('src/pins.h')`,
-    'firmware source evidence',
+  await ui.evaluate(
+    `Array.from(document.querySelectorAll('.quick-input-list .monaco-list-row')).find(e=>e.offsetParent!==null && e.innerText.startsWith('src/pins.h')).click()`,
   );
-  await ui.key('Enter');
   await ui.waitFor(
     `Array.from(document.querySelectorAll('.tab.active .label-name')).some(e=>e.textContent==='pins.h')`,
     'active firmware source editor',

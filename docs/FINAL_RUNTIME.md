@@ -1,6 +1,6 @@
 # Final Mac runtime and VSIX demonstration
 
-Verified 3 November 2026 on macOS, VS Code 1.143.0 (x64), Node 24.14.1 and pnpm 11.10.0. Branch feat/final-runtime started at merged main b798354, then synchronized with main b0bb76c after the approved safe-correction merge. The workspace was clean; no previous changes were discarded, no teammate branch was merged, and main was not modified. This report supersedes the older GUI-unverified notes in RUNTIME_DEMO and the historical readiness audit.
+Verified 3 November 2026 on macOS, VS Code 1.143.0 (x64), Node 24.14.1 and pnpm 11.10.0. Branch feat/final-runtime started at merged main b798354, then synchronized with approved main merges b0bb76c (correction) and 5c2a68d (frontend/reliability). The workspace was clean; no previous changes were discarded, no teammate branch was merged, and main was not modified. This report supersedes the older GUI-unverified notes in RUNTIME_DEMO and the historical readiness audit.
 
 ## Actual results
 
@@ -19,8 +19,8 @@ Captured strict GUI replay (IDs change on subsequent runs):
 
 | Runtime          | Failed job                           | Corrected job                        | Handoff                              |
 | ---------------- | ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| Development Host | 7431a3e6-9bba-48f7-92d2-eca9c8a8d099 | 109bfaf1-1e67-469c-a76a-88c40069921d | ae205b45-2263-41a5-93a0-247376d7182a |
-| Installed VSIX   | 090d823b-3d37-441f-b196-58e6291c0ed5 | ec4d4b21-70c5-4a27-8ca7-7872efce89af | 43b46b9d-551d-4c2a-b21f-98e7ed81ff42 |
+| Development Host | ac5e9f4f-6f0f-4b16-93fc-748906fcad89 | 8b9cce1f-f86b-4eca-9bff-157fc6b0a58e | b269b3de-6b7b-447d-9994-15ddefa3d6a0 |
+| Installed VSIX   | 393492ad-bc20-4f8b-a9ab-4a4b1f093a11 | 81d28e3b-a2ec-41e3-ba27-22c0db6b324d | d12a31f8-cdbf-41b9-864c-f1903a8be306 |
 
 Screenshots, actual rendered UI text and JSON results are local ignored artifacts in .data/final-runtime/evidence. Files are prefixed 9334 for development and 9335 for installed VSIX: commands, mismatch, source-evidence, corrected, handoff and result.json. desktop-shared-context and shared-state-result document browser/MCP agreement. These artifacts contain demo project data and are deliberately not committed. Tokens are never printed or included in screenshots.
 
@@ -43,7 +43,7 @@ pnpm format:check
 pnpm doctor
 ```
 
-Typecheck, lint, formatting, portable builds, smoke and both test runs passed: 147 tests in 21 files each run on the combined main snapshot. pnpm demo aliases demo:verify: it runs the real-process backend/validator/SQLite-restart/MCP test; it does not launch a graphical editor. test:mcp also passed on this Mac. OpenCode is unavailable and its optional host check is explicitly SKIP. Integration scripts now report the actual platform/reference client, use bounded requests, and do not claim source edits or impersonate OpenCode. demo-e2e uses Developer 2's merged CLI rather than the earlier thin process launcher.
+Typecheck, lint, formatting, portable builds, smoke and both test runs passed: 156 tests in 23 files each run on the final combined main snapshot. pnpm demo aliases demo:verify: it runs the real-process backend/validator/SQLite-restart/MCP test; it does not launch a graphical editor. test:mcp also passed on this Mac. OpenCode is unavailable and its optional host check is explicitly SKIP. Integration scripts now report the actual platform/reference client, use bounded requests, and do not claim source edits or impersonate OpenCode. demo-e2e uses Developer 2's merged CLI rather than the earlier thin process launcher.
 
 ## Live launch: daemon and dashboard
 
@@ -119,7 +119,7 @@ This separate-profile installed-copy test passed the full workflow, including ac
 ## Five-minute operator script
 
 1. In the real VS Code palette, run Developer Intelligence: Set Daemon Token; enter the local token without showing it on a recording. Run Register Workspace if needed, select rover, enter a project name and approve Register. Otherwise Select Project and choose the matching rover root.
-2. Run Validate Engineering Project. Enter `rover.net; src/pins.h; engineering-map.json`. Review the request and click Run validation. Dismiss the completed-job notification using its close control or Notifications: Clear All Notifications; the current extension awaits dismissal before refreshing. Open Problems: show GPIO14 versus GPIO26 at netlist line 28 and header line 7. Review Engineering Findings → choose finding → choose src/pins.h; it opens the actual source at line 7.
+2. Run Validate Engineering Project. Enter `rover.net; src/pins.h; engineering-map.json`. Review the request and click Run validation. The merged native completion poll refreshes the selected job within its five-second interval even while the notification is open. Close the notification if it obscures the presentation. Open Problems: show GPIO14 versus GPIO26 at netlist line 28 and header line 7. Review Engineering Findings → choose finding → choose src/pins.h; it opens the actual source at line 7.
 3. Run validation again with `rover.net; src/pins_corrected.h; engineering-map.json`, approve, then dismiss the notification. Show succeeded / exitCode 0 / all three signals match and an empty Problems panel. This uses a pre-existing corrected fixture; it does not apply a source patch.
 4. Record Project Decision, enter a factual decision and approve Save decision; dismiss the notification. Create Saved Handoff, select observed context/decision records, enter the team-agreed external agent UUID, summary and next steps, review and approve Save handoff. Retrieve Latest Handoff and Get Project Context to show stored IDs and provenance. External agent UUIDs are labels, not proof that another agent connected.
 5. Open Desktop Dashboard, authenticate its session, choose the same rover project and open Agent Workspace → Project Memory / Agent Handoffs. Compare job IDs, summary and provenance. In another terminal, run test:demo-state as below to show a genuinely separate MCP process retrieving those exact records.
@@ -160,7 +160,7 @@ Use the newly printed project UUID on a fresh store. The CLI waits for an MCP cl
 
 ## Remaining coordination and prerequisites
 
-- Developer 3: refresh current-job context/diagnostics before awaiting completion notifications, or make those notifications nonblocking. The verified workaround is explicit dismissal. Preserve selected-job scoping, evidence navigation and stored provenance during redesign. No frontend-owned files were edited here.
+- Developer 3’s approved completion polling follows real validation/correction observations every five seconds. The actual GUI check waits for job selection before dismissing the notification. Preserve this scope/provenance behavior. Rollback currently relies on the frontend’s extra real revalidation because the returned rollback job is not persisted; coordinate atomic rollback persistence with Developer 2 before demonstrating that separate flow. No frontend-owned source was edited here.
 - Developer 2: integrate and test the independently owned correction flow separately. The existing MCP CLI consumes --url without applying it; the demonstrated commands use UDI_DAEMON_URL explicitly. OpenCode was not installed and no commercial-agent conversation was exercised.
 - Cargo/rustc, PlatformIO, KiCad CLI and Icarus are absent from PATH. They are unnecessary for the deterministic KiCad-format fixture comparison. Native Tauri packaging, firmware compilation, live KiCad export and hardware actions are not claimed. The bundled fixture's export provenance was not independently re-established on this Mac.
 - The parser's actual software comparison is verified; this does not certify electrical/hardware correctness. MCP inventory transport probes remain distinct from the actual protocol handshake tested here.
