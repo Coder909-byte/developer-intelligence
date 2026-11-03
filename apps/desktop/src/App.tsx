@@ -575,6 +575,22 @@ function RegisterProject({
 }
 export function App() {
   const [screen, setScreen] = useState<Screen>('Overview');
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    if (!fullscreen) return;
+    const exit = (event: KeyboardEvent) => {
+      if (
+        event.key === 'Escape' &&
+        !event.defaultPrevented &&
+        !document.querySelector('dialog[open]')
+      ) {
+        setFullscreen(false);
+        document.getElementById('fullscreen-toggle')?.focus();
+      }
+    };
+    window.addEventListener('keydown', exit);
+    return () => window.removeEventListener('keydown', exit);
+  }, [fullscreen]);
   const [url, setUrl] = useState(import.meta.env.VITE_UDI_URL ?? 'http://127.0.0.1:4317');
   const [token, setToken] = useState('');
   const [draftUrl, setDraftUrl] = useState(url);
@@ -613,73 +629,123 @@ export function App() {
   }
   return (
     <ConnectionReporter.Provider value={setReachable}>
-      <div className="app-shell retro-shell">
-        <aside className="sidebar">
-          <div className="brand">
-            <span className="brand-mark">di</span>
-            <div>
-              Developer<span>Intelligence</span>
+      <div
+        className={`app-shell retro-shell ${fullscreen ? 'app-fullscreen' : ''}`}
+        data-screen={screen}
+      >
+        {!fullscreen && (
+          <aside className="sidebar">
+            <div className="brand">
+              <span className="brand-mark">di</span>
+              <div>
+                Developer<span>Intelligence</span>
+              </div>
             </div>
-          </div>
-          <label className="project-picker">
-            WORKSPACE
-            <select
-              aria-label="Active project"
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-            >
-              <option value="">Select a project</option>
-              {items.map((p) => (
-                <option value={p.id} key={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <nav aria-label="Primary navigation">
-            {screens.map((s, i) => (
-              <button
-                key={s}
-                className={`nav-item ${screen === s ? 'active' : ''}`}
-                aria-current={screen === s ? 'page' : undefined}
-                aria-label={s}
-                onClick={() => setScreen(s)}
+            <label className="project-picker">
+              WORKSPACE
+              <select
+                aria-label="Active project"
+                value={projectId}
+                onChange={(e) => setProjectId(e.target.value)}
               >
-                <span className="nav-symbol" aria-hidden="true">
-                  <NavigationIcon
-                    name={
-                      (
-                        ['overview', 'agents', 'mcp', 'engineering', 'devices', 'settings'] as const
-                      )[i]!
-                    }
-                  />
-                </span>
-                {s}
-              </button>
-            ))}
-          </nav>
-          <div className="sidebar-footer">
-            <span className={`status-dot ${connected ? 'online' : ''}`} />
-            {health.state.status === 'loading'
-              ? 'Checking engine'
-              : connected
-                ? 'Engine connected'
-                : 'Engine unavailable'}
-            <small>Local-first · Shared project state</small>
-          </div>
-        </aside>
+                <option value="">Select a project</option>
+                {items.map((p) => (
+                  <option value={p.id} key={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <nav aria-label="Primary navigation">
+              {screens.map((s, i) => (
+                <button
+                  key={s}
+                  className={`nav-item ${screen === s ? 'active' : ''}`}
+                  aria-current={screen === s ? 'page' : undefined}
+                  aria-label={s}
+                  onClick={() => setScreen(s)}
+                >
+                  <span className="nav-symbol" aria-hidden="true">
+                    <NavigationIcon
+                      name={
+                        (
+                          [
+                            'overview',
+                            'agents',
+                            'mcp',
+                            'engineering',
+                            'devices',
+                            'settings',
+                          ] as const
+                        )[i]!
+                      }
+                    />
+                  </span>
+                  {s}
+                </button>
+              ))}
+            </nav>
+            <div className="sidebar-footer">
+              <span className={`status-dot ${connected ? 'online' : ''}`} />
+              {health.state.status === 'loading'
+                ? 'Checking engine'
+                : connected
+                  ? 'Engine connected'
+                  : 'Engine unavailable'}
+              <small>Local-first · Shared project state</small>
+            </div>
+          </aside>
+        )}
         <div className="workspace">
           <header className="topbar">
             <span>
               Control center <span className="muted">/ {screen}</span>
             </span>
-            <Badge tone={connected ? 'good' : 'warning'}>
-              {connected
-                ? `Daemon ${health.state.status === 'ready' ? health.state.data.version : ''}`
-                : health.state.status === 'loading'
-                  ? 'Connecting'
-                  : 'Disconnected'}
-            </Badge>
+            <div className="row fullscreen-toolbar">
+              {fullscreen && (
+                <>
+                  <select
+                    aria-label="Workspace section"
+                    value={screen}
+                    onChange={(e) => setScreen(e.target.value as Screen)}
+                  >
+                    {screens.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Active project"
+                    value={projectId}
+                    onChange={(e) => setProjectId(e.target.value)}
+                  >
+                    <option value="">Select a project</option>
+                    {items.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button onClick={() => setRegister(true)}>Open project</Button>
+                </>
+              )}
+              <Badge tone={connected ? 'good' : 'warning'}>
+                {connected
+                  ? `Daemon ${health.state.status === 'ready' ? health.state.data.version : ''}`
+                  : health.state.status === 'loading'
+                    ? 'Connecting'
+                    : 'Disconnected'}
+              </Badge>
+              <Button
+                id="fullscreen-toggle"
+                aria-pressed={fullscreen}
+                title="Expand workspace and hide the sidebar. Press Escape to exit."
+                onClick={() => setFullscreen((value) => !value)}
+              >
+                {fullscreen ? 'Exit fullscreen' : 'Fullscreen view'}
+              </Button>
+            </div>
           </header>
           <main id="main-content">
             <header className="page-heading">
