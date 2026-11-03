@@ -10,7 +10,7 @@ const rooms = [
     destination: 'Engineering',
     icon: 'engineering',
     number: '01',
-    description: 'Validation, findings & job logs',
+    description: 'Specialist validation, evidence & safe corrections',
   },
   {
     id: 'agents',
@@ -26,7 +26,7 @@ const rooms = [
     destination: 'MCP Hub',
     icon: 'mcp',
     number: '03',
-    description: 'MCP inventory & transport probes',
+    description: 'MCP inventory, tools & host setup',
   },
   {
     id: 'settings',
@@ -115,7 +115,7 @@ export function ShipWorkspace({
   }
   return (
     <section
-      className={`ship-workspace ${motion ? 'ship-motion-on' : 'ship-motion-paused'}`}
+      className={`ship-workspace ship-floorplan ${motion ? 'ship-motion-on' : 'ship-motion-paused'}`}
       aria-labelledby="ship-title"
     >
       <div className="ship-heading">
@@ -125,7 +125,7 @@ export function ShipWorkspace({
             <span className="pixel-sr-only">Mission control</span>
             <PixelHeading />
           </h2>
-          <p className="ship-subtitle">Your project. Your crew. One ship.</p>
+          <p className="ship-subtitle">Integration deck / Shared intelligence / Specialist tools</p>
         </div>
         <div className="ship-controls">
           <button
@@ -179,39 +179,49 @@ export function ShipWorkspace({
               onClick={() => onNavigate(room.destination)}
             >
               <span className="ship-room-meta">
-                <span>
-                  {room.number} / {room.destination.toUpperCase()}
-                </span>
+                <span>{room.number}</span>
                 <span className="room-enter" aria-hidden="true">
                   ENTER ↗
                 </span>
               </span>
               <span className="room-cursor-light" aria-hidden="true" />
               <span className="room-art-depth">
-                <PixelRoom room={room.id} />
+                <PixelRoom
+                  room={room.id}
+                  door={['settings', 'devices', 'bridge'].includes(room.id) ? 'top' : 'bottom'}
+                />
               </span>
-              <strong>{room.name}</strong>
-              <span className="ship-room-description">{room.description}</span>
-              {room.id === 'engineering' && (
-                <span className="ship-room-note">
-                  {jobId ? 'Selected job available' : 'No validation job selected'}
-                </span>
-              )}
+              <strong className="room-floor-sign">
+                {room.id === 'mcp'
+                  ? 'MCP Hub'
+                  : room.id === 'agents'
+                    ? 'Shared intelligence'
+                    : room.name}
+              </strong>
+              <span className="pixel-sr-only">{room.description}</span>
             </button>
           ))}
           <div className="ship-corridor" aria-hidden="true">
             <span />
             <span className="corridor-node" />
-            <span>CONTEXT BUS</span>
+            <span>MAIN PASSAGE / CONTEXT BUS</span>
             <span className="corridor-node" />
             <span />
           </div>
         </div>
       </nav>
+      <div className="floorplan-readout">
+        <span>INTEGRATION DECK</span>
+        <span>MCP aggregation / Cross-agent memory / Engineering tools</span>
+        <details>
+          <summary>Engineering scope</summary>
+          {jobId ? 'Selected job available' : 'No validation job selected'}
+        </details>
+        <span className="floorplan-pan-hint">Scroll deck to explore all rooms</span>
+      </div>
       <div className="ship-legend">
         <span className="ship-prompt">
-          <span aria-hidden="true">▸</span>{' '}
-          {active ? `Enter ${active}` : 'Choose a compartment to begin'}
+          <span aria-hidden="true">▸</span> {active ? `Enter ${active}` : 'Choose a room to enter'}
         </span>
         <span>DECORATIVE CREW / LIVE PROJECT DATA</span>
       </div>

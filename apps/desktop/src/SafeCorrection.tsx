@@ -139,12 +139,21 @@ export function SafeCorrection({
       setMessage(
         `Backup restored. Daemon rollback check: ${result.revalidationJob.status}. Refreshing persisted validation...`,
       );
-      // Rollback currently returns an unpersisted job; request a real persisted check through the SDK.
-      const job = await client.requestValidation(projectId, {
-        kind: 'pin_consistency',
-        artifactPaths: result.revalidationJob.artifacts,
-        requestedBy: 'desktop-rollback-review',
-      });
+      // Current daemons persist rollback validation. Older responses require a persisted check.
+      if (
+        result.revalidationFindings?.some(
+          (f) => f.projectId !== projectId || f.jobId !== result.revalidationJob.id,
+        )
+      )
+        throw new Error('Rollback findings scope mismatch');
+      const job =
+        result.revalidationFindings !== undefined
+          ? result.revalidationJob
+          : await client.requestValidation(projectId, {
+              kind: 'pin_consistency',
+              artifactPaths: result.revalidationJob.artifacts,
+              requestedBy: 'desktop-rollback-review',
+            });
       if (job.projectId !== projectId) throw new Error('Validation scope mismatch');
       onJob(job);
       setMessage(`Backup restored. Updated validation: ${job.status}.`);

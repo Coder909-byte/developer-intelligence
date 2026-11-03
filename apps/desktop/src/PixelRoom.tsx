@@ -77,7 +77,7 @@ function MonitorAnimation({
 }
 
 /** Original vector pixel art. Decorative furnishings are not live device/agent counts. */
-export function PixelRoom({ room }: { room: Room }) {
+export function PixelRoom({ room, door = 'bottom' }: { room: Room; door?: 'top' | 'bottom' }) {
   return (
     <svg
       className="pixel-room-scene"
@@ -95,10 +95,27 @@ export function PixelRoom({ room }: { room: Room }) {
       </defs>
       <path d="M8 4h80v4h4v48h-4v4H8v-4H4V8h4Z" fill="#101c2d" />
       <path d="M10 8h76v4h4v40h-4v4H10v-4H6V12h4Z" fill={`url(#floor-${room})`} />
-      <path d="M10 8h76v5H10z" fill="var(--pixel-wall, #8a7e89)" />
+      <path
+        d={door === 'top' ? 'M10 8h29v5H10zM57 8h29v5H57z' : 'M10 8h76v5H10z'}
+        fill="var(--pixel-wall, #8a7e89)"
+      />
       <path d="M6 13h4v39H6zM86 13h4v39h-4z" fill="var(--pixel-wall-side, #5d536a)" />
-      <path d="M14 54h25v4H14zM57 54h25v4H57z" fill="var(--pixel-wall, #8a7e89)" />
-      <path d="M41 54h14v4H41z" fill="#bca573" />
+      <path
+        d={door === 'bottom' ? 'M14 54h25v4H14zM57 54h25v4H57z' : 'M14 54h68v4H14z'}
+        fill="var(--pixel-wall, #8a7e89)"
+      />
+      {door === 'bottom' ? (
+        <>
+          <path d="M41 58h14v6H41z" fill="var(--pixel-floor, #343044)" />
+          <path d="M41 54h14v4H41z" fill="#d5bd8c" />
+        </>
+      ) : (
+        <>
+          <path d="M41 0h14v13H41z" fill="var(--pixel-floor, #343044)" />
+          <path d="M41 6h14v3H41z" fill="#d5bd8c" />
+          <path d="M38 4h3v9h-3zM55 4h3v9h-3z" fill="var(--pixel-wall-side, #5d536a)" />
+        </>
+      )}
       {room === 'engineering' && (
         <>
           <path d="M36 15h24v4h5v24h-5v5H36v-5h-5V19h5z" fill="#111d2a" />

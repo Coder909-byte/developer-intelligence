@@ -2273,3 +2273,450 @@ summary {
     animation: none;
   }
 }
+/* A connected room-scale floor plan replaces the previous card presentation. */
+.retro-shell .ship-floorplan .ship-chart {
+  padding: 34px 34px 38px 52px;
+  overflow-x: auto;
+}
+.retro-shell .ship-floorplan .ship-deck {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto 42px auto;
+  gap: 0 8px;
+  position: relative;
+}
+.retro-shell .ship-floorplan .ship-room {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  transform: none;
+  transform-style: flat;
+  isolation: isolate;
+}
+.retro-shell
+  .ship-floorplan
+  .ship-room:is(:hover, :active, :focus-visible, [data-pointer-lit='true']) {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  transform: none;
+}
+.retro-shell .ship-floorplan .ship-room::before,
+.retro-shell .ship-floorplan .ship-room::after {
+  display: none;
+}
+.retro-shell .ship-floorplan .ship-room:focus-visible {
+  outline: 2px dashed #f0d6a4;
+  outline-offset: -8px;
+}
+.retro-shell .ship-floorplan .room-art-depth {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+}
+.retro-shell .ship-floorplan .ship-room .pixel-room-scene {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  filter: drop-shadow(0 4px 0 #080b16);
+}
+.retro-shell .ship-floorplan .ship-room:hover .pixel-room-scene,
+.retro-shell .ship-floorplan .ship-room:focus-visible .pixel-room-scene {
+  filter: drop-shadow(0 4px 0 #080b16)
+    drop-shadow(0 0 5px color-mix(in srgb, var(--room-tint) 35%, transparent));
+}
+.retro-shell .ship-floorplan .ship-room-engineering {
+  grid-column: 1;
+  grid-row: 1;
+}
+.retro-shell .ship-floorplan .ship-room-agents {
+  grid-column: 2;
+  grid-row: 1;
+}
+.retro-shell .ship-floorplan .ship-room-mcp {
+  grid-column: 3;
+  grid-row: 1;
+}
+.retro-shell .ship-floorplan .ship-room-settings {
+  grid-column: 1;
+  grid-row: 3;
+}
+.retro-shell .ship-floorplan .ship-room-devices {
+  grid-column: 2;
+  grid-row: 3;
+}
+.retro-shell .ship-floorplan .ship-room-bridge {
+  grid-column: 3;
+  grid-row: 3;
+}
+.retro-shell .ship-floorplan .ship-room-meta {
+  position: absolute;
+  z-index: 3;
+  top: 9%;
+  left: 13%;
+  right: 13%;
+  min-height: 0;
+  transform: none;
+  color: #efe0be;
+  pointer-events: none;
+  font-size: 8px;
+}
+.retro-shell .ship-floorplan .room-enter {
+  display: inline;
+  font-size: 7px;
+}
+.retro-shell .ship-floorplan .room-floor-sign {
+  position: absolute;
+  z-index: 3;
+  bottom: 10%;
+  left: 14%;
+  right: 14%;
+  transform: none;
+  font-size: clamp(8px, 0.85vw, 11px);
+  line-height: 1.6;
+  text-align: center;
+  text-shadow:
+    2px 2px #090d18,
+    0 0 6px #090d18;
+  color: #f1e0ba;
+  pointer-events: none;
+}
+.retro-shell .ship-floorplan .room-cursor-light {
+  inset: 8% 7% 9%;
+  clip-path: polygon(
+    0 6%,
+    4% 6%,
+    4% 0,
+    96% 0,
+    96% 6%,
+    100% 6%,
+    100% 94%,
+    96% 94%,
+    96% 100%,
+    4% 100%,
+    4% 94%,
+    0 94%
+  );
+}
+.retro-shell .ship-floorplan .ship-corridor {
+  display: flex;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  position: relative;
+  gap: 12px;
+  margin: 0 5%;
+  padding: 0 18px;
+  background-color: #3d3b4d;
+  background-image:
+    linear-gradient(#6c657c33 1px, transparent 1px),
+    linear-gradient(90deg, #6c657c33 1px, transparent 1px);
+  background-size: 12px 12px;
+  box-shadow:
+    inset 0 3px 0 #181825,
+    inset 0 -3px 0 #181825;
+  color: #dfcfba;
+}
+.retro-shell .ship-floorplan .ship-corridor > span:first-child,
+.retro-shell .ship-floorplan .ship-corridor > span:last-child {
+  background: #aca5a277;
+  height: 2px;
+}
+.retro-shell .ship-floorplan .ship-hull {
+  inset: 16px 16px 22px 30px;
+  background: #a394a6;
+}
+.retro-shell .ship-floorplan .ship-hull::after {
+  background: #292737;
+}
+.floorplan-readout {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 14px 24px 0;
+  font:
+    10px/1.6 Consolas,
+    monospace;
+  color: #d1c2d4;
+}
+.floorplan-readout > span:first-child {
+  color: #e9c18a;
+  font-family: 'UDI Pixel', Consolas, monospace;
+  font-size: 8px;
+}
+.floorplan-pan-hint {
+  display: none;
+}
+.retro-shell.app-fullscreen[data-screen='Overview'] .ship-floorplan .ship-chart {
+  padding: 22px 32px 30px 48px;
+}
+.retro-shell.app-fullscreen[data-screen='Overview'] .ship-floorplan .ship-deck {
+  max-width: min(100%, calc((100dvh - 300px) * 2.25));
+  min-width: 660px;
+  margin: 0 auto;
+  grid-template-rows: auto 36px auto;
+}
+.retro-shell.app-fullscreen[data-screen='Overview'] .ship-floorplan .ship-room {
+  padding: 0;
+}
+.retro-shell.app-fullscreen[data-screen='Overview'] .ship-floorplan .ship-room .pixel-room-scene {
+  height: 100%;
+  margin: 0;
+}
+@media (max-width: 1100px) {
+  .retro-shell .ship-floorplan .ship-chart {
+    padding: 26px 18px 32px 34px;
+  }
+  .retro-shell .ship-floorplan .room-floor-sign {
+    font-size: 8px;
+  }
+}
+@media (max-width: 900px) {
+  .retro-shell .ship-floorplan .ship-deck {
+    min-width: 660px;
+  }
+  .retro-shell .ship-floorplan .ship-hull,
+  .retro-shell .ship-floorplan .ship-thrusters,
+  .retro-shell .ship-floorplan .ship-orientation {
+    display: none;
+  }
+  .retro-shell .ship-floorplan .ship-room {
+    min-height: 0;
+  }
+  .retro-shell .ship-floorplan .ship-room .pixel-room-scene {
+    height: 100%;
+  }
+  .retro-shell .ship-floorplan .ship-corridor {
+    display: flex;
+  }
+  .floorplan-pan-hint {
+    display: inline;
+    color: #a89bb3;
+  }
+}
+/* Aggregator hierarchy uses the existing retro command-center visual system. */
+.hub-overview {
+  margin-bottom: 24px;
+  border: 2px solid #9a829b;
+  border-right-color: #51455f;
+  border-bottom-color: #51455f;
+  background: #252232;
+  box-shadow:
+    5px 6px 0 #080b16,
+    inset 0 0 0 2px #44364f;
+}
+.hub-mission {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 26px;
+  padding: 22px 24px 18px;
+}
+.hub-mission h2 {
+  max-width: 850px;
+  color: #f1dfb8;
+  font:
+    12px/2 'UDI Pixel',
+    Consolas,
+    monospace;
+  text-shadow: 2px 2px #090d18;
+}
+.hub-mission p:not(.eyebrow) {
+  color: #c5b6c9;
+  font-size: 12px;
+  max-width: 760px;
+  margin-bottom: 0;
+}
+.hub-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.hub-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid #66546f;
+}
+.hub-metrics > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 18px 22px;
+  border-right: 1px solid #66546f;
+}
+.hub-metrics > div:last-child {
+  border-right: 0;
+}
+.hub-metrics > div > span:first-child {
+  color: #d5c4d3;
+  font:
+    8px/1.8 'UDI Pixel',
+    Consolas,
+    monospace;
+}
+.hub-metrics strong {
+  color: #e3d6b1;
+  font:
+    24px 'UDI Pixel',
+    Consolas,
+    monospace;
+}
+.hub-metrics small {
+  color: #b7a9be;
+  font:
+    10px/1.5 Consolas,
+    monospace;
+}
+.hub-boundary {
+  padding: 0 24px 15px;
+  margin: 0;
+  font-size: 10px;
+  color: #b3a7bd;
+}
+.hub-host-paths {
+  display: flex;
+  gap: 10px 18px;
+  flex-wrap: wrap;
+  padding: 12px 24px;
+  color: #ccbdce;
+  font:
+    10px/1.6 Consolas,
+    monospace;
+  border-top: 1px dashed #66546f;
+}
+.hub-host-paths > span:first-child {
+  color: #e5cca0;
+  font:
+    8px/1.8 'UDI Pixel',
+    Consolas,
+    monospace;
+}
+.hub-section-intro {
+  margin-bottom: 22px;
+}
+.hub-section-intro h2 {
+  color: #ead9b7;
+  font:
+    13px/1.8 'UDI Pixel',
+    Consolas,
+    monospace;
+}
+.hub-section-intro p {
+  max-width: 900px;
+  color: #c2b5c8;
+}
+.host-steps {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 22px 0;
+}
+.host-steps li {
+  padding: 10px 12px;
+  border: 1px solid #62536f;
+  background: #211e2d;
+  color: #b3a5be;
+  font:
+    10px/1.6 Consolas,
+    monospace;
+}
+.host-steps li[aria-current] {
+  color: #e6d4aa;
+  border-color: #b8a17c;
+}
+.specialist-engineering {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #736071;
+  background: #292331;
+}
+.specialist-engineering > summary {
+  cursor: pointer;
+  color: #dbbf91;
+  font:
+    10px/1.8 'UDI Pixel',
+    Consolas,
+    monospace;
+}
+.specialist-engineering[open] > summary {
+  margin-bottom: 18px;
+}
+.floorplan-readout details {
+  margin-left: auto;
+  color: #b7a8bd;
+}
+.floorplan-readout summary {
+  cursor: pointer;
+}
+.app-fullscreen .hub-mission {
+  padding: 14px 20px;
+  gap: 18px;
+}
+.app-fullscreen .hub-mission h2 {
+  font-size: 10px;
+  line-height: 1.8;
+}
+.app-fullscreen .hub-mission .eyebrow,
+.app-fullscreen .hub-mission p:not(.eyebrow),
+.app-fullscreen .hub-boundary {
+  display: none;
+}
+.app-fullscreen .hub-actions {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.app-fullscreen .hub-metrics > div {
+  padding: 12px 18px;
+}
+.app-fullscreen .hub-metrics strong {
+  font-size: 18px;
+}
+.app-fullscreen .hub-metrics small {
+  font-size: 9px;
+}
+@media (max-width: 1100px) {
+  .hub-mission {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .hub-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .hub-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .hub-metrics > div {
+    border-bottom: 1px solid #66546f;
+  }
+}
+@media (max-width: 540px) {
+  .hub-mission {
+    padding: 18px;
+  }
+  .hub-mission h2 {
+    font-size: 10px;
+    line-height: 1.9;
+  }
+  .hub-metrics > div {
+    padding: 14px;
+  }
+  .hub-host-paths {
+    padding: 12px 18px;
+  }
+  .host-steps {
+    flex-direction: column;
+  }
+}

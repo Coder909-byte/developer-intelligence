@@ -158,7 +158,8 @@ export function ActivityTimeline({ records }: { records: ContextRecord[] }) {
               <Badge>{record.kind}</Badge>
               <p>{record.text}</p>
               <small>
-                {sourceLabel(record.provenance.sourceKind)} · {record.provenance.actor}
+                {sourceLabel(record.provenance.sourceKind)} · Recorded actor:{' '}
+                {record.provenance.actor}
               </small>
               {record.provenance.sourceRef && <code>{record.provenance.sourceRef}</code>}
               {record.evidence.map((e, i) => (

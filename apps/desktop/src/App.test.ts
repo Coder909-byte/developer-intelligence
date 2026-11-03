@@ -145,6 +145,92 @@ afterEach(async () => {
   host.remove();
 });
 describe('desktop user journeys', () => {
+  it('leads with the integration mission and opens host setup without claiming a connected host', async () => {
+    await render();
+    expect(host.textContent).toContain(
+      'One command center for your IDEs, MCP servers, tools, and shared agent intelligence.',
+    );
+    const navigation = [
+      ...host.querySelectorAll('nav[aria-label="Primary navigation"] button'),
+    ].map((b) => b.getAttribute('aria-label'));
+    expect(navigation.indexOf('MCP Hub')).toBeLessThan(navigation.indexOf('Agent Workspace'));
+    await click('Set up a host');
+    expect(host.querySelector('h1')?.textContent).toBe('MCP Hub');
+    expect(host.textContent).toContain('Host configuration service unavailable');
+    expect(host.textContent).toContain('Host connection status unavailable');
+    const input = host.querySelector<HTMLSelectElement>('label.field select')!;
+    await act(async () => {
+      input.value = 'opencode';
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(host.textContent).toContain('Manual configuration; host verification pending');
+    expect(
+      [...host.querySelectorAll('button')].find((b) => b.textContent === 'Approve and apply')
+        ?.disabled,
+    ).toBe(true);
+    expect(api.replaceMcpServer).not.toHaveBeenCalled();
+  });
+  it('uses actual inventory for hub counts while keeping tool discovery explicitly unavailable', async () => {
+    const server = {
+      id,
+      name: 'Real inventory fixture',
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      transport: { type: 'http', url: 'http://127.0.0.1:9999' },
+      enabled: true,
+      status: 'healthy',
+    };
+    api.listMcpServers.mockResolvedValue({
+      items: [
+        server,
+        {
+          ...server,
+          id: 'b785354e-2e71-4b89-94ac-55a5d7c154d8',
+          name: 'Disabled fixture',
+          enabled: false,
+          status: 'disabled',
+        },
+      ],
+    });
+    await render();
+    expect([...host.querySelectorAll('.hub-metrics strong')].map((e) => e.textContent)).toEqual([
+      '2',
+      '1',
+      '1',
+    ]);
+    expect(host.textContent).toContain('Healthy observations; not fresh MCP handshakes');
+    await click('Open MCP Hub');
+    await click('Tools');
+    expect(host.textContent).toContain('Discovery unavailable');
+    expect(
+      [...host.querySelectorAll('button')].find((b) => b.textContent === 'Discover tools')
+        ?.disabled,
+    ).toBe(true);
+    expect(api.checkMcpServerHealth).not.toHaveBeenCalled();
+  });
+  it('filters the loaded MCP registry without hiding the add-server workflow', async () => {
+    api.listMcpServers.mockResolvedValue({
+      items: [
+        {
+          id,
+          name: 'Context gateway fixture',
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+          transport: { type: 'http', url: 'http://127.0.0.1:9999' },
+          enabled: false,
+          status: 'disabled',
+        },
+      ],
+    });
+    await render();
+    await click('Open MCP Hub');
+    await fill('Search loaded servers', 'does-not-exist');
+    expect(host.textContent).toContain('No matching servers');
+    expect(
+      [...host.querySelectorAll('button')].find((b) => b.textContent === 'Add MCP')?.disabled,
+    ).toBe(false);
+  });
+
   it('expands without a sidebar, retains project/navigation and restores the sidebar with Escape', async () => {
     await render();
     await select();

@@ -33,11 +33,13 @@ import {
   scoped,
 } from './persistence.js';
 import { ShipWorkspace } from './ShipWorkspace.js';
+import { HubOverview, ToolDiscoveryUnavailable } from './HubOverview.js';
+import { HostSetup } from './HostSetup.js';
 import { IntegrationGuide } from './IntegrationGuide.js';
 export const screens = [
   'Overview',
-  'Agent Workspace',
   'MCP Hub',
+  'Agent Workspace',
   'Engineering',
   'Devices',
   'Settings',
@@ -55,6 +57,14 @@ function Context({ client, project }: { client: DaemonClient; project: Project }
   const [tab, setTab] = useState('Project Memory');
   return (
     <>
+      <Card title="Shared agent intelligence">
+        <p>
+          Carry project decisions, tool observations and reviewed handoffs across supported hosts.
+          Each record preserves its source, actor and evidence; private conversations are not
+          captured.
+        </p>
+        <Badge>Project-scoped memory</Badge>
+      </Card>
       <Tabs
         tabs={['Connected Agents', 'Project Memory', 'Context Timeline', 'Agent Handoffs']}
         selected={tab}
@@ -93,7 +103,7 @@ export function McpList({ items }: { items: McpServer[] }) {
             <tr>
               <th>Server</th>
               <th>Transport</th>
-              <th>Status</th>
+              <th>Recorded transport</th>
               <th>Configuration</th>
             </tr>
           </thead>
@@ -127,48 +137,119 @@ export function McpList({ items }: { items: McpServer[] }) {
         <Dialog title={selected.name} onClose={() => setSelected(undefined)}>
           <Badge>{selected.enabled ? 'Enabled' : 'Disabled'}</Badge>
           <pre>{JSON.stringify(selected.transport, null, 2)}</pre>
-          <p>Tools, supported hosts and permission details are not exposed by this SDK.</p>
+          <p>
+            Tool discovery and permissions are unavailable from this daemon. Host Setup explains
+            adapter capabilities separately from verified connections.
+          </p>
           <p className="muted">Credentials and secret references are not displayed.</p>
         </Dialog>
       )}
     </>
   );
 }
-function Mcp({ client }: { client: DaemonClient }) {
+function Mcp({
+  client,
+  project,
+  tab,
+  onTab,
+  onSettings,
+}: {
+  client: DaemonClient;
+  project: Project | undefined;
+  tab: string;
+  onTab: (tab: string) => void;
+  onSettings: () => void;
+}) {
   const page = usePage();
   const servers = useResource(
     () => client.listMcpServers(page.options),
     [client, page.offset, page.revision],
   );
+  const [search, setSearch] = useState('');
   return (
     <>
-      <div className="notice">
-        Stored inventory is available independently of MCP execution. Recorded status is not a fresh
-        connection test.
-      </div>
-      <Card
-        title="MCP registry"
-        action={<Button onClick={servers.retry}>Refresh inventory</Button>}
-      >
-        <RegistryControls client={client} onChanged={page.refresh} />
-        <Result value={servers}>
-          {(data) => (
-            <>
-              <McpList items={data.items} />
-              <RegistryControls client={client} servers={data.items} onChanged={page.refresh} />
-              <PageControls page={page} count={data.items.length} />
-            </>
-          )}
-        </Result>
-        <p className="muted">
-          Connection probes require an enabled runtime integration and do not verify MCP tool
-          compatibility. Host configuration writes are not exposed. Inventory changes alone do not
-          execute servers.
+      <div className="hub-section-intro">
+        <p className="eyebrow">COMMUNICATIONS / MCP AGGREGATION</p>
+        <h2>Your servers, tools and host connections.</h2>
+        <p>
+          Manage shared integrations here. Registration, transport health, tool discovery and host
+          verification are separate states.
         </p>
-      </Card>
+      </div>
+      <Tabs
+        tabs={['Registry', 'Tools', 'Host Setup', 'Activity']}
+        selected={tab}
+        onSelect={onTab}
+      />
+      {tab === 'Registry' ? (
+        <>
+          <div className="notice">
+            Stored inventory is available independently of MCP execution. Recorded status is not a
+            fresh MCP handshake.
+          </div>
+          <Card
+            title="MCP registry"
+            action={<Button onClick={servers.retry}>Refresh inventory</Button>}
+          >
+            <RegistryControls client={client} onChanged={page.refresh} />
+            <Field label="Search loaded servers">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Name or transport on this page"
+              />
+            </Field>
+            <Result value={servers}>
+              {(data) => {
+                const items = data.items.filter((s) =>
+                  `${s.name} ${s.transport.type}`.toLowerCase().includes(search.toLowerCase()),
+                );
+                return (
+                  <>
+                    <div className="row">
+                      <Badge>{data.items.length} loaded records</Badge>
+                      <Badge>{data.items.filter((s) => s.enabled).length} enabled</Badge>
+                    </div>
+                    {data.items.length > 0 && !items.length ? (
+                      <EmptyState title="No matching servers">
+                        Change the search or load another page.
+                      </EmptyState>
+                    ) : (
+                      <McpList items={items} />
+                    )}
+                    <RegistryControls client={client} servers={items} onChanged={page.refresh} />
+                    <PageControls page={page} count={data.items.length} />
+                  </>
+                );
+              }}
+            </Result>
+            <p className="muted">
+              Configuration changes do not execute servers. Probes test transport reachability, not
+              MCP tool compatibility. Secret references are never displayed.
+            </p>
+          </Card>
+        </>
+      ) : tab === 'Tools' ? (
+        <ToolDiscoveryUnavailable />
+      ) : tab === 'Host Setup' ? (
+        <HostSetup onSettings={onSettings} />
+      ) : project ? (
+        <>
+          <p className="muted">
+            Project activity with original provenance. Tool calls appear only when recorded by the
+            daemon; other project events are retained as context.
+          </p>
+          <StoredEvents key={project.id} client={client} projectId={project.id} />
+        </>
+      ) : (
+        <EmptyState title="Select a project for integration activity">
+          Choose a registered workspace. No agent activity is inferred.
+        </EmptyState>
+      )}
     </>
   );
 }
+
 export function Findings({
   items,
   client,
@@ -433,7 +514,6 @@ function Overview({
     [client, project.id, jobId],
     Boolean(jobId),
   );
-  const mcp = useResource(() => client.listMcpServers({ limit: 100, offset: 0 }), [client]);
   return (
     <>
       <Card title="Active project">
@@ -441,22 +521,28 @@ function Overview({
         <code>{project.rootPath}</code>
         <p className="muted">{project.description || 'No project description provided.'}</p>
       </Card>
-      <div className="summary-grid">
-        <Card title="MCP servers">
-          <Result value={mcp}>
-            {(d) => (
-              <>
-                <strong className="metric">{d.items.length}</strong>
-                <p className="muted">
-                  Loaded registry records (first 100) ·{' '}
-                  <button className="text-button" onClick={() => navigate('MCP Hub')}>
-                    Manage MCPs
-                  </button>
-                </p>
-              </>
-            )}
-          </Result>
-        </Card>
+      <Card
+        title="Project memory"
+        action={<Button onClick={() => navigate('Agent Workspace')}>View context</Button>}
+      >
+        <Result value={context}>
+          {(d) =>
+            d.projectId === project.id ? (
+              <ActivityTimeline
+                records={d.records.filter((r) => r.projectId === project.id).slice(0, 5)}
+              />
+            ) : (
+              <Unavailable
+                title="Project scope mismatch"
+                reason="Context was not displayed because it belongs to a different project."
+              />
+            )
+          }
+        </Result>
+      </Card>
+      <StoredEvents client={client} projectId={project.id} />
+      <details className="specialist-engineering">
+        <summary>Engineering / specialist capability</summary>
         <Card title="Selected validation job">
           <Result value={findings}>
             {(data) =>
@@ -481,33 +567,11 @@ function Overview({
             }
           </Result>
         </Card>
-      </div>
-      <Card
-        title="Project memory"
-        action={<Button onClick={() => navigate('Agent Workspace')}>View context</Button>}
-      >
-        <Result value={context}>
-          {(d) =>
-            d.projectId === project.id ? (
-              <ActivityTimeline
-                records={d.records.filter((r) => r.projectId === project.id).slice(0, 5)}
-              />
-            ) : (
-              <Unavailable
-                title="Project scope mismatch"
-                reason="Context was not displayed because it belongs to a different project."
-              />
-            )
-          }
-        </Result>
-      </Card>
-      <StoredEvents client={client} projectId={project.id} />
-      <Card title="Development environments">
-        <Unavailable
-          title="Environment status unavailable"
-          reason="Agent/environment discovery is not part of the current SDK."
-        />
-      </Card>
+        <p className="muted">
+          Engineering integrates source evidence, safe correction approval, revalidation and
+          rollback into the shared platform.
+        </p>
+      </details>
     </>
   );
 }
@@ -575,6 +639,7 @@ function RegisterProject({
 }
 export function App() {
   const [screen, setScreen] = useState<Screen>('Overview');
+  const [mcpTab, setMcpTab] = useState('Registry');
   const [fullscreen, setFullscreen] = useState(false);
   useEffect(() => {
     if (!fullscreen) return;
@@ -771,6 +836,20 @@ export function App() {
               </div>
             </header>
             {screen === 'Overview' && (
+              <HubOverview
+                client={client}
+                onMcp={() => {
+                  setMcpTab('Registry');
+                  setScreen('MCP Hub');
+                }}
+                onHosts={() => {
+                  setMcpTab('Host Setup');
+                  setScreen('MCP Hub');
+                }}
+                onMemory={() => setScreen('Agent Workspace')}
+              />
+            )}
+            {screen === 'Overview' && (
               <ShipWorkspace
                 projectName={project?.name}
                 engine={
@@ -843,7 +922,13 @@ export function App() {
                 </Card>
               </>
             ) : screen === 'MCP Hub' ? (
-              <Mcp client={client} />
+              <Mcp
+                client={client}
+                project={project}
+                tab={mcpTab}
+                onTab={setMcpTab}
+                onSettings={() => setScreen('Settings')}
+              />
             ) : screen === 'Devices' ? (
               <Card title="Devices & telemetry">
                 <Unavailable
