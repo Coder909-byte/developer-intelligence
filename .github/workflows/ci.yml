@@ -29,4 +29,5 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: node scripts/smoke.mjs
+      - run: node scripts/demo-e2e.mjs
       - run: pnpm format:check

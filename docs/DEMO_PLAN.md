@@ -1,6 +1,6 @@
 # Deterministic end-to-end demo test plan
 
-Status: persistence gate is executable now; product gates below remain pending real teammate integration. See INTEGRATION_READINESS for the reviewed branch snapshot, owners and API gaps. Never substitute synthetic storage records for real validator/MCP evidence in a product demonstration.
+Current runtime status: the automated real-process backend/validator/context/MCP path is executable with `pnpm demo:verify` and has passed on the Mac. See [runtime demo](RUNTIME_DEMO.md) for exact commands/results and remaining unverified GUI/host gates. The human-operated acceptance plan below remains the final product gate; its earlier pre-merge prerequisites are retained for reference. See INTEGRATION_READINESS for the reviewed branch snapshot, owners and API gaps. Never substitute synthetic storage records for real validator/MCP evidence in a product demonstration.
 
 ## Gate 0 — automatic backend proof, executable now
 
