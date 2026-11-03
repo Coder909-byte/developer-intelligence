@@ -1,0 +1,75 @@
+# End-to-end integration readiness
+
+Audit baseline: merged main `cb848d5` (PR #2), 3 November 2026. The clean local feat/core-platform branch was fast-forwarded to origin/main. No teammate branch was merged; local main was not changed.
+
+Read-only remote review: feat/frontend `d1ce340` contains the desktop and native extension milestone, based on bootstrap. feat/intelligence-engine still points to `9c233ba` in the fetched remote; this does not describe Developer 2's unpublished local work. Recheck refs before integration. The original technical specification's illustrative `/v1` paths and non-UUID IDs are superseded by API_CONTRACTS and the ADRs.
+
+## Readiness by boundary
+
+| Boundary                                     | Current evidence                                                                                                                                           | Gate                                                                            |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Daemon → SQLite → SDK                        | Shared entities, authenticated persistence, migrations and restart tests are implemented on main                                                           | Ready for persistence consumers                                                 |
+| Desktop/extension → existing reads           | Reviewed frontend uses health, projects, context, MCP inventory and findings through the shared SDK; current signatures and response shapes are compatible | Joint runtime verification still pending; frontend branch not merged            |
+| Frontend handoff writes                      | createHandoff/listHandoffs/getHandoff already exist; reviewed UI still describes them as unavailable and produces an unsaved draft                         | Developer 3 must wire reviewed saves/retrieval                                  |
+| Frontend → validation execution              | requestValidation exists, but daemon returns 501; frontend command remains unavailable                                                                     | D1 composition/orchestration + D2 validator + D3 command wiring                 |
+| Daemon → context intelligence                | buildApp has a tested context provider factory; main.ts does not configure it                                                                              | D2 exports + D1 production composition                                          |
+| Daemon → MCP execution/health                | Inventory persistence works; health-check returns 501; no runtime gateway is composed                                                                      | D2 runtime and D1 composition                                                   |
+| Separate MCP host → daemon context           | SDK supports the scoped data path; no runnable gateway or second-host invocation is published on the fetched intelligence branch                           | Actual stdio/tool/host test required                                            |
+| Finding → native diagnostic → corrected pass | Frontend has evidence navigation/diagnostics code; backend keeps all historical findings                                                                   | Select the current job and clear obsolete diagnostics; verify in actual VS Code |
+
+This is a verified persistence foundation, not a verified end-to-end product. A successful storage smoke test does not prove VS Code activation, an engineering algorithm, MCP interoperability or a native Tauri package.
+
+## Exact Developer 2 requirements
+
+1. Base the implementation on merged main without replacing existing contracts or migration v2. Publish the actual exports and runnable scripts on feat/intelligence-engine before integration review. No second backend/database or custom HTTP client.
+2. Supply source-attributed mismatched and corrected rover fixtures, the documented parser input format, actual evidence paths/positions and deterministic tests. A normalized/manual fixture must be labeled as such; do not label it a KiCad export unless it is one.
+3. Provide EngineeringValidator.validate(ValidationRequest, signal?) → `{job, findings}` using shared entity shapes. Persist terminal results through the existing validation repository/SDK; job/project IDs must match every finding, completedAt is required, and a reused ID is 409. Do not translate missing tools into successful jobs.
+4. Make the completed job discoverable to consumers. With current interfaces, explicitly append an event of type `engineering.validation.completed`, sourceKind `observed_tool`, sourceRef equal to the job UUID, and payload containing jobId, status and findingCount. These payload keys are the proposed P0 convention to agree with D1/D3, not a new frozen schema or a behavior automatically implemented by persistence. Alternatively publish another agreed current-job pointer before enabling execution.
+5. Explicitly publish a scoped ContextRecord with observed provenance/sourceRef pointing to that completed job, or provide a context engine that reads actual findings/events through daemon-injected repositories. recordValidationResult alone does not create events/context; getContext's default stored projection cannot infer a validation or handoff summary. Preserve historical observations and agent-summary provenance.
+6. Export a context provider compatible with getContext(projectId, maxItems?), and enumerate any additional injected dependencies. Use bounded repository pagination; no hidden global project. D1 will compose it in the actual main.ts entry point after reviewing exports. Implement handoff selection/summarization in your module; storage of prepared handoffs is already available.
+7. Supply an exact runnable MCP stdio command, supported host/config format, project scoping, local bearer-token handoff through supported configuration (not URL/logs), and protocol-only stdout. Read tools: get_project_context, list_project_events, get_validation_results, list_available_tools; reviewed record_decision writes preserve provenance. Inventory registration alone is not MCP connectivity.
+8. Test unavailable tools, invalid workspace paths, timeouts/cancellation, scope isolation, deterministic failed/corrected comparison, and actual MCP client retrieval. Publish real host evidence before claiming that host supported.
+
+## Exact Developer 3 requirements
+
+1. Update against the merged persistence baseline through the agreed team workflow. Existing seven read methods remain compatible; update outdated unavailable copy in your branch and its handoff. Tests of your unmerged branch were not run by this audit.
+2. Continue shared SDK-only access and existing token onboarding. Browser session memory and VS Code SecretStorage are already implemented in your branch; persistent desktop OS-backed storage remains a separate limitation. Never bundle tokens. The current daemon allows Vite port 5173/Tauri origins; nondefault native daemon ports need your Tauri CSP update.
+3. Replace the unsaved-only handoff command with explicit review/confirmation followed by createHandoff(projectId, body). Use real context record IDs from that same project and a stable external agent UUID; no agent-registration API is currently present. Confirm persisted state with getHandoff/listHandoffs; do not announce saved on a local clipboard action.
+4. Latest handoff: lists are ascending, not newest-first. For the small demo, traverse all pages and select the final item; `limit: 1` returns the oldest. No latest endpoint is required for P0. Preserve the stored UUID and verify it survives daemon restart.
+5. Wire validation only when D1/D2 enable the actual service. requestValidation takes kind/artifactPaths/requestedBy with projectId in the route, and returns an existing Job shape, not a findings list. Then use getJob(projectId, jobId) and listFindings(projectId, {jobId}). Never treat an empty unfiltered list as a validation pass.
+6. Filter diagnostics to the current completed job. Historical failed findings stay open in append-only storage after a later pass; do not render all of them as the current project status. The returned job ID, and the agreed persisted current-job pointer on reload, identify the active result. Current succeeded job + zero findings should clear previous diagnostics; a failed job with zero findings must still display failure.
+7. Evidence must map actual in-project source paths, convert API 1-based positions to VS Code 0-based positions, and show both expected/observed sources. Your branch already has containment/navigation helpers; verify them in a real Extension Host, including errors, cancelled selection and project changes.
+8. After merge approval, run the actual browser and Extension Host against this daemon: successful authenticated reads, create/save/retrieve handoff, validation response, source diagnostic, corrected rerun, refresh after restart and missing/wrong-token behavior. Mocked activation is not that gate.
+
+## Developer 1 composition and contract decisions
+
+- Keep persistence on main as the baseline. Compose reviewed D2 exports in main.ts; the current default launch configures no provider. Do not enable health capability flags merely because inventory/findings can be stored.
+- Agree execution semantics before enabling the reserved validation-jobs route: SDK requestValidation accepts the existing Job response, but only completed jobs are currently persisted, no running-job queue is implemented, and SDK timeout defaults to five seconds. Async 202/queued jobs need an explicitly reviewed persistence/lifecycle contract; a bounded fast P0 comparison could instead return a terminal Job without changing its shape. Do not send slow CLI work through the default five-second request and silently lose its outcome.
+- Add engineering/MCP service injection and real invocation only after D2's exports and tests are available. PlatformIntegrations currently has only the context provider; execution hooks are not already implemented. D1 owns the glue, not validator/gateway algorithms.
+- Keep the current 64 KiB request limit in mind for completed results. D2 must bound stdoutTail/stderrTail and fixture findings; large result uploads/artifact APIs are not defined. Do not enlarge limits or add endpoints without observed need and a reviewed contract.
+- Preserve evidence, result IDs, API envelopes and auth. Do not backfill fictional validation records or expose tokens to clear a demo gate.
+
+## API gaps and P0 decisions
+
+| Gap / mismatch                                                             | Impact                                                    | P0 action                                                                                                |
+| -------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Validation and MCP health execution are 501                                | Controls cannot perform work                              | D1/D2 service composition; remain honestly unavailable until verified                                    |
+| Only context has an injection port; default launcher configures none       | Exported modules alone will not affect the running daemon | Wire reviewed exports in production entry point                                                          |
+| No active-job listing/pointer after restart                                | UI may show historical failures forever                   | Agree completed-event/context pointer; filter existing findings by jobId                                 |
+| Results do not auto-create context/events                                  | Second host could retrieve empty context after a real run | D2 explicitly publish evidence-backed context/event or synthesize via injected engine                    |
+| No latest-handoff endpoint                                                 | Oldest item could be mislabeled latest                    | Page existing list; select last item; no new endpoint needed                                             |
+| No agent-registration API                                                  | Handoff cannot assume a registered agent object exists    | Stable external UUID per supported host for P0; do not invent an API                                     |
+| MCP spec mentions `types` but event API has exact singular `type`          | Gateway may send unsupported queries                      | Adapter maps exact filter or combines/paginates existing reads; agree changes before adding query fields |
+| Original spec names facts/decisions; frozen memory uses records/openIssues | Unchecked adapter output would be rejected                | Use ProjectMemorySchema; original examples are illustrative                                              |
+| No patch preview/apply/rollback API                                        | UI cannot claim automated reviewed repair                 | Use an explicit user-reviewed manual correction for P0; automated patch flow stays unavailable           |
+| No agents/devices/telemetry/build-artifact/config-write APIs               | Secondary dashboard screens cannot become real yet        | Keep disabled; outside this P0 integration pass                                                          |
+
+No entity schemas, SDK signatures, database migrations or existing endpoint behavior were changed by this readiness audit. The change is stronger HTTP integration verification and an actionable demo/coordination plan.
+
+## Recommended approved merge order
+
+1. Integrate this D1 readiness/test patch on top of already-merged persistence; run the full gate.
+2. Review D2's published intelligence branch against current main, fixtures and shared contracts. With lead approval, integrate the smallest working validator + MCP/context path and D1 composition together; test the actual daemon entry point and one actual MCP client.
+3. Review D3's frontend branch and update its persistence/validation/handoff wiring against that exact backend. With lead approval, integrate it and execute the demo plan in VS Code and browser.
+4. If D3's read-only UI is ready sooner, it may be reviewed/merged independently against the existing persistence baseline; this does not satisfy validation/cross-agent gates. Never merge a branch merely to mark the demo complete.
+5. Run the five-minute demo twice from a fresh dedicated data directory; record the integrated commit. Keep RTL/device work outside the P0 path.

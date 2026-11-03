@@ -76,7 +76,7 @@ The persistence milestone below freezes events/context/handoffs/registry/result 
 
 ## Core-platform persistence milestone (supersedes bootstrap 501s)
 
-Developer 1 now owns the database and HTTP persistence layer; see ADR 0002. The existing context/MCP/findings read shapes and SDK methods are preserved, and these reads now return actual stored data (including valid empty lists). No existing entity, response envelope or API version changed. The following routes are implemented on `feat/core-platform`; coordinate integration through the lead rather than merging teammate branches without approval.
+Developer 1 now owns the database and HTTP persistence layer; see ADR 0002. The existing context/MCP/findings read shapes and SDK methods are preserved, and these reads now return actual stored data (including valid empty lists). No existing entity, response envelope or API version changed. The following routes are implemented in the persistence milestone merged into main (cb848d5); coordinate integration through the lead rather than merging teammate branches without approval.
 
 All paths below are relative to `/api/v1` and require the existing bearer token.
 
@@ -108,3 +108,7 @@ MCP create omits status; the daemon sets `unknown` when enabled and `disabled` o
 Validation submission uses the unchanged full Job and Finding entity shapes because Developer 2's validator already returns IDs, project IDs and observation timestamps. Jobs must be terminal (`succeeded`, `failed`, `cancelled`), have completedAt, and not complete before startedAt. Finding IDs must be unique and every finding must reference that exact job and project; route projectId must match too. Job and findings commit atomically. Reusing a job/finding ID returns 409 without partial writes. Caller-provided tool/version/output is retained; accepting a result does not prove the daemon executed that tool. Successful comparisons, unavailable tools and meaningful exit codes remain the validator's responsibility.
 
 Reserved execution routes explicitly remain 501: `POST /projects/:id/validation-jobs` with ValidationRequestBodySchema (ValidationRequest without route projectId), and `POST /mcp/servers/:id/health-check`. SDK methods `requestValidation` and `checkMcpServerHealth` surface `DaemonClientError` code NOT_IMPLEMENTED. Invalid requests/missing projects or servers still return 400/404 before 501. No runner, gateway execution, config apply, context synthesis algorithm or frontend implementation is included.
+
+## End-to-end integration clarifications
+
+No entity/API changes are needed for existing frontend reads or handoff storage. See INTEGRATION_READINESS and DEMO_PLAN before enabling execution. Findings are append-only history: use listFindings(projectId, {jobId}) for current diagnostics, and preserve an agreed current-job reference for reload. recordValidationResult does not automatically create an event or ContextRecord. A raw getContext response is not proof that a context intelligence engine or second MCP host is connected. Handoff lists are ascending; limit=1 is not latest. The SDK currently has a five-second default timeout, the daemon accepts at most 64 KiB per JSON body, and queued-job persistence/async execution are not implemented by the completed-result API.
