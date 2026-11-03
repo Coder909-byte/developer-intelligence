@@ -11,6 +11,10 @@
   "dependencies": {
     "@udi/contracts": "workspace:*",
     "@udi/event-store": "workspace:*",
+    "@udi/context-engine": "workspace:*",
+    "@udi/engineering-core": "workspace:*",
+    "@udi/tool-runners": "workspace:*",
+    "@udi/mcp-gateway": "workspace:*",
     "fastify": "5.12.8",
     "zod": "4.6.7"
   },

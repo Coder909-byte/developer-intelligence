@@ -53,12 +53,24 @@ importers:
 
   apps/core-daemon:
     dependencies:
+      '@udi/context-engine':
+        specifier: workspace:*
+        version: link:../../packages/context-engine
       '@udi/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@udi/engineering-core':
+        specifier: workspace:*
+        version: link:../../packages/engineering-core
       '@udi/event-store':
         specifier: workspace:*
         version: link:../../packages/event-store
+      '@udi/mcp-gateway':
+        specifier: workspace:*
+        version: link:../../packages/mcp-gateway
+      '@udi/tool-runners':
+        specifier: workspace:*
+        version: link:../../packages/tool-runners
       fastify:
         specifier: 5.12.8
         version: 5.12.8
@@ -130,6 +142,9 @@ importers:
       '@udi/contracts':
         specifier: workspace:*
         version: link:../contracts
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
   packages/contracts:
     dependencies:
@@ -145,6 +160,9 @@ importers:
       '@udi/tool-runners':
         specifier: workspace:*
         version: link:../tool-runners
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
   packages/event-store:
     dependencies:
@@ -163,6 +181,9 @@ importers:
       '@udi/contracts':
         specifier: workspace:*
         version: link:../contracts
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
 
   packages/tool-runners:
     dependencies:

@@ -16,6 +16,10 @@ import {
   ValidationRequestBodySchema,
   ProjectMemorySchema,
   type ProjectMemory,
+  type ValidationRequest,
+  type ValidationFinding,
+  type Job,
+  type McpServer,
 } from '@udi/contracts';
 import { PersistenceError, type PlatformDatabase } from '@udi/event-store';
 import { apiSuccess, responseMeta } from './responses.js';
@@ -24,8 +28,22 @@ import { apiSuccess, responseMeta } from './responses.js';
 export interface ProjectContextProvider {
   getContext(projectId: string, maxItems?: number): Promise<ProjectMemory>;
 }
+
+export interface PlatformValidationRunner {
+  validate(
+    request: ValidationRequest,
+    signal?: AbortSignal,
+  ): Promise<{ job: Job; findings: ValidationFinding[] }>;
+}
+
+export interface PlatformMcpHealthChecker {
+  checkHealth(id: string): Promise<McpServer>;
+}
+
 export interface PlatformIntegrations {
   context?: ProjectContextProvider;
+  engineering?: PlatformValidationRunner;
+  mcp?: PlatformMcpHealthChecker;
 }
 export type IntegrationFactory = (
   repositories: Omit<PlatformDatabase, 'close'>,
@@ -240,10 +258,42 @@ export function registerPlatformRoutes(
     );
   });
 
-  // These routes never claim that persistence performed an algorithm or process execution.
+  // Validation execution and MCP health checks: run through Developer 2's integrations when provided.
   app.post(`${prefix}/projects/:id/validation-jobs`, async (request, reply) => {
-    projectId(request.params);
-    ValidationRequestBodySchema.parse(request.body);
+    const id = projectId(request.params);
+    const body = ValidationRequestBodySchema.parse(request.body);
+
+    if (integrations.engineering) {
+      const valRequest: ValidationRequest = {
+        ...body,
+        projectId: id,
+      };
+      const result = await integrations.engineering.validate(valRequest);
+      await store.validation.recordResult(result);
+
+      // Record activity event
+      await store.events.append({
+        id: randomUUID(),
+        projectId: id,
+        type: 'engineering.validation.completed',
+        actor: 'engineering-core',
+        sourceKind: 'observed_tool',
+        sourceRef: result.job.id,
+        createdAt: new Date().toISOString(),
+        schemaVersion: 1,
+        payload: {
+          jobId: result.job.id,
+          status: result.job.status,
+          findingCount: result.findings.length,
+        },
+      });
+
+      return reply
+        .code(201)
+        .header('Location', `${prefix}/jobs/${result.job.id}?projectId=${id}`)
+        .send(apiSuccess(result.job, request.id));
+    }
+
     return reply.code(501).send({
       ok: false,
       error: {
@@ -254,8 +304,16 @@ export function registerPlatformRoutes(
       meta: responseMeta(request.id),
     });
   });
+
   app.post(`${prefix}/mcp/servers/:id/health-check`, async (request, reply) => {
-    found(await store.mcpServers.get(routeId(request.params)), 'MCP server');
+    const serverId = routeId(request.params);
+    found(await store.mcpServers.get(serverId), 'MCP server');
+
+    if (integrations.mcp) {
+      const updated = await integrations.mcp.checkHealth(serverId);
+      return apiSuccess(updated, request.id);
+    }
+
     return reply.code(501).send({
       ok: false,
       error: {
