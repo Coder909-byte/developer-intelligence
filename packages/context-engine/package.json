@@ -16,6 +16,7 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@udi/contracts": "workspace:*"
+    "@udi/contracts": "workspace:*",
+    "zod": "4.6.7"
   }
 }
