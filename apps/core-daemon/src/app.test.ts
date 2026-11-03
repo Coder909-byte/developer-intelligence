@@ -173,17 +173,23 @@ describe('loopback daemon', () => {
       expect(ErrorResponseSchema.parse(response.json()).error.code).toBe('NOT_FOUND');
     }
   });
-  it('reports unimplemented intelligence without fabricated data', async () => {
+  it('returns empty persisted views without claiming execution support', async () => {
     const project = (await create()).json().data;
     for (const url of [
-      `/api/v1/projects/${project.id}/context`,
       '/api/v1/mcp/servers',
       `/api/v1/engineering/findings?projectId=${project.id}`,
     ]) {
       const response = await app.inject({ url, headers });
-      expect(response.statusCode).toBe(501);
-      expect(ErrorResponseSchema.parse(response.json()).error.code).toBe('NOT_IMPLEMENTED');
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data).toEqual({ items: [] });
     }
+    const response = await app.inject({ url: `/api/v1/projects/${project.id}/context`, headers });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({
+      projectId: project.id,
+      records: [],
+      openIssues: [],
+    });
     expect((await app.inject({ url: '/api/v1/engineering/findings', headers })).statusCode).toBe(
       400,
     );
@@ -206,7 +212,14 @@ describe('loopback daemon', () => {
     const project = await client.createProject({ name: 'SDK', rootPath: directory });
     expect((await client.getProject(project.id)).id).toBe(project.id);
     expect((await client.listProjects()).items).toHaveLength(1);
-    await expect(client.getContext(project.id)).rejects.toMatchObject({
+    expect((await client.getContext(project.id)).records).toEqual([]);
+    await expect(
+      client.requestValidation(project.id, {
+        kind: 'pin_consistency',
+        artifactPaths: ['pins.h'],
+        requestedBy: 'test',
+      }),
+    ).rejects.toMatchObject({
       code: 'NOT_IMPLEMENTED',
       status: 501,
     });

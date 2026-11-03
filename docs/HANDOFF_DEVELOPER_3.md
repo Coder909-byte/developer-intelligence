@@ -43,8 +43,12 @@ SDK returns validated **data** (it unwraps the API envelope); SDK errors carry c
 
 ## Next UI work and required tests
 
-Implement project selection, connection/token onboarding, loading/empty/offline/error states, context provenance, registry status, and activity/validation views after corresponding APIs land. Context/MCP/findings currently return 501; show unavailable, never fake green results.
+Implement project selection, connection/token onboarding, loading/empty/offline/error states, context provenance, registry status, and activity/validation views after corresponding APIs land. Context/MCP inventory/findings reads now return stored data. Validation execution and MCP health checks remain 501; show unavailable, never fake green results.
 
 VS Code must add native diagnostics from finding evidence (1-based API lines/columns convert to VS Code 0-based ranges), command palette actions, status view, safe project scoping, reviewed handoff creation and validation commands. Validate webview messages and CSP; use native APIs for simple surfaces. Any file/config patch requires diff preview and explicit approval. Coordinate new endpoint schemas/methods with Developer 1 before consuming them.
 
 Test SDK-based loading/error/401/501 flows, project selection/isolation, no accidental secret persistence/logging, diagnostics file/range mapping, approved versus cancelled patch behavior. Verify a real extension command in VS Code and compare desktop state against the same daemon. Run root typecheck/lint/test/build. Native shell and Extension Host execution require local runtime verification and are not implied by a successful portable build.
+
+## Updated core-platform milestone
+
+Context, MCP inventory and findings reads now return persisted data rather than bootstrap 501s. Events, context records, handoffs, inventory and completed validation-result writes have typed SDK methods. Existing successful project/health APIs and entity shapes remain unchanged. See [persistence integration](INTEGRATION_PERSISTENCE.md) for examples and API_CONTRACTS for the full route table, pagination and create-versus-snapshot request rules. Validation execution and MCP health checks remain explicit 501s. Changes live on feat/core-platform until integrated through the lead; no frontend files were changed by this milestone.
