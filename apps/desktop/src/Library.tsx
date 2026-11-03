@@ -1,20 +1,109 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import type { DaemonClient } from '@udi/client-sdk';
+import type { AgentHandoff } from '@udi/contracts';
 import { Badge, Button, EmptyState, Field, sourceLabel } from '@udi/ui';
 import { PixelRoom } from './PixelRoom.js';
 import { Result, useResource } from './data.js';
 import { CreateHandoff, HandoffDetail, PageControls, scoped, usePage } from './persistence.js';
 
-export function Library({ client, projectId }: { client: DaemonClient; projectId: string }) {
+// Visual variation only. Session content always comes from persisted handoffs.
+function bookStyle(id: string): CSSProperties {
+  let hash = [...id].reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 0);
+  hash = Math.imul(hash ^ (hash >>> 16), 0x45d9f3b) >>> 0;
+  hash = (hash ^ (hash >>> 16)) >>> 0;
+  const colors = ['#c5ad76', '#8d9c7b', '#b76e54', '#d3c5a1', '#748c98', '#9b7b91'];
+  return {
+    '--book-width': `${34 + (hash % 33)}px`,
+    '--book-height': `${174 + ((hash >>> 5) % 87)}px`,
+    '--book-color': colors[hash % colors.length],
+  } as CSSProperties;
+}
+
+export function SessionBookshelf({
+  books,
+  onSelect,
+}: {
+  books: AgentHandoff[];
+  onSelect: (id: string) => void;
+}) {
+  const booksPerShelf = 18;
+  const shelfCount = Math.max(3, Math.ceil(books.length / booksPerShelf));
+  return (
+    <div className="library-shelves" aria-label="Session bookshelves">
+      <div className="bookcase-crown">
+        <span>THE SESSION ARCHIVE</span>
+        <span aria-hidden="true">✦</span>
+      </div>
+      {Array.from({ length: shelfCount }, (_, index) => (
+        <div className="wooden-shelf" key={index}>
+          <div className="library-book-row" aria-label={`Shelf ${index + 1}`}>
+            {books.slice(index * booksPerShelf, (index + 1) * booksPerShelf).map((book) => (
+              <button
+                type="button"
+                className="session-book"
+                key={book.id}
+                style={bookStyle(book.id)}
+                title={`${book.summary} · ${new Date(book.createdAt).toLocaleDateString()} · ${sourceLabel(book.provenance.sourceKind)}`}
+                aria-label={`Read saved session: ${book.summary}`}
+                onClick={() => onSelect(book.id)}
+              >
+                <span className="book-binding" aria-hidden="true" />
+                <span className="book-volume" aria-hidden="true">
+                  UDI
+                </span>
+                <strong>{book.summary}</strong>
+                <span className="book-date">
+                  {new Date(book.createdAt).toLocaleDateString(undefined, {
+                    month: 'short',
+                    year: '2-digit',
+                  })}
+                </span>
+                <span className="book-seal" aria-hidden="true">
+                  ✦
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="wooden-shelf-edge">
+            <span>ARCHIVE / {String(index + 1).padStart(2, '0')}</span>
+          </div>
+        </div>
+      ))}
+      <div className="bookcase-base" aria-hidden="true">
+        <span />
+        <span />
+      </div>
+    </div>
+  );
+}
+
+export function Library({
+  client,
+  projectId,
+  onConnect,
+}: {
+  client: DaemonClient;
+  projectId: string | undefined;
+  onConnect?: () => void;
+}) {
   const page = usePage();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string>();
   const [saving, setSaving] = useState(false);
-  const list = useResource(async () => {
-    const result = await client.listHandoffs(projectId, page.options);
-    scoped(result.items, projectId);
-    return result;
-  }, [client, projectId, page.offset, page.revision]);
+  const list = useResource(
+    async () => {
+      if (!projectId) return { items: [] };
+      const result = await client.listHandoffs(projectId, page.options);
+      scoped(result.items, projectId);
+      return result;
+    },
+    [client, projectId, page.offset, page.revision],
+    Boolean(projectId),
+  );
+  const items = list.state.status === 'ready' ? list.state.data.items : [];
+  const books = items.filter((item) =>
+    item.summary.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
+  );
   return (
     <section className="session-library" aria-label="Saved session library">
       <header className="library-welcome">
@@ -28,87 +117,66 @@ export function Library({ client, projectId }: { client: DaemonClient; projectId
         <div>
           <p className="eyebrow">DECK 01 / THE SESSION ARCHIVE</p>
           <h2>Every session has a story.</h2>
-          <p>
-            Your librarian keeps the shelves ready. Open a book to revisit a saved handoff, its
-            decisions and next steps.
-          </p>
+          <p>Pull a book from the shelf. Pick up where you left off.</p>
           <Badge>Librarian · Archive keeper</Badge>
-          <small className="library-note">
-            Decorative librarian · Books are persisted project handoffs
-          </small>
+          <small className="library-note">Each book holds a saved project handoff.</small>
         </div>
         <div className="library-actions">
-          <Button variant="primary" onClick={() => setSaving(true)}>
+          <Button variant="primary" disabled={!projectId} onClick={() => setSaving(true)}>
             Save session handoff
           </Button>
-          <Button onClick={list.retry}>Refresh shelves</Button>
+          <Button disabled={!projectId} onClick={list.retry}>
+            Refresh shelves
+          </Button>
         </div>
       </header>
       <div className="library-catalogue">
         <Field label="Find a book on this page">
           <input
             type="search"
-            placeholder="Search saved summaries"
+            placeholder="Search saved sessions"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            disabled={!projectId}
           />
         </Field>
-        <span>Hover to illuminate · Select to read</span>
+        <span>Hover to illuminate · Select a spine to read</span>
       </div>
-      <Result value={list}>
-        {({ items }) => {
-          const books = items.filter((item) =>
-            item.summary.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
-          );
-          return (
-            <>
-              <div className="library-shelves" aria-label="Session bookshelves">
-                {books.length ? (
-                  <div className="library-book-row">
-                    {books.map((book) => (
-                      <button
-                        className="session-book"
-                        key={book.id}
-                        aria-label={`Read saved session: ${book.summary}`}
-                        onClick={() => setSelected(book.id)}
-                      >
-                        <span className="book-binding" aria-hidden="true" />
-                        <span className="book-volume">SESSION / {book.id.slice(0, 8)}</span>
-                        <strong>{book.summary}</strong>
-                        <span className="book-rule" aria-hidden="true" />
-                        <span className="book-date">
-                          {new Date(book.createdAt).toLocaleDateString()}
-                        </span>
-                        <span className="book-provenance">
-                          {sourceLabel(book.provenance.sourceKind)}
-                        </span>
-                        <span className="book-open">Open book ↗</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState
-                    title={
-                      items.length
-                        ? 'No matching books on this page'
-                        : 'Your shelf is waiting for its first story'
-                    }
-                  >
-                    {items.length
-                      ? 'Try another summary or browse the next shelf.'
-                      : 'Save a reviewed session handoff to place your first book here.'}
-                  </EmptyState>
-                )}
-              </div>
-              <div className="library-shelf-footer">
-                <small>{items.length} saved handoffs loaded · Project-scoped archive</small>
-                <PageControls page={page} count={items.length} />
-              </div>
-            </>
-          );
-        }}
-      </Result>
-      {selected && (
+      {!projectId ? (
+        <div className="library-connection" role="status">
+          <p>
+            Select a project to load its saved sessions. If authentication is required, connect in
+            Settings first.
+          </p>
+          {onConnect && <Button onClick={onConnect}>Connect library</Button>}
+        </div>
+      ) : (
+        <Result value={list}>
+          {() =>
+            !books.length ? (
+              <EmptyState
+                title={
+                  items.length
+                    ? 'No matching books on this page'
+                    : 'Your shelf is waiting for its first story'
+                }
+              >
+                {items.length
+                  ? 'Try another summary or browse the next shelf.'
+                  : 'Save a reviewed session handoff to place your first book here.'}
+              </EmptyState>
+            ) : null
+          }
+        </Result>
+      )}
+      <SessionBookshelf books={books} onSelect={setSelected} />
+      {projectId && list.state.status === 'ready' && (
+        <div className="library-shelf-footer">
+          <small>{items.length} saved handoffs loaded · Project-scoped archive</small>
+          <PageControls page={page} count={items.length} />
+        </div>
+      )}
+      {selected && projectId && (
         <HandoffDetail
           client={client}
           projectId={projectId}
@@ -116,7 +184,7 @@ export function Library({ client, projectId }: { client: DaemonClient; projectId
           onClose={() => setSelected(undefined)}
         />
       )}
-      {saving && (
+      {saving && projectId && (
         <CreateHandoff
           client={client}
           projectId={projectId}

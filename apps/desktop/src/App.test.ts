@@ -146,6 +146,15 @@ afterEach(async () => {
   host.remove();
 });
 describe('desktop user journeys', () => {
+  it('shows the library furniture and connection action while project authentication is required', async () => {
+    api.listProjects.mockRejectedValue(new DaemonClientError('UNAUTHORIZED', 'token missing'));
+    await render();
+    await click('Library');
+    expect(host.querySelectorAll('.wooden-shelf')).toHaveLength(3);
+    expect(host.textContent).toContain('Authentication required');
+    await click('Connect library');
+    expect(host.querySelector('h1')?.textContent).toBe('Settings');
+  });
   it('enters the library through its ship compartment and loads saved session handoffs', async () => {
     await render();
     await select();

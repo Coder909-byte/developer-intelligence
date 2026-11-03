@@ -945,6 +945,20 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
                 onSettings={() => setScreen('Settings')}
                 source={missionSource}
               />
+            ) : screen === 'Library' ? (
+              <>
+                {projects.state.status === 'error' && (
+                  <p className="notice" role="status">
+                    {projects.state.title}. {projects.state.message}
+                  </p>
+                )}
+                <Library
+                  key={`${url}:${project?.id ?? 'unscoped'}`}
+                  client={client}
+                  projectId={project?.id}
+                  onConnect={() => setScreen('Settings')}
+                />
+              </>
             ) : screen === 'Devices' ? (
               <Card title="Devices & telemetry">
                 <Unavailable
@@ -969,8 +983,6 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
                           navigate={setScreen}
                           jobId={jobIds[project.id]}
                         />
-                      ) : screen === 'Library' ? (
-                        <Library client={client} projectId={project.id} />
                       ) : screen === 'Context Inspector' ? (
                         <ContextInspectorScreen
                           client={client}
