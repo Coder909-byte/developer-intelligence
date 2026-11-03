@@ -49,6 +49,17 @@ export const screens = [
   'Library',
 ] as const;
 type Screen = (typeof screens)[number];
+const navigationScreens = screens.filter(
+  (screen) => screen !== 'Engineering' && screen !== 'Devices',
+);
+const navigationIcons = {
+  Overview: 'overview',
+  'MCP Hub': 'mcp',
+  'Agent Workspace': 'agents',
+  Settings: 'settings',
+  'Context Inspector': 'engineering',
+  Library: 'agents',
+} as const;
 function Unavailable({ title, reason }: { title: string; reason: string }) {
   return (
     <EmptyState title={title}>
@@ -715,7 +726,7 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
               </select>
             </label>
             <nav aria-label="Primary navigation">
-              {screens.map((s, i) => (
+              {navigationScreens.map((s) => (
                 <button
                   key={s}
                   className={`nav-item ${screen === s ? 'active' : ''}`}
@@ -724,22 +735,7 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
                   onClick={() => setScreen(s)}
                 >
                   <span className="nav-symbol" aria-hidden="true">
-                    <NavigationIcon
-                      name={
-                        (
-                          [
-                            'overview',
-                            'agents',
-                            'mcp',
-                            'engineering',
-                            'devices',
-                            'settings',
-                            'engineering',
-                            'agents',
-                          ] as const
-                        )[i]!
-                      }
-                    />
+                    <NavigationIcon name={navigationIcons[s]} />
                   </span>
                   {s}
                 </button>
@@ -769,7 +765,7 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
                     value={screen}
                     onChange={(e) => setScreen(e.target.value as Screen)}
                   >
-                    {screens.map((s) => (
+                    {navigationScreens.map((s) => (
                       <option key={s} value={s}>
                         {s}
                       </option>

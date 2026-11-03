@@ -434,7 +434,7 @@ describe('desktop user journeys', () => {
     await select();
     expect(host.textContent).toContain('No validation job selected');
     expect(host.textContent).not.toContain('GPIO mismatch');
-    await click('Engineering');
+    await click('Select job in Engineering');
     expect(host.textContent).not.toContain('GPIO mismatch');
     await fill('Validation job UUID', id);
     await click('Select validation job');
@@ -611,17 +611,31 @@ describe('desktop user journeys', () => {
     expect(host.textContent).toContain('Firmware project');
     expect(api.listFindings).not.toHaveBeenCalled();
     for (const screen of [
-      'Engineering',
       'MCP Hub',
       'Agent Workspace',
-      'Devices',
       'Settings',
+      'Context Inspector',
+      'Library',
       'Overview',
     ]) {
       await click(screen);
       expect(host.querySelector('h1')?.textContent).toBe(screen);
     }
     expect(host.textContent).toContain('Live daemon API · Original provenance');
+  });
+  it('omits Engineering and Devices from sidebar and fullscreen navigation', async () => {
+    await render();
+    const sidebar = host.querySelector('nav[aria-label="Primary navigation"]')!;
+    expect(sidebar.querySelectorAll('button')).toHaveLength(6);
+    expect(sidebar.querySelector('[aria-label="Engineering"]')).toBeNull();
+    expect(sidebar.querySelector('[aria-label="Devices"]')).toBeNull();
+    await click('Fullscreen view');
+    const sections = [
+      ...host.querySelectorAll('select[aria-label="Workspace section"] option'),
+    ].map((option) => option.textContent);
+    expect(sections).not.toContain('Engineering');
+    expect(sections).not.toContain('Devices');
+    expect(sections).toHaveLength(6);
   });
   it('shows loading, then disconnected and authenticated-data errors while preserving navigation', async () => {
     let reject!: (e: Error) => void;
