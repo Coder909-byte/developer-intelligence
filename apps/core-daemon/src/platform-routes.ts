@@ -14,14 +14,23 @@ import {
   McpServerUpdateSchema,
   ValidationResultSchema,
   ValidationRequestBodySchema,
+  CorrectionPreviewRequestSchema,
+  CorrectionApplyRequestSchema,
+  CorrectionRollbackRequestSchema,
   ProjectMemorySchema,
   type ProjectMemory,
   type ValidationRequest,
   type ValidationFinding,
   type Job,
   type McpServer,
+  type CorrectionPreview,
+  type CorrectionApplyRequest,
+  type CorrectionApplyResult,
+  type CorrectionRollbackRequest,
+  type CorrectionRollbackResult,
 } from '@udi/contracts';
 import { PersistenceError, type PlatformDatabase } from '@udi/event-store';
+import { buildContextRecord } from '@udi/context-engine';
 import { apiSuccess, responseMeta } from './responses.js';
 
 /** Structurally compatible with Developer 2's ContextEngine; factory receives daemon-owned ports. */
@@ -40,10 +49,20 @@ export interface PlatformMcpHealthChecker {
   checkHealth(id: string): Promise<McpServer>;
 }
 
+export interface PlatformCorrectionService {
+  previewCorrection(projectId: string, findingId: string): Promise<CorrectionPreview>;
+  applyCorrection(projectId: string, input: CorrectionApplyRequest): Promise<CorrectionApplyResult>;
+  rollbackCorrection?(
+    projectId: string,
+    input: CorrectionRollbackRequest,
+  ): Promise<CorrectionRollbackResult>;
+}
+
 export interface PlatformIntegrations {
   context?: ProjectContextProvider;
   engineering?: PlatformValidationRunner;
   mcp?: PlatformMcpHealthChecker;
+  correction?: PlatformCorrectionService;
 }
 export type IntegrationFactory = (
   repositories: Omit<PlatformDatabase, 'close'>,
@@ -268,7 +287,12 @@ export function registerPlatformRoutes(
         ...body,
         projectId: id,
       };
-      const result = await integrations.engineering.validate(valRequest);
+      const parsed = ValidationResultSchema.safeParse(
+        await integrations.engineering.validate(valRequest),
+      );
+      if (!parsed.success || parsed.data.job.projectId !== id)
+        throw new Error('Engineering provider returned an invalid or incorrectly scoped result');
+      const result = parsed.data;
       await store.validation.recordResult(result);
 
       // Record activity event
@@ -287,6 +311,23 @@ export function registerPlatformRoutes(
           findingCount: result.findings.length,
         },
       });
+
+      // Persist only actual validator observations. Context synthesis remains Developer 2's engine.
+      // Both failed and successful runs are historical facts; success must not leave an artificial open issue.
+      await store.context.append(
+        buildContextRecord(id, {
+          kind: 'fact',
+          text: `${body.kind} ${result.job.status}: ${result.findings.length} finding(s). ${result.findings.map((finding) => finding.message).join('; ') || result.job.stdoutTail || result.job.stderrTail}`,
+          provenance: {
+            sourceKind: 'observed_tool',
+            actor: 'engineering-core',
+            sourceRef: result.job.id,
+          },
+          evidence: result.findings.length
+            ? result.findings.flatMap((finding) => finding.evidence)
+            : result.job.artifacts.map((filePath) => ({ filePath })),
+        }),
+      );
 
       return reply
         .code(201)
@@ -319,6 +360,109 @@ export function registerPlatformRoutes(
       error: {
         code: 'NOT_IMPLEMENTED',
         message: "MCP execution and health checks require Developer 2's gateway implementation",
+      },
+      meta: responseMeta(request.id),
+    });
+  });
+
+  // Safe Engineering Correction Workflow
+  app.post(`${prefix}/projects/:id/corrections/preview`, async (request, reply) => {
+    const id = projectId(request.params);
+    const body = CorrectionPreviewRequestSchema.parse(request.body);
+
+    if (integrations.correction) {
+      const preview = await integrations.correction.previewCorrection(id, body.findingId);
+      return apiSuccess(preview, request.id);
+    }
+
+    return reply.code(501).send({
+      ok: false,
+      error: {
+        code: 'NOT_IMPLEMENTED',
+        message: 'Engineering correction requires active correction service integration',
+      },
+      meta: responseMeta(request.id),
+    });
+  });
+
+  app.post(`${prefix}/projects/:id/corrections/apply`, async (request, reply) => {
+    const id = projectId(request.params);
+    const body = CorrectionApplyRequestSchema.parse(request.body);
+
+    if (integrations.correction) {
+      const result = await integrations.correction.applyCorrection(id, body);
+
+      // Persist the revalidation result
+      await store.validation.recordResult({
+        job: result.revalidationJob,
+        findings: result.revalidationFindings,
+      });
+
+      // Persist observation context record
+      await store.context.append(result.contextRecord);
+
+      // Record activity event
+      await store.events.append({
+        id: randomUUID(),
+        projectId: id,
+        type: 'engineering.correction.applied',
+        actor: 'safe-correction-engine',
+        sourceKind: 'observed_tool',
+        sourceRef: result.revalidationJob.id,
+        createdAt: result.appliedAt,
+        schemaVersion: 1,
+        payload: {
+          targetFile: result.targetFile,
+          backupPath: result.backupPath,
+          status: result.revalidationJob.status,
+          remainingFindings: result.revalidationFindings.length,
+        },
+      });
+
+      return reply.code(200).send(apiSuccess(result, request.id));
+    }
+
+    return reply.code(501).send({
+      ok: false,
+      error: {
+        code: 'NOT_IMPLEMENTED',
+        message: 'Engineering correction requires active correction service integration',
+      },
+      meta: responseMeta(request.id),
+    });
+  });
+
+  app.post(`${prefix}/projects/:id/corrections/rollback`, async (request, reply) => {
+    const id = projectId(request.params);
+    const body = CorrectionRollbackRequestSchema.parse(request.body);
+
+    if (integrations.correction?.rollbackCorrection) {
+      const result = await integrations.correction.rollbackCorrection(id, body);
+
+      // Record activity event
+      await store.events.append({
+        id: randomUUID(),
+        projectId: id,
+        type: 'engineering.correction.rolled_back',
+        actor: 'safe-correction-engine',
+        sourceKind: 'observed_tool',
+        sourceRef: result.revalidationJob.id,
+        createdAt: result.restoredAt,
+        schemaVersion: 1,
+        payload: {
+          targetFile: result.targetFile,
+          status: result.revalidationJob.status,
+        },
+      });
+
+      return reply.code(200).send(apiSuccess(result, request.id));
+    }
+
+    return reply.code(501).send({
+      ok: false,
+      error: {
+        code: 'NOT_IMPLEMENTED',
+        message: 'Engineering correction rollback requires active correction service integration',
       },
       meta: responseMeta(request.id),
     });

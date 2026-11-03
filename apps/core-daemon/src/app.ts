@@ -99,9 +99,20 @@ export function buildApp(options: AppOptions) {
     const info = parsedError.success ? parsedError.data : {};
     let status = 500;
     let apiError = fail('INTERNAL_ERROR', 'An internal error occurred');
-    if (error instanceof PersistenceError) {
-      status = { NOT_FOUND: 404, CONFLICT: 409, VALIDATION_ERROR: 400 }[error.code];
-      apiError = fail(error.code, error.message);
+    if (
+      error instanceof PersistenceError ||
+      (error as { name?: string })?.name === 'PersistenceError' ||
+      (error as { name?: string })?.name === 'CorrectionError'
+    ) {
+      const code = (
+        error as { code: 'NOT_FOUND' | 'CONFLICT' | 'VALIDATION_ERROR' | 'UNAUTHORIZED' }
+      ).code;
+      status =
+        { NOT_FOUND: 404, CONFLICT: 409, VALIDATION_ERROR: 400, UNAUTHORIZED: 401 }[code] ?? 500;
+      apiError = fail(
+        code === 'UNAUTHORIZED' ? 'UNAUTHORIZED' : (code as ApiError['code']),
+        (error as Error).message,
+      );
     } else if (error instanceof z.ZodError) {
       status = 400;
       apiError = fail(

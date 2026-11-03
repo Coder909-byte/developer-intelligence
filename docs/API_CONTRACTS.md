@@ -112,3 +112,15 @@ Reserved execution routes explicitly remain 501: `POST /projects/:id/validation-
 ## End-to-end integration clarifications
 
 No entity/API changes are needed for existing frontend reads or handoff storage. See INTEGRATION_READINESS and DEMO_PLAN before enabling execution. Findings are append-only history: use listFindings(projectId, {jobId}) for current diagnostics, and preserve an agreed current-job reference for reload. recordValidationResult does not automatically create an event or ContextRecord. A raw getContext response is not proof that a context intelligence engine or second MCP host is connected. Handoff lists are ascending; limit=1 is not latest. The SDK currently has a five-second default timeout, the daemon accepts at most 64 KiB per JSON body, and queued-job persistence/async execution are not implemented by the completed-result API.
+
+## Live runtime composition (merged intelligence implementation)
+
+Start with UDI_INTEGRATIONS=true or UDI_ENABLE_INTEGRATIONS=1. Without either flag the persistence-only behavior and explicit 501 execution boundaries remain available. No existing entity schemas, SDK methods or envelopes change.
+
+POST /projects/:id/validation-jobs now invokes the real engineering provider when enabled. The request remains ValidationRequestBodySchema; a synchronous completed Job is returned with 201 and Location. Results are schema- and project-validated as an internal boundary (invalid/wrong-project provider output is 500 without writes). Default composition authorizes existing artifact paths against the canonical project workspace, including symlinks and the validator's optional default engineering-map.json; invalid/missing or escaped inputs are 400 before invocation. Slow optional tool builds still require an appropriate client timeout; no async queued-job API is added.
+
+After execution, the daemon persists the actual job/findings, a completed activity event and a fact ContextRecord with observed_tool provenance/sourceRef=job UUID and real evidence. Both failed and successful runs remain historical facts; no synthetic unresolved issue is left by the bridge. D2's existing context engine synthesizes those stored observations. Direct POST /validation-results remains snapshot ingestion and does not automatically promote externally submitted data into observed context.
+
+Unfiltered findings remain historical for compatibility. Use listFindings(projectId,{jobId}) for the current completed job and the latest engineering.validation.completed event to recover that job after reload. A successful rerun does not rewrite the earlier failed finding.
+
+scripts/mcp-stdio.mjs is a thin executable composition of DefaultMcpGateway, not a separate gateway. It reads the existing daemon token (or explicit UDI_TOKEN), validates UDI_PROJECT_ID and project access, and uses the shared SDK over loopback. stdout is MCP JSON-RPC only. Runtime testing negotiates protocol 2025-11-25 and calls real tools via an independent child process. See RUNTIME_DEMO for commands/results and remaining UI/host limitations.

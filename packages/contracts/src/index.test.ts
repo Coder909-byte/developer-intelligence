@@ -37,4 +37,20 @@ describe('shared contracts', () => {
       }).success,
     ).toBe(false);
   });
+  it('enforces correction contracts and requires explicit user approval on apply', async () => {
+    const { CorrectionPreviewRequestSchema, CorrectionApplyRequestSchema } =
+      await import('./index.js');
+    expect(CorrectionPreviewRequestSchema.safeParse({ findingId: 'not-a-uuid' }).success).toBe(
+      false,
+    );
+    // userApproved must be literal true, false is rejected
+    expect(
+      CorrectionApplyRequestSchema.safeParse({
+        previewId: '00000000-0000-0000-0000-000000000000',
+        findingId: '00000000-0000-0000-0000-000000000000',
+        expectedOriginalHash: 'abc',
+        userApproved: false,
+      }).success,
+    ).toBe(false);
+  });
 });

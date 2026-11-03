@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, cp, writeFile, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
@@ -11,14 +11,14 @@ const repoRoot = resolve(import.meta.dirname, '../../..');
 const roverDir = resolve(repoRoot, 'examples/rover');
 
 describe('Daemon intelligence engine integrations', () => {
-  async function setup() {
+  async function setup(integrations = createDefaultIntegrations) {
     const dataDir = await mkdtemp(join(tmpdir(), 'udi-intelligence-test-'));
     const token = randomBytes(32).toString('hex');
     const app = buildApp({
       databasePath: join(dataDir, 'test.sqlite'),
       token,
       logger: false,
-      integrations: createDefaultIntegrations,
+      integrations,
     });
     await app.ready();
     const address = await app.listen({ host: '127.0.0.1', port: 0 });
@@ -90,6 +90,13 @@ describe('Daemon intelligence engine integrations', () => {
       expect(validationEvent).toBeDefined();
       expect(validationEvent?.sourceKind).toBe('observed_tool');
       expect(validationEvent?.actor).toBe('engineering-core');
+      const observed = (await client.getContext(project.id)).records.find(
+        (record) => record.provenance.sourceRef === job.id,
+      );
+      expect(observed?.provenance.sourceKind).toBe('observed_tool');
+      expect(observed?.text).toContain('GPIO14');
+      expect(observed?.text).toContain('GPIO26');
+      expect(observed?.evidence.map((item) => item.filePath)).toEqual(['rover.net', 'src/pins.h']);
 
       // 5. Run validation on corrected pins_corrected.h -> succeeds
       const passJob = await client.requestValidation(project.id, {
@@ -104,6 +111,14 @@ describe('Daemon intelligence engine integrations', () => {
         jobId: passJob.id,
       });
       expect(passFindings).toHaveLength(0);
+      const memory = await client.getContext(project.id);
+      expect(memory.records.map((record) => record.provenance.sourceRef)).toEqual([
+        job.id,
+        passJob.id,
+      ]);
+      expect(memory.records.at(-1)?.text).toContain('succeeded: 0 finding(s)');
+      expect(memory.openIssues).toEqual([]);
+      expect((await client.listFindings(project.id, { jobId: job.id })).items).toHaveLength(1);
     } finally {
       await cleanup();
     }
@@ -178,6 +193,78 @@ describe('Daemon intelligence engine integrations', () => {
       const checked = await client.checkMcpServerHealth(server.id);
       expect(checked.id).toBe(server.id);
       expect(checked.status).toBe('healthy');
+    } finally {
+      await cleanup();
+    }
+  });
+  it('rejects artifact traversal, external absolute paths and symlink escapes before invoking validation', async () => {
+    const { client, cleanup } = await setup();
+    const temporary = await mkdtemp(join(tmpdir(), 'udi-artifact-scope-'));
+    const workspace = join(temporary, 'workspace');
+    try {
+      await cp(roverDir, workspace, { recursive: true });
+      const outside = join(temporary, 'outside.h');
+      await writeFile(outside, '#define MOTOR_EN GPIO26\n');
+      await symlink(outside, join(workspace, 'escape.h'));
+      const project = await client.createProject({ name: 'Scoped artifacts', rootPath: workspace });
+      for (const file of ['../outside.h', outside, 'escape.h'])
+        await expect(
+          client.requestValidation(project.id, {
+            kind: 'pin_consistency',
+            artifactPaths: ['rover.net', file, 'engineering-map.json'],
+            requestedBy: 'scope-test',
+          }),
+        ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+      await rm(join(workspace, 'engineering-map.json'));
+      await symlink(outside, join(workspace, 'engineering-map.json'));
+      await expect(
+        client.requestValidation(project.id, {
+          kind: 'pin_consistency',
+          artifactPaths: ['rover.net', 'src/pins.h'],
+          requestedBy: 'scope-test',
+        }),
+      ).rejects.toMatchObject({ code: 'VALIDATION_ERROR', status: 400 });
+      expect((await client.listEvents(project.id)).items).toEqual([]);
+      expect((await client.listFindings(project.id)).items).toEqual([]);
+    } finally {
+      await cleanup();
+      await rm(temporary, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects incorrectly scoped validator output as an internal integration error without persisting it', async () => {
+    let wrongProject = '';
+    let jobId = '';
+    const { client, cleanup } = await setup((store) => {
+      const defaults = createDefaultIntegrations(store);
+      return {
+        ...defaults,
+        engineering: {
+          async validate(request, signal) {
+            const result = await defaults.engineering!.validate(request, signal);
+            jobId = result.job.id;
+            return {
+              job: { ...result.job, projectId: wrongProject },
+              findings: result.findings.map((finding) => ({ ...finding, projectId: wrongProject })),
+            };
+          },
+        },
+      };
+    });
+    try {
+      const project = await client.createProject({ name: 'Scope source', rootPath: roverDir });
+      const other = await client.createProject({ name: 'Scope destination', rootPath: repoRoot });
+      wrongProject = other.id;
+      await expect(
+        client.requestValidation(project.id, {
+          kind: 'pin_consistency',
+          artifactPaths: ['rover.net', 'src/pins_corrected.h', 'engineering-map.json'],
+          requestedBy: 'scope-test',
+        }),
+      ).rejects.toMatchObject({ code: 'INTERNAL_ERROR', status: 500 });
+      await expect(client.getJob(other.id, jobId)).rejects.toMatchObject({ status: 404 });
+      expect((await client.listEvents(project.id)).items).toEqual([]);
+      expect((await client.getContext(project.id)).records).toEqual([]);
     } finally {
       await cleanup();
     }
