@@ -35,28 +35,35 @@ afterEach(async () => {
   host.remove();
   vi.restoreAllMocks();
 });
-async function render() {
+async function render(onNavigate = (_screen: string) => {}) {
   await act(async () =>
     root.render(
       createElement(ShipWorkspace, {
         projectName: undefined,
         jobId: undefined,
         engine: 'disconnected',
-        onNavigate: () => {},
+        onNavigate,
       }),
     ),
   );
 }
 describe('decorative crew and cursor effects', () => {
-  it('keeps seven decorative crews independently scoped to their room and allows motion to be paused', async () => {
+  it('keeps eight decorative crews independently scoped to their room and allows motion to be paused', async () => {
     await render();
-    expect(host.querySelectorAll('.ship-room .pixel-roam')).toHaveLength(7);
+    expect(host.querySelectorAll('.ship-room .pixel-roam')).toHaveLength(8);
     const toggle = host.querySelector<HTMLButtonElement>('.ship-motion-toggle')!;
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
     await act(async () => toggle.click());
     expect(toggle.textContent).toBe('Resume motion');
     expect(host.querySelector('.ship-motion-paused')).not.toBeNull();
     expect(host.textContent).toContain('DECORATIVE CREW / LIVE PROJECT DATA');
+  });
+  it('opens Context Inspector from its new compartment', async () => {
+    const navigate = vi.fn();
+    await render(navigate);
+    const room = host.querySelector<HTMLButtonElement>('[aria-label="Open Context Inspector"]')!;
+    await act(async () => room.click());
+    expect(navigate).toHaveBeenCalledWith('Context Inspector');
   });
   it('starts paused for reduced motion preferences', async () => {
     reduced = true;

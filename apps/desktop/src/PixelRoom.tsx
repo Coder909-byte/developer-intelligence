@@ -1,4 +1,85 @@
-type Room = 'engineering' | 'agents' | 'mcp' | 'settings' | 'devices' | 'bridge' | 'library';
+type Room =
+  'engineering' | 'agents' | 'mcp' | 'settings' | 'devices' | 'bridge' | 'library' | 'inspector';
+
+/** Each crew member's equipment follows their room's role. */
+function CrewAccessory({ room }: { room: Room }) {
+  switch (room) {
+    case 'engineering':
+      return (
+        <g className="pixel-accessory">
+          <title>Engineer: hard hat and wrench</title>
+          <path d="M3-2h6v1h1v2H2v-2h1zM1 1h10v1H1z" fill="#efbd65" />
+          <path d="M5-2h1v3H5z" fill="#fff0b9" />
+          <path d="M12 3h1v3h-1zM11 2h1v2h2V2h1v3h-1v5h-2V5h-1z" fill="#cbd6df" />
+        </g>
+      );
+    case 'agents':
+      return (
+        <g className="pixel-accessory">
+          <title>Handoff courier: messenger satchel</title>
+          <path d="M2 2h1v2h2v2h2v1H5V6H3V4H2z" fill="#f2cf93" />
+          <path d="M7 5h5v4H7z" fill="#91603e" />
+          <path d="M7 5h5v1H7zM9 6h1v1H9z" fill="#f2cf93" />
+        </g>
+      );
+    case 'mcp':
+      return (
+        <g className="pixel-accessory">
+          <title>Communications operator: headset and microphone</title>
+          <path d="M2 0h8v1H2zM1 1h2v4H1zM9 1h2v4H9z" fill="#d0e6d9" />
+          <path d="M10 4h1v2H8V5h2z" fill="#97e8c4" />
+          <path d="M1-3h1v3H1zM0-3h3v1H0z" fill="#d0e6d9" />
+        </g>
+      );
+    case 'settings':
+      return (
+        <g className="pixel-accessory">
+          <title>Systems operator: tool belt and screwdriver</title>
+          <path d="M2 6h8v1H2zM3 6h2v2H3zM7 6h2v2H7z" fill="#e4b56d" />
+          <path d="M12 1h1v4h-1z" fill="#d1dbe4" />
+          <path d="M11 5h3v4h-3z" fill="#c78b9f" />
+        </g>
+      );
+    case 'devices':
+      return (
+        <g className="pixel-accessory">
+          <title>Hardware technician: handheld meter and probe</title>
+          <path d="M9 4h4v6H9z" fill="#f2bf69" />
+          <path d="M10 5h2v2h-2z" fill="#355e5b" />
+          <path d="M10 8h2v1h-2z" fill="#eff3b4" />
+          <path d="M13 7h2V2h-1V0" fill="none" stroke="#de826f" strokeWidth="1" />
+        </g>
+      );
+    case 'bridge':
+      return (
+        <g className="pixel-accessory">
+          <title>Captain: peaked cap and rank insignia</title>
+          <path d="M2-2h8v2H2zM3 0h7v1H3z" fill="#e5e5cf" />
+          <path d="M2 0h9v1H2z" fill="#cfaa5d" />
+          <path d="M5-1h2v1H5zM1 5h2v1H1zM9 5h2v1H9zM7 6h2v1H7z" fill="#f4ce78" />
+        </g>
+      );
+    case 'inspector':
+      return (
+        <g className="pixel-accessory">
+          <title>Context analyst: magnifying glass</title>
+          <path d="M10 1h3v1h1v3h-1v1h-3V5H9V2h1z" fill="#bdeaf1" />
+          <path d="M10 2h3v3h-3z" fill="#49727d" />
+          <path d="M10 2h1v1h-1z" fill="#e7fbff" />
+          <path d="M12 6h2v3h-2zM13 8h2v2h-2z" fill="#b59065" />
+        </g>
+      );
+    case 'library':
+      return (
+        <g className="pixel-accessory">
+          <title>Librarian: glasses and a book</title>
+          <path d="M3 3h3v2H3zM7 3h3v2H7z" fill="none" stroke="#f0d8a3" strokeWidth=".6" />
+          <path d="M7 6h4v3H7z" fill="#b28cc6" />
+          <path d="M8 6v3" stroke="#f4dfb8" strokeWidth=".6" />
+        </g>
+      );
+  }
+}
 
 /** Ambient monitor artwork, never a live terminal or telemetry source. */
 function MonitorAnimation({
@@ -219,6 +300,18 @@ export function PixelRoom({ room, door = 'bottom' }: { room: Room; door?: 'top' 
           <path d="M64 41h10v3H64z" fill="#dbc498" />
         </>
       )}
+      {room === 'inspector' && (
+        <>
+          <path d="M16 17h64v20H16z" fill="#142632" />
+          <path d="M18 19h17v14H18zM39 19h18v14H39zM61 19h17v14H61z" fill="#548791" />
+          <MonitorAnimation x={20} y={21} width={13} height={10} />
+          <MonitorAnimation x={41} y={21} width={14} height={10} variant="signal" />
+          <path d="M64 22h10v2H64zM64 26h7v2h-7zM64 30h9v1h-9z" fill="#ccedd7" />
+          <path d="M34 25h5M57 25h5" stroke="#d8c397" strokeWidth="2" />
+          <path d="M18 37h60v5H18zM62 44h13v7H62z" fill="#749da1" />
+          <path d="M65 46h7v3h-7z" fill="#c2e8dc" />
+        </>
+      )}
       <g
         className="pixel-caretaker"
         transform={room === 'engineering' ? 'translate(67 44)' : 'translate(43 43)'}
@@ -239,13 +332,7 @@ export function PixelRoom({ room, door = 'bottom' }: { room: Room; door?: 'top' 
               <path d="M3 1h6v2h1v4H2V3h1z" fill="var(--crew-suit, #efd6a4)" />
               <path d="M4 2h5v3H4z" fill="#3e626b" />
               <path d="M5 2h3v1H5z" fill="#d8eee0" />
-              {room === 'library' && (
-                <>
-                  <path d="M3 3h3v2H3zM7 3h3v2H7z" fill="none" stroke="#f0d8a3" strokeWidth=".6" />
-                  <path d="M7 6h4v3H7z" fill="#b28cc6" />
-                  <path d="M8 6v3" stroke="#f4dfb8" strokeWidth=".6" />
-                </>
-              )}
+              <CrewAccessory room={room} />
               <path className="pixel-foot-left" d="M3 7h2v3H3z" fill="var(--crew-boots, #b18e71)" />
               <path
                 className="pixel-foot-right"

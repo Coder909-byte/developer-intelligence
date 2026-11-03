@@ -315,7 +315,7 @@ describe('desktop user journeys', () => {
     await render();
     expect(host.querySelector('nav[aria-label="Ship compartments"]')).not.toBeNull();
     expect(host.querySelector('#ship-title')?.textContent).toBe('Mission control');
-    expect(host.querySelectorAll('.pixel-room-scene[aria-hidden="true"]')).toHaveLength(7);
+    expect(host.querySelectorAll('.pixel-room-scene[aria-hidden="true"]')).toHaveLength(8);
     await act(async () =>
       host.querySelector<HTMLButtonElement>('button[aria-label="Open Engineering bay"]')!.focus(),
     );

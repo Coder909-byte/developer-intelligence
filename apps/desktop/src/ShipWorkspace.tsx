@@ -60,6 +60,15 @@ const rooms = [
     number: '07',
     description: 'Librarian & saved session information',
   },
+  {
+    id: 'inspector',
+    name: 'Context Inspector',
+    destination: 'Context Inspector',
+    icon: 'engineering',
+    number: '08',
+    description:
+      'Context analyst with a magnifying glass · Raw activity, classifications & compressed context',
+  },
 ] as const;
 
 export function ShipWorkspace({
@@ -196,7 +205,11 @@ export function ShipWorkspace({
               <span className="room-art-depth">
                 <PixelRoom
                   room={room.id}
-                  door={['settings', 'devices', 'bridge'].includes(room.id) ? 'top' : 'bottom'}
+                  door={
+                    ['settings', 'devices', 'bridge', 'inspector'].includes(room.id)
+                      ? 'top'
+                      : 'bottom'
+                  }
                 />
               </span>
               <strong className="room-floor-sign">

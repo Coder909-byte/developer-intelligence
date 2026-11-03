@@ -2744,6 +2744,25 @@ summary {
   --roam-y3: -3px;
   animation-delay: -7s;
 }
+.retro-shell .ship-floorplan .ship-room-inspector {
+  grid-column: 4;
+  grid-row: 3;
+  --room-tint: #9dd4e3;
+  --crew-suit: #b1d8e8;
+  --crew-boots: #648caa;
+  --pixel-floor: #2d3a49;
+  --pixel-grid: #3d4b59;
+  --pixel-tile: #354452;
+  --pixel-wall: #91b0bd;
+  --pixel-wall-side: #596f83;
+}
+.ship-room-inspector .pixel-roam {
+  --route-b-x: -12px;
+  --route-b-y: -4px;
+  --route-d-x: 14px;
+  animation-duration: 22s;
+  animation-delay: -5s;
+}
 .retro-shell.app-fullscreen[data-screen='Overview'] .ship-floorplan .ship-deck {
   min-width: 880px;
   max-width: min(100%, calc((100dvh - 300px) * 3));
