@@ -33,7 +33,9 @@ import {
   scoped,
 } from './persistence.js';
 import { ShipWorkspace } from './ShipWorkspace.js';
-import { HubOverview, ToolDiscoveryUnavailable } from './HubOverview.js';
+import { HubOverview } from './HubOverview.js';
+import { ContextInspectorScreen, ToolHubScreen } from './MissionControl.js';
+import type { MissionControlFactory, MissionControlSource } from './mission-control.js';
 import { HostSetup } from './HostSetup.js';
 import { IntegrationGuide } from './IntegrationGuide.js';
 export const screens = [
@@ -43,6 +45,7 @@ export const screens = [
   'Engineering',
   'Devices',
   'Settings',
+  'Context Inspector',
 ] as const;
 type Screen = (typeof screens)[number];
 function Unavailable({ title, reason }: { title: string; reason: string }) {
@@ -138,8 +141,8 @@ export function McpList({ items }: { items: McpServer[] }) {
           <Badge>{selected.enabled ? 'Enabled' : 'Disabled'}</Badge>
           <pre>{JSON.stringify(selected.transport, null, 2)}</pre>
           <p>
-            Tool discovery and permissions are unavailable from this daemon. Host Setup explains
-            adapter capabilities separately from verified connections.
+            Inspect discovered tools in the Tools tab. Host Setup explains adapter capabilities
+            separately from verified connections.
           </p>
           <p className="muted">Credentials and secret references are not displayed.</p>
         </Dialog>
@@ -153,12 +156,14 @@ function Mcp({
   tab,
   onTab,
   onSettings,
+  source,
 }: {
   client: DaemonClient;
   project: Project | undefined;
   tab: string;
   onTab: (tab: string) => void;
   onSettings: () => void;
+  source: MissionControlSource | undefined;
 }) {
   const page = usePage();
   const servers = useResource(
@@ -230,7 +235,12 @@ function Mcp({
           </Card>
         </>
       ) : tab === 'Tools' ? (
-        <ToolDiscoveryUnavailable />
+        <ToolHubScreen
+          key={project?.id ?? 'unscoped'}
+          client={client}
+          projectId={project?.id}
+          source={source}
+        />
       ) : tab === 'Host Setup' ? (
         <HostSetup onSettings={onSettings} />
       ) : project ? (
@@ -637,7 +647,7 @@ function RegisterProject({
     </Dialog>
   );
 }
-export function App() {
+export function App({ missionControl }: { missionControl?: MissionControlFactory } = {}) {
   const [screen, setScreen] = useState<Screen>('Overview');
   const [mcpTab, setMcpTab] = useState('Registry');
   const [fullscreen, setFullscreen] = useState(false);
@@ -662,6 +672,7 @@ export function App() {
   const [draftToken, setDraftToken] = useState('');
   const [settingsError, setSettingsError] = useState('');
   const client = useMemo(() => createClient({ baseUrl: url, token: () => token }), [url, token]);
+  const missionSource = useMemo(() => missionControl?.(client), [missionControl, client]);
   const health = useResource(() => client.health(), [client]);
   const projects = useResource(() => client.listProjects(), [client]);
   const [projectId, setProjectId] = useState('');
@@ -741,6 +752,7 @@ export function App() {
                             'engineering',
                             'devices',
                             'settings',
+                            'engineering',
                           ] as const
                         )[i]!
                       }
@@ -928,6 +940,7 @@ export function App() {
                 tab={mcpTab}
                 onTab={setMcpTab}
                 onSettings={() => setScreen('Settings')}
+                source={missionSource}
               />
             ) : screen === 'Devices' ? (
               <Card title="Devices & telemetry">
@@ -952,6 +965,12 @@ export function App() {
                           project={project}
                           navigate={setScreen}
                           jobId={jobIds[project.id]}
+                        />
+                      ) : screen === 'Context Inspector' ? (
+                        <ContextInspectorScreen
+                          client={client}
+                          projectId={project.id}
+                          source={missionSource}
                         />
                       ) : screen === 'Engineering' ? (
                         <Engineering

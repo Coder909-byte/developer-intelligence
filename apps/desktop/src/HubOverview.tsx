@@ -55,8 +55,10 @@ export function HubOverview({
             </div>
             <div>
               <span>Tools & host connections</span>
-              <Badge>Discovery unavailable</Badge>
-              <small>Discovery and host-session status are unavailable from this engine.</small>
+              <Badge>Gateway inventory</Badge>
+              <small>
+                Inspect discovered tools in MCP Hub. Host sessions require verification.
+              </small>
             </div>
           </div>
         )}

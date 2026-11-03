@@ -2,6 +2,224 @@
 @import '@udi/ui/tokens.css';
 @import './game-font.css';
 @source "../../../packages/ui/src";
+.compression-inspector,
+.categorical-hub {
+  display: grid;
+  gap: 20px;
+}
+.compression-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.compression-stat {
+  padding: 22px;
+  background: #131722;
+  border: 1px solid #293746;
+  border-top: 2px solid #00f0ff;
+  display: grid;
+  gap: 10px;
+}
+.compression-stat strong {
+  font:
+    28px Consolas,
+    monospace;
+  color: #00f0ff;
+}
+.compression-stat:first-child {
+  border-top-color: #f59e0b;
+}
+.compression-stat:first-child strong {
+  color: #f59e0b;
+}
+.compression-stat:nth-child(3) strong {
+  color: #10b981;
+}
+.compression-stat span,
+.compression-stat small {
+  color: #a8b4c5;
+}
+.compression-gauge {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid #293746;
+  background: #0b0d13;
+}
+.compression-gauge progress,
+.gauge-waiting {
+  flex: 1;
+  height: 8px;
+  min-width: 30px;
+  accent-color: #10b981;
+}
+.gauge-waiting {
+  background: #263241;
+}
+.inspection-streams {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+.inspection-streams > .card {
+  min-width: 0;
+  border-color: #293746;
+  background: #131722;
+}
+.inspection-streams .card-heading {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.inspection-scroll {
+  height: 440px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.inspection-scroll article {
+  padding: 16px 10px;
+  border-bottom: 1px solid #293746;
+}
+.inspection-scroll time {
+  display: block;
+  color: #94a3b8;
+  font:
+    11px Consolas,
+    monospace;
+  margin-bottom: 10px;
+}
+.raw-stream,
+.injected-stream {
+  background: #0b0d13;
+  padding: 12px;
+}
+.raw-stream h3 {
+  font:
+    12px Consolas,
+    monospace;
+  margin-top: 12px;
+}
+.injected-stream pre {
+  color: #00f0ff;
+}
+.classification-card {
+  margin: 0 0 12px;
+  border: 1px solid #475569;
+}
+.classification-card.preserve {
+  border-left: 3px solid #10b981;
+}
+.classification-card.prune {
+  opacity: 0.75;
+}
+.classification-card > code {
+  display: block;
+  margin-bottom: 12px;
+}
+.signal-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  color: #10b981;
+}
+.prune .signal-line {
+  color: #94a3b8;
+}
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.category-switch {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid #293746;
+  background: #0b0d13;
+}
+.category-switch button {
+  background: transparent;
+  color: #94a3b8;
+  border: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+}
+.switch-track {
+  width: 44px;
+  height: 24px;
+  border: 1px solid #475569;
+  padding: 3px;
+  display: block;
+}
+.switch-track > span {
+  display: block;
+  height: 16px;
+  width: 16px;
+  background: #475569;
+  transition: transform 0.15s;
+}
+[aria-checked='true'] .switch-track {
+  border-color: #00f0ff;
+}
+[aria-checked='true'] .switch-track > span {
+  background: #00f0ff;
+  transform: translateX(18px);
+}
+.active-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.active-tools article {
+  padding: 18px;
+  border: 1px solid #293746;
+  background: #0b0d13;
+  animation: tool-arrive 0.2s ease-out;
+}
+@keyframes tool-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 1150px) {
+  .inspection-streams {
+    grid-template-columns: 1fr;
+  }
+  .inspection-scroll {
+    height: 300px;
+  }
+  .compression-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .category-grid,
+  .active-tools,
+  .compression-metrics {
+    grid-template-columns: 1fr;
+  }
+  .compression-gauge {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .active-tools article {
+    animation: none;
+  }
+  .switch-track > span {
+    transition: none;
+  }
+}
 :root {
   color-scheme: dark;
   font-family: Inter, 'Segoe UI', system-ui, sans-serif;

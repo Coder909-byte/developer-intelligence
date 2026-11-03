@@ -22,6 +22,7 @@ const api = vi.hoisted(() => ({
   deleteMcpServer: vi.fn(),
   requestValidation: vi.fn(),
   checkMcpServerHealth: vi.fn(),
+  listIntegrations: vi.fn(),
 }));
 vi.mock('@udi/client-sdk', async (original) => ({
   ...(await original<typeof import('@udi/client-sdk')>()),
@@ -145,6 +146,30 @@ afterEach(async () => {
   host.remove();
 });
 describe('desktop user journeys', () => {
+  it('opens the three-column inspector with actual scoped events and unknown metrics', async () => {
+    await render();
+    await select();
+    await click('Context Inspector');
+    expect(host.textContent).toContain('01 / Raw interaction stream');
+    expect(host.textContent).toContain('firmware.updated');
+    expect(host.textContent).toContain('02 / Laya classifier stream');
+    expect(host.textContent).toContain('03 / Injected compressed context');
+    expect(host.textContent).toContain('Awaiting compression service');
+    expect(host.textContent).not.toContain('97.6%');
+    api.listEvents.mockResolvedValue({ items: [{ projectId: 'other-project' }] });
+    await click('Refresh inspection');
+    expect(host.textContent).toContain('Unable to complete request');
+    expect(host.textContent).not.toContain('firmware.updated');
+  });
+  it('retains the switchboard waiting state when discovery is unavailable', async () => {
+    api.listIntegrations.mockRejectedValue(new DaemonClientError('NOT_IMPLEMENTED', 'disabled'));
+    await render();
+    await click('Open MCP Hub');
+    await click('Tools');
+    expect(host.textContent).toContain('Awaiting category policy');
+    expect(host.textContent).toContain('Not available from this daemon');
+    expect(host.querySelector('[role="switch"]')).toBeNull();
+  });
   it('leads with the integration mission and opens host setup without claiming a connected host', async () => {
     await render();
     expect(host.textContent).toContain(
@@ -170,7 +195,8 @@ describe('desktop user journeys', () => {
     ).toBe(true);
     expect(api.replaceMcpServer).not.toHaveBeenCalled();
   });
-  it('uses actual inventory for hub counts while keeping tool discovery explicitly unavailable', async () => {
+  it('uses actual inventory and reads gateway tools without inventing category permissions', async () => {
+    api.listIntegrations.mockResolvedValue({ items: [] });
     const server = {
       id,
       name: 'Real inventory fixture',
@@ -201,11 +227,8 @@ describe('desktop user journeys', () => {
     expect(host.textContent).toContain('Healthy observations; not fresh MCP handshakes');
     await click('Open MCP Hub');
     await click('Tools');
-    expect(host.textContent).toContain('Discovery unavailable');
-    expect(
-      [...host.querySelectorAll('button')].find((b) => b.textContent === 'Discover tools')
-        ?.disabled,
-    ).toBe(true);
+    expect(host.textContent).toContain('Awaiting category policy');
+    expect(api.listIntegrations).toHaveBeenCalled();
     expect(api.checkMcpServerHealth).not.toHaveBeenCalled();
   });
   it('filters the loaded MCP registry without hiding the add-server workflow', async () => {
