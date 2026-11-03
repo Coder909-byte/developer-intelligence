@@ -1,5 +1,10 @@
 # Backend Spec 2 acceptance and remaining gaps
 
+The later user-requested frontend conversion feature is tracked separately in
+[CODEX_CLAUDE_CONTEXT_BRIDGE.md](CODEX_CLAUDE_CONTEXT_BRIDGE.md). It adds a real
+Codex reader and Claude Markdown handoff without changing this original Spec 2
+acceptance boundary.
+
 Scope is `SPEC_BACKEND_CONTEXT_MCP_BRIDGE.md`: the dual-mode compressor,
 categorical single MCP gateway and extension-command bridge. Native Codex/Claude
 database import/export, proxy interception, classification and automatic injection

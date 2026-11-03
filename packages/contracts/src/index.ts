@@ -533,3 +533,37 @@ export const BridgeInvocationSchema = z.strictObject({
   expiresAt: TimestampSchema,
 });
 export const BridgePollSchema = z.strictObject({ items: z.array(BridgeInvocationSchema) });
+
+// Explicit, local Codex -> Claude Code Markdown handoff. This is not a native session resume.
+export const CodexClaudeConvertRequestSchema = z.strictObject({ sessionId: IdSchema.optional() });
+export const NativeContextEntrySchema = z.strictObject({
+  id: z.string().min(1).max(300),
+  role: z.enum(['user', 'assistant', 'tool']),
+  occurredAt: TimestampSchema,
+  text: z.string().min(1).max(8000),
+  originalChars: z.number().int().positive(),
+  truncated: z.boolean(),
+});
+export type NativeContextEntry = z.infer<typeof NativeContextEntrySchema>;
+export const CodexClaudeHandoffSchema = z.strictObject({
+  projectId: IdSchema,
+  projectName: z.string(),
+  sessionId: IdSchema,
+  storage: z.enum(['codex_sqlite', 'codex_rollout']),
+  generatedAt: TimestampSchema,
+  filename: z.literal('codex-claude-context.md'),
+  importLine: z.literal('@./codex-claude-context.md'),
+  markdown: z.string().min(1).max(40000),
+  entries: z.array(NativeContextEntrySchema).min(1).max(24),
+  stats: z.strictObject({
+    messagesRead: z.number().int().positive(),
+    messagesIncluded: z.number().int().positive(),
+    omittedMessages: z.number().int().nonnegative(),
+    truncatedMessages: z.number().int().nonnegative(),
+    rawTokensEstimate: z.number().int().nonnegative(),
+    outputTokensEstimate: z.number().int().nonnegative(),
+    sourceWindowLimited: z.boolean(),
+  }),
+  nativeClaudeSessionVerified: z.literal(false),
+});
+export type CodexClaudeHandoff = z.infer<typeof CodexClaudeHandoffSchema>;

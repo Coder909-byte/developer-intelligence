@@ -110,3 +110,4 @@ export function buildAgentHandoff(projectId: string, input: HandoffCreate): Agen
 }
 
 export * from './compressor.js';
+export * from './claude-handoff.js';

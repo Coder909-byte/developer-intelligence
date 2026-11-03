@@ -127,6 +127,13 @@ scripts/mcp-stdio.mjs is a thin executable composition of DefaultMcpGateway, not
 
 ## Backend Spec 2 additive surface
 
+The subsequent user-requested frontend conversion adds
+`POST /projects/:id/context-bridge/codex-to-claude` and
+`client.convertCodexContext(projectId, input?)`. See
+[CODEX_CLAUDE_CONTEXT_BRIDGE.md](CODEX_CLAUDE_CONTEXT_BRIDGE.md) for the native
+read-only source boundary and Claude Markdown export contract. It does not claim
+native Claude session resumption or live application consumption.
+
 See [BACKEND_SPEC2_HANDOFF.md](BACKEND_SPEC2_HANDOFF.md) for the exact compression,
 category-toggle and live extension-broker routes, SDK methods, provenance rules and
 manual VS Code acceptance checklist. Existing response shapes and MCP names remain

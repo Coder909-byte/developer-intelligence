@@ -1,5 +1,11 @@
 # Spec 2: actual Codex and Claude Code storage experiment
 
+This report records the earlier experiment before the user requested a frontend
+conversion feature. The subsequent production Codex → Claude Markdown reader and
+UI are documented in [CODEX_CLAUDE_CONTEXT_BRIDGE.md](CODEX_CLAUDE_CONTEXT_BRIDGE.md).
+The original results below remain historical; native Claude transcript writing
+and live Claude consumption are still not claimed.
+
 Result: shared context storage and MCP retrieval work **after explicit test-only
 normalization**. Native Codex-to-Claude/Claude-to-Codex session conversion is not
 implemented or proven by the Spec 2 extension-command bridge.

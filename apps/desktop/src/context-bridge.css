@@ -1,0 +1,226 @@
+.context-bridge {
+  margin: -2px;
+}
+.context-bridge-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.context-bridge-intro h3 {
+  color: #f1dfb8;
+  font-family: var(--game-font);
+  font-size: 13px;
+  line-height: 1.9;
+}
+.context-bridge-intro p:not(.eyebrow) {
+  color: #c5b6c9;
+  max-width: 650px;
+}
+.context-bridge-intro .button {
+  flex-shrink: 0;
+}
+.context-bridge-route {
+  display: grid;
+  grid-template-columns: 1fr 44px 1fr;
+  align-items: center;
+  margin: 24px 0 22px;
+}
+.context-bridge-host {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border: 2px solid #625471;
+  background: #20263a;
+  box-shadow: inset 0 0 0 2px #142234;
+}
+.context-bridge-host > div {
+  display: grid;
+  gap: 5px;
+  flex: 1;
+}
+.context-bridge-host strong {
+  font-family: var(--game-font);
+  font-size: 11px;
+  line-height: 1.8;
+  color: #eadcb7;
+}
+.context-bridge-host small {
+  color: #b8adbf;
+  font-size: 11px;
+}
+.context-bridge-avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  background: #304148;
+  border: 2px solid #91b9a8;
+  color: #b7d5ac;
+  font: 16px var(--game-font);
+  box-shadow: 3px 3px #101727;
+}
+.context-bridge-avatar.claude {
+  color: #edb99a;
+  border-color: #be947f;
+  background: #493b43;
+  font:
+    32px Georgia,
+    serif;
+}
+.context-bridge-arrow {
+  text-align: center;
+  color: #b7c791;
+  font-size: 26px;
+}
+.context-bridge-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 16px;
+}
+.context-bridge-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #aaa0b5;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.context-bridge-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border: 1px solid #74647e;
+  font: 8px var(--game-font);
+}
+.context-bridge-steps li[data-state='complete'] {
+  color: #c6d9ac;
+}
+.context-bridge-steps li[data-state='complete'] > span {
+  border-color: #9fb582;
+  background: #3a493e;
+}
+.context-bridge-steps li[data-state='active'] {
+  color: #f1dfb8;
+}
+.context-bridge-status {
+  margin: 18px 0 0;
+  color: #c5b6c9;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.context-bridge-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 22px 0;
+  border: 1px solid #625471;
+  background: #20263a;
+}
+.context-bridge-metrics > div {
+  display: grid;
+  gap: 9px;
+  padding: 16px;
+  border-right: 1px solid #625471;
+}
+.context-bridge-metrics > div:last-child {
+  border: 0;
+}
+.context-bridge-metrics strong {
+  color: #d5dba8;
+  font: 14px/1.6 var(--game-font);
+}
+.context-bridge-metrics small {
+  font-size: 10px;
+}
+.context-bridge-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.context-bridge-preview section {
+  min-width: 0;
+  border: 1px solid #625471;
+  background: #172133;
+}
+.context-bridge-preview h4 {
+  padding: 12px 14px;
+  border-bottom: 1px solid #625471;
+  color: #d0c3d1;
+  font: 8px/1.8 var(--game-font);
+}
+.context-bridge-preview pre {
+  height: 280px;
+  overflow: auto;
+  padding: 14px;
+  margin: 0;
+  color: #c9d6d0;
+  font-size: 11px;
+  line-height: 1.7;
+  scrollbar-color: #776782 #172133;
+}
+.context-bridge-export {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+.context-bridge-export small {
+  overflow-wrap: anywhere;
+}
+.context-bridge-help {
+  border-top: 1px dashed #625471;
+  padding-top: 16px;
+  margin-top: 18px;
+  font-size: 12px;
+  color: #c5b6c9;
+}
+.context-bridge-help summary {
+  cursor: pointer;
+  color: #dccba9;
+}
+.context-bridge-help a {
+  color: #b7d5ac;
+}
+.context-bridge-help pre {
+  padding: 12px;
+  background: #172133;
+}
+.context-bridge-notice {
+  color: #c6d9ac;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .context-bridge-intro {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .context-bridge-host .badge {
+    display: none;
+  }
+  .context-bridge-preview {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 540px) {
+  .context-bridge-route {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .context-bridge-arrow {
+    transform: rotate(90deg);
+  }
+  .context-bridge-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  .context-bridge-steps {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}

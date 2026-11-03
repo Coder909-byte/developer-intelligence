@@ -32,7 +32,8 @@
     "test:demo-state": "node scripts/verify-demo-state.mjs",
     "test:context-mcp": "pnpm build && node scripts/verify-context-mcp-bridge.mjs",
     "test:spec2:fast": "python3 scripts/verify_spec2.py",
-    "test:spec2:stores": "python3 -B scripts/verify_native_context_stores.py"
+    "test:spec2:stores": "python3 -B scripts/verify_native_context_stores.py",
+    "test:context-conversion": "python3 -B scripts/verify_codex_claude_conversion.py"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

@@ -10,6 +10,8 @@ import {
   BridgeCallSchema,
   BridgeResultSchema,
   BridgePollSchema,
+  CodexClaudeConvertRequestSchema,
+  CodexClaudeHandoffSchema,
   type BridgedExtensionTool,
   type ToggleCategoryRequest,
   type JsonValue,
@@ -405,6 +407,16 @@ export function createClient(options: ClientOptions = {}) {
         BridgeCallSchema.parse(input),
       ),
     listIntegrations: () => request('GET', '/integrations', IntegrationListSchema),
+    convertCodexContext: (
+      projectId: string,
+      input: z.input<typeof CodexClaudeConvertRequestSchema> = {},
+    ) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/context-bridge/codex-to-claude`,
+        CodexClaudeHandoffSchema,
+        CodexClaudeConvertRequestSchema.parse(input),
+      ),
     discoverServerTools: (serverId: string) =>
       request(
         'POST',

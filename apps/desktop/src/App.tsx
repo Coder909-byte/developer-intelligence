@@ -36,6 +36,7 @@ import { ShipWorkspace } from './ShipWorkspace.js';
 import { HubOverview, ToolDiscoveryUnavailable } from './HubOverview.js';
 import { HostSetup } from './HostSetup.js';
 import { IntegrationGuide } from './IntegrationGuide.js';
+import { ContextBridge } from './ContextBridge.js';
 export const screens = [
   'Overview',
   'MCP Hub',
@@ -60,11 +61,12 @@ function Context({ client, project }: { client: DaemonClient; project: Project }
       <Card title="Shared agent intelligence">
         <p>
           Carry project decisions, tool observations and reviewed handoffs across supported hosts.
-          Each record preserves its source, actor and evidence; private conversations are not
-          captured.
+          Each record preserves its source, actor and evidence. Import saved session context on
+          demand with the bridge below.
         </p>
         <Badge>Project-scoped memory</Badge>
       </Card>
+      <ContextBridge client={client} project={project} />
       <Tabs
         tabs={['Connected Agents', 'Project Memory', 'Context Timeline', 'Agent Handoffs']}
         selected={tab}

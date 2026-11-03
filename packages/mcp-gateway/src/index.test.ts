@@ -162,6 +162,7 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
       pollHostExtensionRequests: vi.fn(),
       completeHostExtensionRequest: vi.fn(),
       callHostExtensionTool: vi.fn(),
+      convertCodexContext: vi.fn(),
       listIntegrations: vi.fn(async () => ({ items: [] })),
       discoverServerTools: vi.fn(async () => ({ items: [] })),
       callMcpTool: vi.fn(),

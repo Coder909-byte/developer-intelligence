@@ -56,3 +56,19 @@ Context, MCP inventory and findings reads now return persisted data rather than 
 ## Integration readiness follow-up
 
 Read-only review of frontend d1ce340 confirms compatible existing read calls, but validation/handoff commands and unavailable copy still target the bootstrap baseline. Wire the existing handoff SDK, select findings by current job ID, clear historical diagnostics after correction and verify real Extension Host behavior. See [integration readiness](INTEGRATION_READINESS.md) and [demo plan](DEMO_PLAN.md) for exact requirements. This audit did not merge or modify your branch.
+
+## User-requested Codex → Claude Code component
+
+The project lead explicitly requested a frontend conversion component after the
+Spec 2 milestone. `ContextBridge.tsx` is mounted inside Agent Workspace, above its
+existing tabs. Its namespaced `context-bridge.css` uses the current pixel/purple
+theme and shared Card/Button/Badge components. The rest of the navigation and
+frontend remains intact.
+
+The one-click action calls `client.convertCodexContext(project.id)`. The daemon
+reads that workspace's actual Codex session and returns a Claude-compatible Markdown
+handoff; source/output previews, role/time provenance, clipping counts and explicit
+copy/download actions use that response. The status is **Ready to import**, never
+a claim that Claude has acknowledged or resumed a conversation. No private session
+is read until the action is clicked. Project/connection changes invalidate pending
+results and hide old previews. See [the feature contract and verification](CODEX_CLAUDE_CONTEXT_BRIDGE.md).
