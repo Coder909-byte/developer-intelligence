@@ -82,7 +82,8 @@ export function parseTelemetryMessage(
   }
 
   const obj = parsed as Record<string, unknown>;
-  const deviceId = typeof obj.deviceId === 'string' && obj.deviceId ? obj.deviceId : defaultDeviceId;
+  const deviceId =
+    typeof obj.deviceId === 'string' && obj.deviceId ? obj.deviceId : defaultDeviceId;
   const now = new Date().toISOString();
 
   // Metrics must be record<string, number>

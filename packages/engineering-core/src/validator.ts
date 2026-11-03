@@ -13,10 +13,7 @@ import type { EngineeringMap } from './types.js';
 export class DefaultEngineeringValidator implements EngineeringValidator {
   constructor(private readonly dependencies: EngineeringDependencies) {}
 
-  async validate(
-    request: ValidationRequest,
-    signal?: AbortSignal,
-  ): Promise<ValidationResult> {
+  async validate(request: ValidationRequest, signal?: AbortSignal): Promise<ValidationResult> {
     const workspaceRoot = await this.dependencies.resolveWorkspace(request.projectId);
     const jobId = randomUUID();
     const now = new Date().toISOString();
@@ -55,20 +52,23 @@ export class DefaultEngineeringValidator implements EngineeringValidator {
     const resolvePath = (p: string) => (isAbsolute(p) ? p : resolve(workspaceRoot, p));
 
     // Find netlist artifact
-    const netlistPath = request.artifactPaths.find(
-      (p) => p.endsWith('.net') || (p.endsWith('.json') && !p.includes('map') && !p.includes('pin')),
-    ) ?? request.artifactPaths[0];
+    const netlistPath =
+      request.artifactPaths.find(
+        (p) =>
+          p.endsWith('.net') || (p.endsWith('.json') && !p.includes('map') && !p.includes('pin')),
+      ) ?? request.artifactPaths[0];
 
     // Find firmware pin artifact
-    const firmwarePath = request.artifactPaths.find(
-      (p) =>
-        p.endsWith('.h') ||
-        p.endsWith('.hpp') ||
-        p.endsWith('.ino') ||
-        p.endsWith('.c') ||
-        p.endsWith('.cpp') ||
-        p.includes('pin'),
-    ) ?? request.artifactPaths[1];
+    const firmwarePath =
+      request.artifactPaths.find(
+        (p) =>
+          p.endsWith('.h') ||
+          p.endsWith('.hpp') ||
+          p.endsWith('.ino') ||
+          p.endsWith('.c') ||
+          p.endsWith('.cpp') ||
+          p.includes('pin'),
+      ) ?? request.artifactPaths[1];
 
     if (!netlistPath || !firmwarePath) {
       const completedAt = new Date().toISOString();
@@ -82,7 +82,8 @@ export class DefaultEngineeringValidator implements EngineeringValidator {
         completedAt,
         exitCode: 1,
         stdoutTail: '',
-        stderrTail: 'Validation requires both a netlist artifact and a firmware pin definition file',
+        stderrTail:
+          'Validation requires both a netlist artifact and a firmware pin definition file',
         artifacts: [],
       };
       const finding: ValidationFinding = {
@@ -100,7 +101,8 @@ export class DefaultEngineeringValidator implements EngineeringValidator {
           firmware: firmwarePath ?? null,
         },
         evidence: [{ filePath: netlistPath ?? 'unknown' }],
-        suggestedFix: 'Provide both netlist path (e.g. rover.net) and firmware path (e.g. src/pins.h)',
+        suggestedFix:
+          'Provide both netlist path (e.g. rover.net) and firmware path (e.g. src/pins.h)',
         status: 'open',
         verifiedBy: { tool: 'engineering-core', version: '1.0.0' },
       };
@@ -187,7 +189,8 @@ export class DefaultEngineeringValidator implements EngineeringValidator {
 
     // Optional engineering-map.json
     let engineeringMap: EngineeringMap | undefined;
-    const mapPath = request.artifactPaths.find((p) => p.includes('engineering-map') || p.includes('map.json')) ??
+    const mapPath =
+      request.artifactPaths.find((p) => p.includes('engineering-map') || p.includes('map.json')) ??
       join(workspaceRoot, 'engineering-map.json');
 
     try {

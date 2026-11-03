@@ -123,7 +123,8 @@ export async function runPlatformIOBuild(
         cancelled: runResult.cancelled,
       },
       evidence: [{ filePath: 'platformio.ini', excerpt: runResult.stderrTail.slice(-500) }],
-      suggestedFix: 'Inspect the compiler errors in build output and resolve syntax or missing headers',
+      suggestedFix:
+        'Inspect the compiler errors in build output and resolve syntax or missing headers',
       status: 'open',
       verifiedBy: { tool: 'platformio', version: 'host' },
     });

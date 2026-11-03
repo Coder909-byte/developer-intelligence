@@ -96,19 +96,22 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
       getContext: vi.fn(async () => memory),
       listEvents: vi.fn(async () => ({ items: [event] })),
       listFindings: vi.fn(async () => ({ items: [finding] })),
-      getJob: vi.fn(async () => ({
-        id: finding.jobId,
-        projectId,
-        createdAt: '2026-11-03T12:00:00.000Z',
-        updatedAt: '2026-11-03T12:00:00.000Z',
-        status: 'failed' as const,
-        startedAt: '2026-11-03T12:00:00.000Z',
-        completedAt: '2026-11-03T12:00:00.000Z',
-        exitCode: 1,
-        stdoutTail: '',
-        stderrTail: '',
-        artifacts: [],
-      }) as Job),
+      getJob: vi.fn(
+        async () =>
+          ({
+            id: finding.jobId,
+            projectId,
+            createdAt: '2026-11-03T12:00:00.000Z',
+            updatedAt: '2026-11-03T12:00:00.000Z',
+            status: 'failed' as const,
+            startedAt: '2026-11-03T12:00:00.000Z',
+            completedAt: '2026-11-03T12:00:00.000Z',
+            exitCode: 1,
+            stdoutTail: '',
+            stderrTail: '',
+            artifacts: [],
+          }) as Job,
+      ),
       createContextRecord: vi.fn(async () => record),
       listMcpServers: vi.fn(async () => ({ items: [] })),
       getMcpServer: vi.fn(),
@@ -137,10 +140,7 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
     const mockClient = createMockDaemonClient();
     const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
 
-    const gateway = new DefaultMcpGateway(
-      { client: mockClient, projectId },
-      serverTransport,
-    );
+    const gateway = new DefaultMcpGateway({ client: mockClient, projectId }, serverTransport);
     await gateway.start();
 
     // Call tool over client transport
@@ -180,10 +180,7 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
     const mockClient = createMockDaemonClient();
     const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
 
-    const gateway = new DefaultMcpGateway(
-      { client: mockClient, projectId },
-      serverTransport,
-    );
+    const gateway = new DefaultMcpGateway({ client: mockClient, projectId }, serverTransport);
     await gateway.start();
 
     let responseText = '';
@@ -232,10 +229,7 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
     const mockClient = createMockDaemonClient();
     const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
 
-    const gateway = new DefaultMcpGateway(
-      { client: mockClient, projectId },
-      serverTransport,
-    );
+    const gateway = new DefaultMcpGateway({ client: mockClient, projectId }, serverTransport);
     await gateway.start();
 
     let responseText = '';
@@ -298,7 +292,10 @@ describe('DefaultMcpRegistry health checking', () => {
     const checked = await registry.checkHealth(server.id);
 
     expect(checked.status).toBe('healthy');
-    expect(mockClient.replaceMcpServer).toHaveBeenCalledWith(server.id, expect.objectContaining({ status: 'healthy' }));
+    expect(mockClient.replaceMcpServer).toHaveBeenCalledWith(
+      server.id,
+      expect.objectContaining({ status: 'healthy' }),
+    );
   });
 
   it('updates status to unreachable for invalid executable', async () => {

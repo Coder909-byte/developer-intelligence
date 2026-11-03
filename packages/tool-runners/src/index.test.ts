@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  LocalToolRunner,
-  validateArgument,
-  validateWorkspaceBoundary,
-} from './index.js';
+import { LocalToolRunner, validateArgument, validateWorkspaceBoundary } from './index.js';
 
 describe('tool-runners argument validation', () => {
   it('allows safe CLI arguments', () => {
@@ -32,9 +28,7 @@ describe('tool-runners workspace boundary validation', () => {
   });
 
   it('rejects relative workspace root', async () => {
-    await expect(validateWorkspaceBoundary('./relative', [])).rejects.toThrow(
-      /absolute path/,
-    );
+    await expect(validateWorkspaceBoundary('./relative', [])).rejects.toThrow(/absolute path/);
   });
 
   it('rejects non-existent directory', async () => {
@@ -44,9 +38,9 @@ describe('tool-runners workspace boundary validation', () => {
   });
 
   it('rejects path traversal attempting to escape workspace', async () => {
-    await expect(
-      validateWorkspaceBoundary(currentDir, ['../../../../etc/passwd']),
-    ).rejects.toThrow(/escapes workspace boundary/);
+    await expect(validateWorkspaceBoundary(currentDir, ['../../../../etc/passwd'])).rejects.toThrow(
+      /escapes workspace boundary/,
+    );
   });
 });
 

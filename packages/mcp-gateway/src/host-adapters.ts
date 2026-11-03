@@ -3,10 +3,7 @@ import type { McpServer } from '@udi/contracts';
 
 export type HostType = 'vscode' | 'opencode' | 'claude_desktop';
 
-export function generateHostConfig(
-  host: HostType,
-  servers: McpServer[],
-): Record<string, unknown> {
+export function generateHostConfig(host: HostType, servers: McpServer[]): Record<string, unknown> {
   const activeServers = servers.filter((s) => s.enabled);
 
   if (host === 'vscode') {

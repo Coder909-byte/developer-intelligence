@@ -76,10 +76,7 @@ export class DefaultContextEngine implements ContextEngine {
 /**
  * Helper to build a complete ContextRecord entity from create input.
  */
-export function buildContextRecord(
-  projectId: string,
-  input: ContextRecordCreate,
-): ContextRecord {
+export function buildContextRecord(projectId: string, input: ContextRecordCreate): ContextRecord {
   const now = new Date().toISOString();
   return {
     id: randomUUID(),
@@ -96,10 +93,7 @@ export function buildContextRecord(
 /**
  * Helper to build a complete AgentHandoff entity from create input.
  */
-export function buildAgentHandoff(
-  projectId: string,
-  input: HandoffCreate,
-): AgentHandoff {
+export function buildAgentHandoff(projectId: string, input: HandoffCreate): AgentHandoff {
   const now = new Date().toISOString();
   return {
     id: randomUUID(),

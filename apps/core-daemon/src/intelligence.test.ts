@@ -86,9 +86,7 @@ describe('Daemon intelligence engine integrations', () => {
 
       // 4. Verify activity event was recorded with observed_tool provenance
       const { items: events } = await client.listEvents(project.id);
-      const validationEvent = events.find(
-        (e) => e.type === 'engineering.validation.completed',
-      );
+      const validationEvent = events.find((e) => e.type === 'engineering.validation.completed');
       expect(validationEvent).toBeDefined();
       expect(validationEvent?.sourceKind).toBe('observed_tool');
       expect(validationEvent?.actor).toBe('engineering-core');
@@ -139,9 +137,7 @@ describe('Daemon intelligence engine integrations', () => {
       const memory = await client.getContext(project.id);
       expect(memory.projectId).toBe(project.id);
       expect(memory.records).toHaveLength(2);
-      expect(memory.openIssues).toContain(
-        'MOTOR_EN assigned to GPIO26 instead of GPIO14',
-      );
+      expect(memory.openIssues).toContain('MOTOR_EN assigned to GPIO26 instead of GPIO14');
 
       // Create an agent handoff
       const handoff = await client.createHandoff(project.id, {

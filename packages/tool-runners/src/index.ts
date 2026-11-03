@@ -77,9 +77,7 @@ export async function validateWorkspaceBoundary(
     if (arg.includes('..')) {
       const resolved = resolve(canonicalRoot, arg);
       if (!resolved.startsWith(canonicalRoot + '/') && resolved !== canonicalRoot) {
-        throw new Error(
-          `Argument escapes workspace boundary: ${arg} resolves to ${resolved}`,
-        );
+        throw new Error(`Argument escapes workspace boundary: ${arg} resolves to ${resolved}`);
       }
     }
   }
@@ -125,10 +123,7 @@ export class LocalToolRunner implements ToolRunner {
       throw new Error(`Tool is not in the allowlist: ${request.tool}`);
     }
 
-    const canonicalWorkspace = await validateWorkspaceBoundary(
-      request.workspaceRoot,
-      request.args,
-    );
+    const canonicalWorkspace = await validateWorkspaceBoundary(request.workspaceRoot, request.args);
 
     const exe = this.toolPathOverrides[request.tool] ?? request.tool;
     const timeoutMs = Math.max(100, Math.min(request.timeoutMs, 300_000));

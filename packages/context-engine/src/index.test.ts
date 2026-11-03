@@ -131,8 +131,6 @@ describe('DefaultContextEngine', () => {
       provenance: { sourceKind: 'agent_summary', actor: 'agent-A' },
     });
 
-    await expect(engine.createHandoff(handoff)).rejects.toThrow(
-      /nonexistent or cross-project/,
-    );
+    await expect(engine.createHandoff(handoff)).rejects.toThrow(/nonexistent or cross-project/);
   });
 });

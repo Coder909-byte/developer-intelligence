@@ -73,9 +73,7 @@ describe('KiCad S-expression netlist parser', () => {
   it('parses normalized JSON netlists as well', () => {
     const jsonNetlist = JSON.stringify({
       board: 'esp32',
-      signals: [
-        { name: 'MOTOR_EN', gpio: 'GPIO14', component: 'U2', pin: '12' },
-      ],
+      signals: [{ name: 'MOTOR_EN', gpio: 'GPIO14', component: 'U2', pin: '12' }],
     });
     const netlist = parseKiCadNetlist(jsonNetlist, 'rover.json');
     expect(netlist.signals.get('MOTOR_EN')?.pin).toBe('14');
@@ -170,10 +168,7 @@ describe('Deterministic circuit-to-firmware pin consistency', () => {
   });
 
   it('warns on signals missing in netlist', () => {
-    const fwWithExtra = parseFirmwarePins(
-      `#define UNKNOWN_SENSOR GPIO33`,
-      'src/pins.h',
-    );
+    const fwWithExtra = parseFirmwarePins(`#define UNKNOWN_SENSOR GPIO33`, 'src/pins.h');
     const findings = validatePinConsistency(sampleNetlist, fwWithExtra, projectId, jobId);
     const missing = findings.find((f) => f.ruleId === 'pin_missing_in_netlist');
     expect(missing).toBeDefined();

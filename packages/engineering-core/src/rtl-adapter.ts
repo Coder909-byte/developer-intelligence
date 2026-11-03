@@ -12,9 +12,7 @@ export async function runRTLSimulation(
   signal?: AbortSignal,
 ): Promise<ValidationResult> {
   const now = new Date().toISOString();
-  const verilogFiles = artifactPaths.filter(
-    (p) => p.endsWith('.v') || p.endsWith('.sv'),
-  );
+  const verilogFiles = artifactPaths.filter((p) => p.endsWith('.v') || p.endsWith('.sv'));
 
   if (verilogFiles.length === 0) {
     const job: Job = {
@@ -78,7 +76,8 @@ export async function runRTLSimulation(
       expected: { tool: 'iverilog', status: 'installed' },
       observed: { tool: 'iverilog', status: 'unavailable' },
       evidence: [{ filePath: verilogFiles[0]! }],
-      suggestedFix: 'Install Icarus Verilog via package manager (e.g. `pacman -S iverilog` or `apt-get install iverilog`)',
+      suggestedFix:
+        'Install Icarus Verilog via package manager (e.g. `pacman -S iverilog` or `apt-get install iverilog`)',
       status: 'open',
       verifiedBy: { tool: 'iverilog', version: 'unavailable' },
     };
@@ -147,7 +146,8 @@ export async function runRTLSimulation(
     combinedOutput.includes('$fatal') ||
     combinedOutput.includes('ASSERTION FAILED') ||
     combinedOutput.includes('ERROR:');
-  const success = simResult.exitCode === 0 && !hasFatal && !simResult.timedOut && !simResult.cancelled;
+  const success =
+    simResult.exitCode === 0 && !hasFatal && !simResult.timedOut && !simResult.cancelled;
 
   const findings: ValidationFinding[] = [];
   if (!success) {

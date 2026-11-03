@@ -94,7 +94,8 @@ export class DefaultMcpGateway implements McpGateway {
     this.server.registerTool(
       'list_project_events',
       {
-        description: 'Lists chronological activity events for the project with provenance metadata.',
+        description:
+          'Lists chronological activity events for the project with provenance metadata.',
         inputSchema: {
           projectId: z.string().uuid().optional(),
           limit: z.number().int().min(1).max(500).optional(),
@@ -178,9 +179,7 @@ export class DefaultMcpGateway implements McpGateway {
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           return {
-            content: [
-              { type: 'text', text: `Error retrieving validation results: ${msg}` },
-            ],
+            content: [{ type: 'text', text: `Error retrieving validation results: ${msg}` }],
           };
         }
       },
@@ -285,9 +284,7 @@ export class DefaultMcpGateway implements McpGateway {
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           return {
-            content: [
-              { type: 'text', text: `Error retrieving platform tools: ${msg}` },
-            ],
+            content: [{ type: 'text', text: `Error retrieving platform tools: ${msg}` }],
           };
         }
       },
