@@ -18,6 +18,7 @@
   "dependencies": {
     "@udi/contracts": "workspace:*",
     "@udi/client-sdk": "workspace:*",
-    "@modelcontextprotocol/server": "2.4.0"
+    "@modelcontextprotocol/server": "2.4.0",
+    "zod": "4.6.7"
   }
 }
