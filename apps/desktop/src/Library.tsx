@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, type CSSProperties } from 'react';
 import type { DaemonClient } from '@udi/client-sdk';
 import type { AgentHandoff } from '@udi/contracts';
 import { Badge, Button, EmptyState, Field, sourceLabel } from '@udi/ui';
@@ -22,11 +22,13 @@ function bookStyle(id: string): CSSProperties {
 export function SessionBookshelf({
   books,
   onSelect,
+  latestId,
   navigation,
 }: {
   books: AgentHandoff[];
   onSelect: (id: string) => void;
-  navigation?: { previous: () => void; next: () => void; canPrevious: boolean; canNext: boolean };
+  latestId?: string | undefined;
+  navigation?: { previous: () => void; next: () => void; canPrevious: boolean; canNext: boolean } | undefined;
 }) {
   const booksPerShelf = 18;
   const shelfCount = Math.max(3, Math.ceil(books.length / booksPerShelf));
@@ -39,32 +41,35 @@ export function SessionBookshelf({
       {Array.from({ length: shelfCount }, (_, index) => (
         <div className="wooden-shelf" key={index}>
           <div className="library-book-row" aria-label={`Shelf ${index + 1}`}>
-            {books.slice(index * booksPerShelf, (index + 1) * booksPerShelf).map((book) => (
-              <button
-                type="button"
-                className="session-book"
-                key={book.id}
-                style={bookStyle(book.id)}
-                title={`${book.summary} · ${new Date(book.createdAt).toLocaleDateString()} · ${sourceLabel(book.provenance.sourceKind)}`}
-                aria-label={`Read saved session: ${book.summary}`}
-                onClick={() => onSelect(book.id)}
-              >
-                <span className="book-binding" aria-hidden="true" />
-                <span className="book-volume" aria-hidden="true">
-                  UDI
-                </span>
-                <strong>{book.summary}</strong>
-                <span className="book-date">
-                  {new Date(book.createdAt).toLocaleDateString(undefined, {
-                    month: 'short',
-                    year: '2-digit',
-                  })}
-                </span>
-                <span className="book-seal" aria-hidden="true">
-                  ✦
-                </span>
-              </button>
-            ))}
+            {books.slice(index * booksPerShelf, (index + 1) * booksPerShelf).map((book) => {
+              const isLatest = book.id === latestId;
+              return (
+                <button
+                  type="button"
+                  className={`session-book ${isLatest ? 'latest-book' : ''}`}
+                  key={book.id}
+                  style={bookStyle(book.id)}
+                  title={`${book.summary} · ${new Date(book.createdAt).toLocaleString()} · ${sourceLabel(book.provenance.sourceKind)}`}
+                  aria-label={`Read saved session: ${book.summary}`}
+                  onClick={() => onSelect(book.id)}
+                >
+                  <span className="book-binding" aria-hidden="true" />
+                  <span className="book-volume" aria-hidden="true">
+                    UDI
+                  </span>
+                  <strong>{book.summary}</strong>
+                  <span className="book-date">
+                    {new Date(book.createdAt).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </span>
+                  <span className={`book-seal ${isLatest ? 'latest' : ''}`} aria-hidden="true">
+                    {isLatest ? '★ LATEST' : '✦'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <div className="wooden-shelf-edge">
             <span>ARCHIVE / {String(index + 1).padStart(2, '0')}</span>
@@ -116,9 +121,26 @@ export function Library({
     Boolean(projectId),
   );
   const items = list.state.status === 'ready' ? list.state.data.items : [];
-  const books = items.filter((item) =>
+  const sortedItems = useMemo(
+    () =>
+      [...items].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ),
+    [items],
+  );
+  const latestId = sortedItems[0]?.id;
+  const books = sortedItems.filter((item) =>
     item.summary.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
   );
+
+  useEffect(() => {
+    if (!projectId) return;
+    const timer = setInterval(() => {
+      list.retry();
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [projectId, list]);
+
   return (
     <section className="session-library" aria-label="Saved session library">
       <header className="library-welcome">
@@ -137,8 +159,16 @@ export function Library({
           <small className="library-note">Each book holds a saved project handoff.</small>
         </div>
         <div className="library-actions">
-          <Button variant="primary" disabled={!projectId} onClick={() => setSaving(true)}>
-            Save session handoff
+          <Button
+            variant="primary"
+            disabled={!projectId}
+            onClick={async () => {
+              if (!projectId) return;
+              await client.seedDemoSession(projectId);
+              await list.retry();
+            }}
+          >
+            ✦ Save New Session Slot
           </Button>
           <Button disabled={!projectId} onClick={list.retry}>
             Refresh shelves
@@ -187,6 +217,7 @@ export function Library({
       <SessionBookshelf
         books={books}
         onSelect={setSelected}
+        latestId={latestId}
         navigation={{
           previous: page.previous,
           next: page.next,
@@ -200,8 +231,8 @@ export function Library({
       />
       {projectId && list.state.status === 'ready' && (
         <div className="library-shelf-footer">
-          <small>{items.length} saved handoffs loaded · Project-scoped archive</small>
-          <small>Archive page {page.offset / page.options.limit + 1} · Oldest first</small>
+          <small>{items.length} saved handoffs loaded · Newest first</small>
+          <small>Archive page {page.offset / page.options.limit + 1}</small>
         </div>
       )}
       {selected && projectId && (

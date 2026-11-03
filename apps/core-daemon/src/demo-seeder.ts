@@ -81,6 +81,27 @@ export async function seedDemoSession(
     }
   }
 
+  // Always append a fresh latest session book timestamped right now
+  const latestSlotNum = handoffsCount + 1;
+  const recentCreatedAt = iso(0);
+  const latestBook: AgentHandoff = {
+    id: randomUUID(),
+    createdAt: recentCreatedAt,
+    updatedAt: recentCreatedAt,
+    projectId,
+    fromAgentId: randomUUID(),
+    summary: `Slot ${latestSlotNum}: Live Codex Session · Verified GPIO14 Active`,
+    recordIds: [randomUUID()],
+    nextSteps: [
+      'Autonomous rover navigation loop active with verified GPIO14',
+      'Telemetry stream listening on stdio MCP gateway bridge',
+      'Continuous Laya compression pipeline active (97.6% savings)',
+    ],
+    provenance: { sourceKind: 'observed_tool' as const, actor: 'codex-agent-live' },
+  };
+  await store.handoffs.append(latestBook);
+  handoffsCount++;
+
   // 2. Append Realistic Codex Activity Events (Tool Calls, Responses, Decisions)
   const events: ActivityEvent[] = [
     {
