@@ -82,3 +82,41 @@ describe('shared daemon client', () => {
     );
   });
 });
+
+describe('persistence client validation', () => {
+  it('validates pagination, references and write fields before making any request', () => {
+    const fetcher = vi.fn();
+    const client = createClient({ fetch: fetcher });
+    const projectId = randomUUID();
+    const recordId = randomUUID();
+    expect(() => client.listEvents(projectId, { limit: 501 })).toThrow();
+    expect(() => client.listFindings(projectId, { jobId: 'invalid' })).toThrow();
+    expect(() => client.getContext(projectId, 0)).toThrow();
+    expect(() =>
+      client.createContextRecord(projectId, {
+        kind: 'decision',
+        text: '',
+        provenance: { sourceKind: 'user_entered', actor: 'test' },
+        evidence: [],
+      }),
+    ).toThrow();
+    expect(() =>
+      client.createHandoff(projectId, {
+        fromAgentId: randomUUID(),
+        summary: 'Invalid duplicates',
+        recordIds: [recordId, recordId],
+        nextSteps: [],
+        provenance: { sourceKind: 'user_entered', actor: 'test' },
+      }),
+    ).toThrow();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it('rejects malformed persisted records instead of passing unchecked data to frontend callers', async () => {
+    const client = createClient({
+      fetch: fetchResponse({ ok: true, data: { items: [{ id: randomUUID() }] }, meta }),
+    });
+    await expect(client.listContextRecords(randomUUID())).rejects.toMatchObject({
+      code: 'INVALID_RESPONSE',
+    });
+  });
+});

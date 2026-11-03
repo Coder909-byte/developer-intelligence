@@ -1,6 +1,6 @@
 # Universal Developer Intelligence Platform
 
-UPSIDE DOWN.EXE · PS-01 — Beyond the App. Local-first VS Code enhancement, shared agent context, and engineering validation. This repository is the team bootstrap; only project persistence and daemon connectivity are implemented. The dashboard and VS Code command are minimal integration entry points.
+UPSIDE DOWN.EXE · PS-01 — Beyond the App. Local-first VS Code enhancement, shared agent context, and engineering validation. The backend now persists project events, context records, handoffs, MCP inventory and validation results, alongside projects and daemon connectivity. The dashboard and VS Code command are minimal integration entry points.
 
 ## Start
 
@@ -33,7 +33,7 @@ Configure `UDI_PORT`, `UDI_DATA_DIR` (prefer an absolute path), or `UDI_TOKEN` (
 | `pnpm lint`                               | ESLint                                                                                                        |
 | `pnpm test`                               | Contract, SDK, daemon and persistence tests                                                                   |
 | `pnpm test:integration`                   | Daemon integration tests                                                                                      |
-| `pnpm smoke`                              | Build and test actual HTTP + SDK CRUD + daemon restart in a temporary data directory                          |
+| `pnpm smoke`                              | Build and test HTTP + SDK persistence for all record types across daemon restart                              |
 | `pnpm format:check`                       | Verify formatting                                                                                             |
 | `pnpm doctor`                             | Report local toolchain and optional engineering/native tools                                                  |
 | `pnpm --filter @udi/desktop dev:native`   | Run Tauri 2 (requires Rust and platform prerequisites)                                                        |
@@ -59,6 +59,8 @@ Developer 1 owns core/contracts/SDK/SQLite/CI. Developer 2 owns intelligence, ad
 
 `pnpm install --frozen-lockfile && pnpm typecheck && pnpm lint && pnpm test && pnpm build` is the CI gate. `pnpm smoke` additionally exercises sockets and process restart. Native builds require [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). Node 24.14.1's built-in SQLite emits an experimental API warning; avoiding a native SQLite addon makes bootstrap portable, but runtime upgrades must retain the persistence tests.
 
-Context, registry and engineering routes return structured **501** errors. No MCP server, validator, firmware compilation, telemetry capture, second-agent interoperability, packaged `.vsix`, or full UI is claimed by this bootstrap. Subsequent planned endpoints in the original spec return 404 until their shared contracts and implementations are agreed.
+Context, registry and findings reads return persisted data. Validation execution and MCP health-check requests return structured **501** errors until Developer 2's implementations are integrated. No MCP server, validator, firmware compilation, telemetry capture, second-agent interoperability, packaged `.vsix`, or full UI is claimed by this bootstrap. Subsequent planned endpoints in the original spec return 404 until their shared contracts and implementations are agreed.
+
+See [persistence integration](docs/INTEGRATION_PERSISTENCE.md) for new backend interfaces and shared SDK examples.
 
 See [GitHub setup](docs/GITHUB_SETUP.md) for initial-push recovery when local authentication is unavailable.

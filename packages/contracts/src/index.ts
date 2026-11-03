@@ -216,3 +216,94 @@ export type Health = z.infer<typeof HealthSchema>;
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 export type ApiSuccess<T> = { ok: true; data: T; meta: z.infer<typeof ResponseMetaSchema> };
 export type ApiResponse<T> = ApiSuccess<T> | z.infer<typeof ErrorResponseSchema>;
+
+// Persistence API additions: existing entity schemas and response envelopes stay unchanged.
+export const PageQuerySchema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(500).default(100),
+  offset: z.coerce.number().int().min(0).max(1_000_000).default(0),
+});
+export type PageOptions = Partial<z.output<typeof PageQuerySchema>>;
+export const EventQuerySchema = PageQuerySchema.extend({ type: z.string().min(1).optional() });
+export type EventListOptions = PageOptions & { type?: string | undefined };
+export const FindingQuerySchema = PageQuerySchema.extend({ jobId: IdSchema.optional() });
+export type FindingListOptions = PageOptions & { jobId?: string | undefined };
+export const EventCreateSchema = ActivityEventSchema.omit({
+  id: true,
+  projectId: true,
+  createdAt: true,
+  schemaVersion: true,
+});
+export const ContextRecordCreateSchema = ContextRecordSchema.omit({
+  id: true,
+  projectId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const HandoffCreateSchema = AgentHandoffSchema.omit({
+  id: true,
+  projectId: true,
+  createdAt: true,
+  updatedAt: true,
+}).refine((v) => new Set(v.recordIds).size === v.recordIds.length, {
+  path: ['recordIds'],
+  message: 'Record references must be unique',
+});
+export const McpServerCreateSchema = McpServerSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+});
+// Explicit snapshots from an authenticated adapter; saving is not a server health check.
+export const McpServerUpdateSchema = McpServerSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const EventListSchema = z.strictObject({ items: z.array(ActivityEventSchema) });
+export const ContextRecordListSchema = z.strictObject({ items: z.array(ContextRecordSchema) });
+export const HandoffListSchema = z.strictObject({ items: z.array(AgentHandoffSchema) });
+export const ValidationResultSchema = z
+  .strictObject({ job: JobSchema, findings: z.array(ValidationFindingSchema) })
+  .superRefine((result, ctx) => {
+    if (!['succeeded', 'failed', 'cancelled'].includes(result.job.status))
+      ctx.addIssue({
+        code: 'custom',
+        path: ['job', 'status'],
+        message: 'Only completed validation results may be recorded',
+      });
+    if (!result.job.completedAt)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['job', 'completedAt'],
+        message: 'Completed results require a completion timestamp',
+      });
+    if (
+      result.job.startedAt &&
+      result.job.completedAt &&
+      Date.parse(result.job.completedAt) < Date.parse(result.job.startedAt)
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['job', 'completedAt'],
+        message: 'Completion cannot precede start',
+      });
+    if (new Set(result.findings.map((f) => f.id)).size !== result.findings.length)
+      ctx.addIssue({ code: 'custom', path: ['findings'], message: 'Finding IDs must be unique' });
+    result.findings.forEach((finding, index) => {
+      if (finding.projectId !== result.job.projectId || finding.jobId !== result.job.id)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['findings', index],
+          message: 'Finding must reference this job and project',
+        });
+    });
+  });
+export const ValidationRequestBodySchema = ValidationRequestSchema.omit({ projectId: true });
+export type EventCreate = z.input<typeof EventCreateSchema>;
+export type ContextRecordCreate = z.input<typeof ContextRecordCreateSchema>;
+export type HandoffCreate = z.input<typeof HandoffCreateSchema>;
+export type McpServerCreate = z.input<typeof McpServerCreateSchema>;
+export type McpServerUpdate = z.input<typeof McpServerUpdateSchema>;
+export type PersistedValidationResult = z.infer<typeof ValidationResultSchema>;
+export type ValidationRequestBody = z.input<typeof ValidationRequestBodySchema>;
