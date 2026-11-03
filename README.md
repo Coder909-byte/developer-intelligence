@@ -61,6 +61,6 @@ Developer 1 owns core/contracts/SDK/SQLite/CI. Developer 2 owns intelligence, ad
 
 Context, registry and findings reads return persisted data. Validation execution and MCP health-check requests return structured **501** errors until Developer 2's implementations are integrated. No MCP server, validator, firmware compilation, telemetry capture, second-agent interoperability, packaged `.vsix`, or full UI is claimed by this bootstrap. Subsequent planned endpoints in the original spec return 404 until their shared contracts and implementations are agreed.
 
-See [persistence integration](docs/INTEGRATION_PERSISTENCE.md) for new backend interfaces and shared SDK examples.
+See [persistence integration](docs/INTEGRATION_PERSISTENCE.md) for backend interfaces and shared SDK examples, [integration readiness](docs/INTEGRATION_READINESS.md) for teammate actions and blockers, and [demo plan](docs/DEMO_PLAN.md) for deterministic end-to-end acceptance gates.
 
 See [GitHub setup](docs/GITHUB_SETUP.md) for initial-push recovery when local authentication is unavailable.
