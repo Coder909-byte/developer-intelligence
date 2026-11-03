@@ -1,6 +1,6 @@
 # Final Mac runtime and VSIX demonstration
 
-Verified 3 November 2026 on macOS, VS Code 1.143.0 (x64), Node 24.14.1 and pnpm 11.10.0. Branch feat/final-runtime starts at merged main b798354. The workspace was clean; no previous changes were discarded, no teammate branch was merged, and main was not modified. This report supersedes the older GUI-unverified notes in RUNTIME_DEMO and the historical readiness audit.
+Verified 3 November 2026 on macOS, VS Code 1.143.0 (x64), Node 24.14.1 and pnpm 11.10.0. Branch feat/final-runtime started at merged main b798354, then synchronized with main b0bb76c after the approved safe-correction merge. The workspace was clean; no previous changes were discarded, no teammate branch was merged, and main was not modified. This report supersedes the older GUI-unverified notes in RUNTIME_DEMO and the historical readiness audit.
 
 ## Actual results
 
@@ -19,8 +19,8 @@ Captured strict GUI replay (IDs change on subsequent runs):
 
 | Runtime          | Failed job                           | Corrected job                        | Handoff                              |
 | ---------------- | ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| Development Host | bc62d55f-c622-4a3b-bc26-80f5f5f99f48 | 495defb6-cd5d-44b5-8c81-7eaacfdae476 | d6f290cd-1673-405a-a798-a622f3b2cf34 |
-| Installed VSIX   | e8b56175-511a-4f7a-89f7-13ab00f0b0ba | 2b9fe1cb-f714-4fc5-83b1-9f9ea730df09 | ad824fbf-dd2e-47a2-a0cc-fd9de4b4a1a2 |
+| Development Host | 7431a3e6-9bba-48f7-92d2-eca9c8a8d099 | 109bfaf1-1e67-469c-a76a-88c40069921d | ae205b45-2263-41a5-93a0-247376d7182a |
+| Installed VSIX   | 090d823b-3d37-441f-b196-58e6291c0ed5 | ec4d4b21-70c5-4a27-8ca7-7872efce89af | 43b46b9d-551d-4c2a-b21f-98e7ed81ff42 |
 
 Screenshots, actual rendered UI text and JSON results are local ignored artifacts in .data/final-runtime/evidence. Files are prefixed 9334 for development and 9335 for installed VSIX: commands, mismatch, source-evidence, corrected, handoff and result.json. desktop-shared-context and shared-state-result document browser/MCP agreement. These artifacts contain demo project data and are deliberately not committed. Tokens are never printed or included in screenshots.
 
@@ -43,7 +43,7 @@ pnpm format:check
 pnpm doctor
 ```
 
-Typecheck, lint, formatting, portable builds, smoke and both test runs passed: 137 tests in 19 files each run. pnpm demo aliases demo:verify: it runs the real-process backend/validator/SQLite-restart/MCP test; it does not launch a graphical editor. test:mcp also passed on this Mac. OpenCode is unavailable and its optional host check is explicitly SKIP. Integration scripts now report the actual platform/reference client, use bounded requests, and do not claim source edits or impersonate OpenCode. demo-e2e uses Developer 2's merged CLI rather than the earlier thin process launcher.
+Typecheck, lint, formatting, portable builds, smoke and both test runs passed: 147 tests in 21 files each run on the combined main snapshot. pnpm demo aliases demo:verify: it runs the real-process backend/validator/SQLite-restart/MCP test; it does not launch a graphical editor. test:mcp also passed on this Mac. OpenCode is unavailable and its optional host check is explicitly SKIP. Integration scripts now report the actual platform/reference client, use bounded requests, and do not claim source edits or impersonate OpenCode. demo-e2e uses Developer 2's merged CLI rather than the earlier thin process launcher.
 
 ## Live launch: daemon and dashboard
 

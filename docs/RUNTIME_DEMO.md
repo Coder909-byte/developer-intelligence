@@ -1,6 +1,6 @@
 # Real runtime verification and hackathon reproduction
 
-Superseded runtime status: [FINAL_RUNTIME](FINAL_RUNTIME.md) records actual Mac Extension Development Host and installed-VSIX verification on merged main b798354, browser/MCP shared state and 137 passing tests. The earlier snapshot below remains historical evidence; its unmerged/GUI-unverified limitations are not the current final-runtime status.
+Superseded runtime status: [FINAL_RUNTIME](FINAL_RUNTIME.md) records actual Mac Extension Development Host and installed-VSIX verification including merged main b0bb76c, browser/MCP shared state and 147 passing tests. The earlier snapshot below remains historical evidence; its unmerged/GUI-unverified limitations are not the current final-runtime status.
 
 Verified on macOS with Node 24.14.1 and pnpm 11.10.0, 3 November 2026, starting from merged main 2e52ced on feat/core-platform. The working tree was initially clean and the feature branch was fast-forwarded; main and teammate branches were not modified.
 
