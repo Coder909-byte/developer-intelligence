@@ -1,11 +1,15 @@
 import * as esbuild from 'esbuild';
 const options = {
-  entryPoints: ['src/extension.ts'],
+  entryPoints: [
+    { in: 'src/extension.ts', out: 'extension' },
+    { in: '../../packages/mcp-gateway/src/cli.ts', out: 'mcp-cli' },
+  ],
   bundle: true,
   platform: 'node',
   target: 'node20',
   format: 'cjs',
-  outfile: 'dist/extension.cjs',
+  outdir: 'dist',
+  outExtension: { '.js': '.cjs' },
   external: ['vscode'],
   sourcemap: true,
 };

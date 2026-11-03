@@ -20,7 +20,7 @@ await writeFile(
     {
       ...metadata,
       name: 'developer-intelligence',
-      files: ['dist/extension.cjs', 'media/intelligence.svg', 'README.md'],
+      files: ['dist/extension.cjs', 'dist/mcp-cli.cjs', 'media/intelligence.svg', 'README.md'],
       repository: {
         type: 'git',
         url: 'https://github.com/Coder909-byte/developer-intelligence.git',
@@ -32,6 +32,7 @@ await writeFile(
 );
 await mkdir(join(stage, 'dist'));
 await cp(join(source, 'dist/extension.cjs'), join(stage, 'dist/extension.cjs'));
+await cp(join(source, 'dist/mcp-cli.cjs'), join(stage, 'dist/mcp-cli.cjs'));
 await cp(join(source, 'media'), join(stage, 'media'), { recursive: true });
 await cp(join(source, 'README.md'), join(stage, 'README.md'));
 const output = join(root, 'dist', `developer-intelligence-${manifest.version}.vsix`);

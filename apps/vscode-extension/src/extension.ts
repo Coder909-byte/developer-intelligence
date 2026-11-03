@@ -50,6 +50,9 @@ function errorLabel(error: unknown) {
         } as Record<string, string>
       )[error.code] ?? `Daemon request failed: ${error.code}`
     );
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
   return 'Unable to complete request. Check connection settings and workspace paths.';
 }
 class Sidebar implements vscode.TreeDataProvider<Row> {
@@ -682,6 +685,17 @@ export function activate(context: vscode.ExtensionContext) {
         const tokenVal = (await context.secrets.get(`udi.token:${daemonUrl}`)) || '';
         const p = selected;
 
+        // Determine absolute portable path to the MCP Gateway CLI bundled inside this extension
+        let cliPath =
+          typeof context.asAbsolutePath === 'function'
+            ? context.asAbsolutePath('dist/mcp-cli.cjs').replace(/\\/g, '/')
+            : 'packages/mcp-gateway/dist/cli.js';
+        try {
+          await vscode.workspace.fs.stat(vscode.Uri.file(cliPath));
+        } catch {
+          cliPath = 'packages/mcp-gateway/dist/cli.js';
+        }
+
         // 1. Configure .vscode/mcp.json (VS Code Native MCP)
         const vsDir = vscode.Uri.joinPath(wf.uri, '.vscode');
         await vscode.workspace.fs.createDirectory(vsDir);
@@ -692,7 +706,7 @@ export function activate(context: vscode.ExtensionContext) {
             'developer-intelligence': {
               type: 'stdio',
               command: 'node',
-              args: ['packages/mcp-gateway/dist/cli.js'],
+              args: [cliPath],
               env: {
                 UDI_PROJECT_ID: p?.id || '',
                 UDI_TOKEN: tokenVal || '',
@@ -713,7 +727,7 @@ export function activate(context: vscode.ExtensionContext) {
             'developer-intelligence': {
               type: 'stdio',
               command: 'node',
-              args: ['packages/mcp-gateway/dist/cli.js'],
+              args: [cliPath],
               env: {
                 UDI_PROJECT_ID: p?.id || '',
                 UDI_TOKEN: tokenVal || '',
@@ -727,23 +741,45 @@ export function activate(context: vscode.ExtensionContext) {
           Buffer.from(JSON.stringify(rootMcpConfig, null, 2) + '\n'),
         );
 
-        // 3. Configure VS Code Workspace settings for Cline & Continue
-        const config = vscode.workspace.getConfiguration();
-        await config.update(
-          'cline.apiProvider',
-          'openai-compatible',
-          vscode.ConfigurationTarget.Workspace,
-        );
-        await config.update(
-          'cline.openAiBaseUrl',
-          `${daemonUrl}/v1`,
-          vscode.ConfigurationTarget.Workspace,
-        );
-        await config.update('cline.openAiApiKey', tokenVal, vscode.ConfigurationTarget.Workspace);
-        await config.update(
-          'cline.openAiCustomHeaders',
-          p?.id ? { 'x-project-id': p.id } : {},
-          vscode.ConfigurationTarget.Workspace,
+        // 3. Configure .vscode/settings.json directly (avoids Workspace target errors in folder workspaces)
+        const settingsUri = vscode.Uri.joinPath(vsDir, 'settings.json');
+        let existingSettings: Record<string, unknown> = {};
+        try {
+          const raw = await vscode.workspace.fs.readFile(settingsUri);
+          existingSettings = JSON.parse(Buffer.from(raw).toString('utf8'));
+        } catch {
+          existingSettings = {};
+        }
+
+        const existingModels = Array.isArray(existingSettings['continue.models'])
+          ? (existingSettings['continue.models'] as Record<string, unknown>[])
+          : [];
+        const updatedModels = [
+          ...existingModels.filter((m) => m.name !== 'Developer Intelligence Proxy'),
+          {
+            name: 'Developer Intelligence Proxy',
+            provider: 'openai',
+            model: 'default',
+            apiBase: `${daemonUrl}/v1`,
+            apiKey: tokenVal || 'udi-local-token',
+            requestOptions: {
+              headers: p?.id ? { 'x-project-id': p.id } : {},
+            },
+          },
+        ];
+
+        const mergedSettings = {
+          ...existingSettings,
+          'continue.models': updatedModels,
+          'cline.apiProvider': 'openai-compatible',
+          'cline.openAiBaseUrl': `${daemonUrl}/v1`,
+          'cline.openAiApiKey': tokenVal || 'udi-local-token',
+          'cline.openAiCustomHeaders': p?.id ? { 'x-project-id': p.id } : {},
+        };
+
+        await vscode.workspace.fs.writeFile(
+          settingsUri,
+          Buffer.from(JSON.stringify(mergedSettings, null, 2) + '\n'),
         );
 
         await vscode.window.showInformationMessage(
