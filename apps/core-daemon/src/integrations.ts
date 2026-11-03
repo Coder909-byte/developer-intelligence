@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile, realpath } from 'node:fs/promises';
 import { relative, resolve, isAbsolute, sep } from 'node:path';
 import { PersistenceError } from '@udi/event-store';
@@ -13,6 +13,8 @@ import {
   CorrectionError,
 } from '@udi/engineering-core';
 import { LocalToolRunner } from '@udi/tool-runners';
+import { discoverServerTools, routeToolCall, buildUnifiedInventory } from '@udi/mcp-gateway';
+import type { DiscoveredTool } from '@udi/contracts';
 import type { PlatformIntegrations } from './platform-routes.js';
 
 function toPersistenceCode(
@@ -26,6 +28,7 @@ export function createDefaultIntegrations(
   store: Omit<PlatformDatabase, 'close'>,
 ): PlatformIntegrations {
   const runner = new LocalToolRunner();
+  const discoveredToolsMap = new Map<string, DiscoveredTool[]>();
 
   const validator = new DefaultEngineeringValidator({
     runner,
@@ -239,6 +242,101 @@ export function createDefaultIntegrations(
             throw new PersistenceError(toPersistenceCode(err.code), err.message);
           }
           throw err;
+        }
+      },
+    },
+    aggregator: {
+      async listIntegrations() {
+        const servers = await store.mcpServers.list();
+        return buildUnifiedInventory(servers, discoveredToolsMap);
+      },
+      async discoverServerTools(serverId) {
+        const server = await store.mcpServers.get(serverId);
+        if (!server) throw new PersistenceError('NOT_FOUND', 'MCP server not found');
+        try {
+          const tools = await discoverServerTools(server);
+          discoveredToolsMap.set(serverId, tools);
+          return tools;
+        } catch (err) {
+          throw new PersistenceError(
+            'VALIDATION_ERROR',
+            `Failed to discover tools for ${server.name}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      },
+      async routeToolCall(serverId, toolName, args, options) {
+        const server = await store.mcpServers.get(serverId);
+        if (!server) throw new PersistenceError('NOT_FOUND', 'MCP server not found');
+        if (!server.enabled) {
+          throw new PersistenceError('VALIDATION_ERROR', `MCP server ${server.name} is disabled`);
+        }
+        const executionId = randomUUID();
+        try {
+          const { result, durationMs } = await routeToolCall(server, toolName, args);
+
+          if (options?.projectId) {
+            // Record event
+            await store.events.append({
+              id: executionId,
+              projectId: options.projectId,
+              type: 'mcp.tool.executed',
+              actor: options.agentId ?? 'mcp-aggregator',
+              sourceKind: 'observed_tool',
+              sourceRef: executionId,
+              createdAt: new Date().toISOString(),
+              schemaVersion: 1,
+              payload: {
+                serverId: server.id,
+                serverName: server.name,
+                toolName,
+                durationMs,
+                outcome: 'succeeded',
+                summary: `Successfully executed tool ${toolName} on ${server.name}`,
+              },
+            });
+
+            // Append fact context record
+            await store.context.append({
+              id: randomUUID(),
+              projectId: options.projectId,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              kind: 'fact',
+              text: `Discovered MCP tool executed: ${server.name} -> ${toolName}. Outcome: succeeded (${durationMs}ms).`,
+              provenance: {
+                sourceKind: 'observed_tool',
+                actor: options.agentId ?? 'mcp-aggregator',
+                sourceRef: executionId,
+              },
+              evidence: [],
+            });
+          }
+
+          return { result, executionId, durationMs };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (options?.projectId) {
+            await store.events.append({
+              id: executionId,
+              projectId: options.projectId,
+              type: 'mcp.tool.executed',
+              actor: options.agentId ?? 'mcp-aggregator',
+              sourceKind: 'observed_tool',
+              sourceRef: executionId,
+              createdAt: new Date().toISOString(),
+              schemaVersion: 1,
+              payload: {
+                serverId: server.id,
+                serverName: server.name,
+                toolName,
+                durationMs: 0,
+                outcome: 'failed',
+                error: msg,
+                summary: `Failed to execute tool ${toolName} on ${server.name}: ${msg}`,
+              },
+            });
+          }
+          throw new PersistenceError('VALIDATION_ERROR', msg);
         }
       },
     },
