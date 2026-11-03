@@ -17,6 +17,7 @@ import {
   CorrectionPreviewRequestSchema,
   CorrectionApplyRequestSchema,
   CorrectionRollbackRequestSchema,
+  McpToolCallRequestSchema,
   ProjectMemorySchema,
   type ProjectMemory,
   type ValidationRequest,
@@ -28,6 +29,9 @@ import {
   type CorrectionApplyResult,
   type CorrectionRollbackRequest,
   type CorrectionRollbackResult,
+  type IntegrationItem,
+  type DiscoveredTool,
+  type JsonValue,
 } from '@udi/contracts';
 import { PersistenceError, type PlatformDatabase } from '@udi/event-store';
 import { buildContextRecord } from '@udi/context-engine';
@@ -58,11 +62,23 @@ export interface PlatformCorrectionService {
   ): Promise<CorrectionRollbackResult>;
 }
 
+export interface PlatformMcpAggregator {
+  listIntegrations(): Promise<IntegrationItem[]>;
+  discoverServerTools(serverId: string): Promise<DiscoveredTool[]>;
+  routeToolCall(
+    serverId: string,
+    toolName: string,
+    args: Record<string, unknown>,
+    options?: { projectId?: string | undefined; agentId?: string | undefined },
+  ): Promise<{ result: unknown; executionId: string; durationMs: number }>;
+}
+
 export interface PlatformIntegrations {
   context?: ProjectContextProvider;
   engineering?: PlatformValidationRunner;
   mcp?: PlatformMcpHealthChecker;
   correction?: PlatformCorrectionService;
+  aggregator?: PlatformMcpAggregator;
 }
 export type IntegrationFactory = (
   repositories: Omit<PlatformDatabase, 'close'>,
@@ -490,5 +506,108 @@ export function registerPlatformRoutes(
       },
       meta: responseMeta(request.id),
     });
+  });
+
+  // Universal Integration Inventory & MCP Aggregator Routes
+  app.get(`${prefix}/integrations`, async (request, reply) => {
+    if (integrations.aggregator) {
+      const items = await integrations.aggregator.listIntegrations();
+      return apiSuccess({ items }, request.id);
+    }
+    return reply.code(501).send({
+      ok: false,
+      error: {
+        code: 'NOT_IMPLEMENTED',
+        message: 'Integration aggregator requires active aggregator integration',
+      },
+      meta: responseMeta(request.id),
+    });
+  });
+
+  app.post(`${prefix}/mcp/servers/:id/discover`, async (request, reply) => {
+    const serverId = routeId(request.params);
+    found(await store.mcpServers.get(serverId), 'MCP server');
+
+    if (integrations.aggregator) {
+      const items = await integrations.aggregator.discoverServerTools(serverId);
+      return apiSuccess({ items }, request.id);
+    }
+    return reply.code(501).send({
+      ok: false,
+      error: {
+        code: 'NOT_IMPLEMENTED',
+        message: 'MCP tool discovery requires active aggregator integration',
+      },
+      meta: responseMeta(request.id),
+    });
+  });
+
+  app.post(`${prefix}/mcp/servers/:id/tools/:toolName/call`, async (request, reply) => {
+    const serverId = routeId(request.params);
+    const { toolName } = z.object({ toolName: z.string().min(1) }).parse(request.params);
+    const server = found(await store.mcpServers.get(serverId), 'MCP server');
+    const body = McpToolCallRequestSchema.parse(request.body);
+
+    if (integrations.aggregator) {
+      const res = await integrations.aggregator.routeToolCall(
+        serverId,
+        toolName,
+        body.arguments as Record<string, unknown>,
+        {
+          projectId: body.projectId,
+          agentId: body.agentId,
+        },
+      );
+
+      return apiSuccess(
+        {
+          ok: true,
+          serverName: server.name,
+          toolName,
+          result: res.result as JsonValue,
+          executionId: res.executionId,
+          durationMs: res.durationMs,
+        },
+        request.id,
+      );
+    }
+    return reply.code(501).send({
+      ok: false,
+      error: {
+        code: 'NOT_IMPLEMENTED',
+        message: 'MCP tool routing requires active aggregator integration',
+      },
+      meta: responseMeta(request.id),
+    });
+  });
+
+  app.get(`${prefix}/projects/:id/mcp-executions`, async (request) => {
+    const id = projectId(request.params);
+    const events = await store.events.list(id, { type: 'mcp.tool.executed' });
+    const items = events.map((e) => {
+      const p = (e.payload ?? {}) as Record<string, unknown>;
+      return {
+        id: e.id,
+        projectId: id,
+        serverId: typeof p.serverId === 'string' ? p.serverId : undefined,
+        serverName: typeof p.serverName === 'string' ? p.serverName : 'unknown',
+        toolName: typeof p.toolName === 'string' ? p.toolName : 'unknown',
+        agentId: typeof p.agentId === 'string' ? p.agentId : e.actor,
+        startedAt: e.createdAt,
+        completedAt: e.createdAt,
+        durationMs: typeof p.durationMs === 'number' ? p.durationMs : 0,
+        outcome: (p.outcome === 'succeeded' || p.outcome === 'failed' || p.outcome === 'timeout'
+          ? p.outcome
+          : 'succeeded') as 'succeeded' | 'failed' | 'timeout',
+        error: typeof p.error === 'string' ? p.error : undefined,
+        summary: typeof p.summary === 'string' ? p.summary : `Executed tool ${p.toolName}`,
+        provenance: {
+          sourceKind: e.sourceKind,
+          actor: e.actor,
+          sourceRef: e.sourceRef,
+        },
+      };
+    });
+    return apiSuccess({ items }, request.id);
   });
 }

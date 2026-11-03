@@ -363,3 +363,102 @@ export const CorrectionRollbackResultSchema = z.strictObject({
   revalidationFindings: z.array(ValidationFindingSchema).optional(),
 });
 export type CorrectionRollbackResult = z.infer<typeof CorrectionRollbackResultSchema>;
+
+// Universal Integration Inventory & MCP Aggregator Schemas
+export const DiscoveredToolSchema = z.strictObject({
+  name: z.string().min(1),
+  description: z.string().default(''),
+  inputSchema: JsonValueSchema.optional(),
+  serverName: z.string().min(1).optional(),
+  serverId: IdSchema.optional(),
+});
+export type DiscoveredTool = z.infer<typeof DiscoveredToolSchema>;
+
+export const DiscoveredToolListSchema = z.strictObject({
+  items: z.array(DiscoveredToolSchema),
+});
+export type DiscoveredToolList = z.infer<typeof DiscoveredToolListSchema>;
+
+export const IntegrationTypeSchema = z.enum([
+  'mcp_server',
+  'discovered_tool',
+  'host_adapter',
+  'specialist_pack',
+]);
+export type IntegrationType = z.infer<typeof IntegrationTypeSchema>;
+
+export const HostTargetSchema = z.enum([
+  'vscode',
+  'opencode',
+  'claude_desktop',
+  'antigravity',
+  'generic',
+]);
+export type HostTarget = z.infer<typeof HostTargetSchema>;
+
+export const ConfigurationStatusSchema = z.enum([
+  'configured',
+  'pending',
+  'manual_setup',
+  'unsupported',
+]);
+export type ConfigurationStatus = z.infer<typeof ConfigurationStatusSchema>;
+
+export const IntegrationItemSchema = z.strictObject({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string(),
+  type: IntegrationTypeSchema,
+  transport: z.enum(['stdio', 'http', 'internal', 'none']),
+  status: z.enum(['healthy', 'unreachable', 'disabled', 'unknown']),
+  configurationStatus: ConfigurationStatusSchema,
+  enabled: z.boolean(),
+  supportedHosts: z.array(HostTargetSchema),
+  availableTools: z.array(z.string()),
+  metadata: z.record(z.string(), JsonValueSchema).optional(),
+});
+export type IntegrationItem = z.infer<typeof IntegrationItemSchema>;
+
+export const IntegrationListSchema = z.strictObject({
+  items: z.array(IntegrationItemSchema),
+});
+export type IntegrationList = z.infer<typeof IntegrationListSchema>;
+
+export const McpToolExecutionRecordSchema = z.strictObject({
+  id: IdSchema,
+  projectId: IdSchema,
+  serverId: IdSchema.optional(),
+  serverName: z.string().min(1),
+  toolName: z.string().min(1),
+  agentId: z.string().optional(),
+  startedAt: TimestampSchema,
+  completedAt: TimestampSchema,
+  durationMs: z.number().int().nonnegative(),
+  outcome: z.enum(['succeeded', 'failed', 'timeout']),
+  error: z.string().optional(),
+  summary: z.string(),
+  provenance: ProvenanceSchema,
+});
+export type McpToolExecutionRecord = z.infer<typeof McpToolExecutionRecordSchema>;
+
+export const McpToolExecutionListSchema = z.strictObject({
+  items: z.array(McpToolExecutionRecordSchema),
+});
+export type McpToolExecutionList = z.infer<typeof McpToolExecutionListSchema>;
+
+export const McpToolCallRequestSchema = z.strictObject({
+  projectId: IdSchema.optional(),
+  agentId: z.string().optional(),
+  arguments: z.record(z.string(), JsonValueSchema).default({}),
+});
+export type McpToolCallRequest = z.infer<typeof McpToolCallRequestSchema>;
+
+export const McpToolCallResponseSchema = z.strictObject({
+  ok: z.boolean(),
+  serverName: z.string(),
+  toolName: z.string(),
+  result: JsonValueSchema,
+  executionId: IdSchema,
+  durationMs: z.number().nonnegative(),
+});
+export type McpToolCallResponse = z.infer<typeof McpToolCallResponseSchema>;

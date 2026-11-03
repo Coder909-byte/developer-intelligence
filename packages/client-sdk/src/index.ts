@@ -22,9 +22,19 @@ import {
   CorrectionApplyResultSchema,
   CorrectionRollbackRequestSchema,
   CorrectionRollbackResultSchema,
+  IntegrationListSchema,
+  DiscoveredToolListSchema,
+  McpToolCallRequestSchema,
+  McpToolCallResponseSchema,
+  McpToolExecutionListSchema,
   type CorrectionPreviewRequest,
   type CorrectionApplyRequest,
   type CorrectionRollbackRequest,
+  type McpToolCallRequest,
+  type McpToolCallResponse,
+  type DiscoveredToolList,
+  type IntegrationList,
+  type McpToolExecutionList,
   JobSchema,
   PageQuerySchema,
   FindingQuerySchema,
@@ -316,6 +326,37 @@ export function createClient(options: ClientOptions = {}) {
         CorrectionRollbackResultSchema,
         CorrectionRollbackRequestSchema.parse(input),
       ),
+    listIntegrations: () => request('GET', '/integrations', IntegrationListSchema),
+    discoverServerTools: (serverId: string) =>
+      request(
+        'POST',
+        `/mcp/servers/${IdSchema.parse(serverId)}/discover`,
+        DiscoveredToolListSchema,
+      ),
+    callMcpTool: (
+      serverId: string,
+      toolName: string,
+      input: z.input<typeof McpToolCallRequestSchema> = {},
+    ) =>
+      request(
+        'POST',
+        `/mcp/servers/${IdSchema.parse(serverId)}/tools/${encodeURIComponent(toolName)}/call`,
+        McpToolCallResponseSchema,
+        McpToolCallRequestSchema.parse(input),
+      ),
+    listMcpExecutions: (projectId: string, options: PageOptions = {}) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/mcp-executions${query(PageQuerySchema.parse(options))}`,
+        McpToolExecutionListSchema,
+      ),
   };
 }
 export type DaemonClient = ReturnType<typeof createClient>;
+export type {
+  McpToolCallRequest,
+  McpToolCallResponse,
+  DiscoveredToolList,
+  IntegrationList,
+  McpToolExecutionList,
+};

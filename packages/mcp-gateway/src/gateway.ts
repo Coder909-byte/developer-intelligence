@@ -1,7 +1,9 @@
 import { McpServer as SdkMcpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import type { DaemonClient } from '@udi/client-sdk';
+import type { McpServer as RegisteredMcpServer, DiscoveredTool } from '@udi/contracts';
 import { z } from 'zod';
+import { discoverServerTools, routeToolCall } from './aggregator.js';
 
 export type McpServerTransport = Parameters<SdkMcpServer['connect']>[0];
 
@@ -289,6 +291,100 @@ export class DefaultMcpGateway implements McpGateway {
         }
       },
     );
+  }
+
+  private readonly aggregatedTools = new Map<string, DiscoveredTool>();
+
+  getAggregatedTools(): DiscoveredTool[] {
+    return Array.from(this.aggregatedTools.values());
+  }
+
+  async aggregateExternalServer(server: RegisteredMcpServer): Promise<DiscoveredTool[]> {
+    const discovered = await discoverServerTools(server);
+    for (const tool of discovered) {
+      const namespaced = `${server.name}__${tool.name}`;
+      this.aggregatedTools.set(namespaced, tool);
+
+      this.server.registerTool(
+        namespaced,
+        {
+          description: `[Aggregated from ${server.name}] ${tool.description || tool.name}`,
+          inputSchema: {
+            params: z.record(z.string(), z.any()).optional(),
+            projectId: z.string().uuid().optional(),
+            agentId: z.string().optional(),
+          },
+        },
+        async ({ params, projectId, agentId }) => {
+          const targetProjectId = projectId ?? this.defaultProjectId;
+          const targetArgs = params ?? {};
+          const startTime = Date.now();
+          try {
+            const { result, durationMs } = await routeToolCall(server, tool.name, targetArgs);
+
+            // Record execution activity in daemon
+            await this.client
+              .createEvent(targetProjectId, {
+                type: 'mcp.tool.executed',
+                actor: agentId ?? 'mcp-gateway-router',
+                sourceKind: 'observed_tool',
+                payload: {
+                  serverName: server.name,
+                  toolName: tool.name,
+                  durationMs,
+                  outcome: 'succeeded',
+                  summary: `Executed ${tool.name} on ${server.name}`,
+                },
+              })
+              .catch(() => {});
+
+            // Record context memory fact
+            await this.client
+              .createContextRecord(targetProjectId, {
+                kind: 'fact',
+                text: `Aggregated MCP tool executed: ${server.name} -> ${tool.name}. Outcome: succeeded (${durationMs}ms).`,
+                provenance: {
+                  sourceKind: 'observed_tool',
+                  actor: agentId ?? 'mcp-gateway-router',
+                },
+                evidence: [],
+              })
+              .catch(() => {});
+
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+                },
+              ],
+            };
+          } catch (err) {
+            const durationMs = Date.now() - startTime;
+            const msg = err instanceof Error ? err.message : String(err);
+            await this.client
+              .createEvent(targetProjectId, {
+                type: 'mcp.tool.executed',
+                actor: agentId ?? 'mcp-gateway-router',
+                sourceKind: 'observed_tool',
+                payload: {
+                  serverName: server.name,
+                  toolName: tool.name,
+                  durationMs,
+                  outcome: 'failed',
+                  error: msg,
+                },
+              })
+              .catch(() => {});
+
+            return {
+              content: [{ type: 'text', text: `Tool execution failed: ${msg}` }],
+            };
+          }
+        },
+      );
+    }
+    return discovered;
   }
 
   async start(): Promise<void> {

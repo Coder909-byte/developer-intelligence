@@ -16,8 +16,12 @@ import {
   generateHostConfig,
   previewConfigDiff,
   applyHostConfig,
+  discoverServerTools,
+  routeToolCall,
+  buildUnifiedInventory,
 } from './index.js';
 import { unlink } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
 describe('DefaultMcpGateway via MCP SDK v2', () => {
   const projectId = randomUUID();
@@ -136,6 +140,10 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
       previewCorrection: vi.fn(),
       applyCorrection: vi.fn(),
       rollbackCorrection: vi.fn(),
+      listIntegrations: vi.fn(async () => ({ items: [] })),
+      discoverServerTools: vi.fn(async () => ({ items: [] })),
+      callMcpTool: vi.fn(),
+      listMcpExecutions: vi.fn(async () => ({ items: [] })),
     };
   }
 
@@ -421,5 +429,84 @@ describe('Host compatibility adapters', () => {
     } catch {
       // ignore
     }
+  });
+});
+
+describe('MCP tool discovery and central routing', () => {
+  const externalFixture = resolve(
+    import.meta.dirname,
+    '../../../examples/external-mcp-server/server.mjs',
+  );
+
+  const server: McpServer = {
+    id: randomUUID(),
+    name: 'code-intelligence-pack',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    enabled: true,
+    status: 'healthy',
+    transport: {
+      type: 'stdio',
+      executableId: process.execPath,
+      args: [externalFixture],
+    },
+  };
+
+  it('discovers tools from a real external MCP server process', async () => {
+    const tools = await discoverServerTools(server);
+    expect(tools.length).toBeGreaterThanOrEqual(3);
+
+    const names = tools.map((t) => t.name);
+    expect(names).toContain('analyze_code_metrics');
+    expect(names).toContain('format_code_snippet');
+    expect(names).toContain('inspect_environment');
+    expect(tools[0]?.serverName).toBe('code-intelligence-pack');
+  });
+
+  it('routes tools/call to external MCP server and receives real results', async () => {
+    const { result, durationMs } = await routeToolCall(server, 'analyze_code_metrics', {
+      path: 'src/main.ts',
+    });
+
+    expect(durationMs).toBeGreaterThanOrEqual(0);
+    expect(result).toBeDefined();
+
+    const textContent = (result as { content: Array<{ text: string }> }).content[0]?.text;
+    expect(textContent).toBeDefined();
+    const parsed = JSON.parse(textContent!);
+    expect(parsed.targetPath).toBe('src/main.ts');
+    expect(parsed.linesOfCode).toBe(420);
+  });
+
+  it('builds unified integration inventory containing servers, tools, packs, and host adapters', () => {
+    const inventory = buildUnifiedInventory(
+      [server],
+      new Map([
+        [
+          server.id,
+          [
+            {
+              name: 'analyze_code_metrics',
+              description: 'Test',
+              serverName: server.name,
+              serverId: server.id,
+            },
+          ],
+        ],
+      ]),
+    );
+
+    expect(inventory.length).toBeGreaterThanOrEqual(5);
+
+    const serverItem = inventory.find((i) => i.id === server.id);
+    expect(serverItem?.type).toBe('mcp_server');
+    expect(serverItem?.availableTools).toContain('analyze_code_metrics');
+
+    const packItem = inventory.find((i) => i.id === 'specialist-pack:electronics');
+    expect(packItem?.type).toBe('specialist_pack');
+    expect(packItem?.availableTools).toContain('pin_consistency_validator');
+
+    const antigravity = inventory.find((i) => i.id === 'host-adapter:antigravity');
+    expect(antigravity?.configurationStatus).toBe('manual_setup');
   });
 });
