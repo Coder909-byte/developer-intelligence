@@ -3,8 +3,8 @@ import { createInterface } from 'node:readline';
 import { once } from 'node:events';
 
 // Protocol test client for Developer 2's real CLI; no gateway implementation.
-export async function connectMcp(root, env) {
-  const child = spawn(process.execPath, ['packages/mcp-gateway/dist/cli.js'], {
+export async function connectMcp(root, env, options = {}) {
+  const child = spawn(process.execPath, options.args ?? ['packages/mcp-gateway/dist/cli.js'], {
     cwd: root,
     env: { ...process.env, ...env },
     stdio: ['pipe', 'pipe', 'ignore'],
@@ -63,7 +63,10 @@ export async function connectMcp(root, env) {
     const initialized = await request('initialize', {
       protocolVersion: '2025-11-25',
       capabilities: {},
-      clientInfo: { name: 'udi-live-demo-reference-client', version: '1.0.0' },
+      clientInfo: {
+        name: options.clientName ?? 'udi-live-demo-reference-client',
+        version: '1.0.0',
+      },
     });
     child.stdin.write(
       JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n',

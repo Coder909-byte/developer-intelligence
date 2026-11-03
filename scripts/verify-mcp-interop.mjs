@@ -130,7 +130,7 @@ try {
 
   // 5. Verify Host Configuration Generation for OpenCode
   console.log(
-    '\n[5/8] Generating host configuration for OpenCode and validating diff preview & apply...',
+    '\n[5/8] Checking adapter preview/backup IO in private temporary files (not host compatibility)...',
   );
   const opencodeServer = {
     id: randomUUID(),
@@ -164,14 +164,16 @@ try {
   });
   assert.equal(preview.hasChanges, true);
 
-  // Test safe backup
+  // Test backup IO only; this raw API is not an approval/merge/atomic-write boundary.
   const applyRes2 = await applyHostConfig(opencodeJsonPath, {
     ...opencodeConfig,
     description: 'Updated configuration',
   });
   assert.equal(applyRes2.written, true);
   assert.equal(applyRes2.backupPath, `${opencodeJsonPath}.bak`);
-  console.log(`      ✓ Host configuration generated and applied safely with .bak backup`);
+  console.log(
+    '      ✓ Temporary-file write/backup IO verified; real host format and safe apply remain separate test:hosts gates.',
+  );
 
   // 6. Test with OpenCode CLI if binary exists
   console.log('\n[6/8] Testing OpenCode CLI integration via "opencode mcp list"...');

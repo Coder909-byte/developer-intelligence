@@ -1,5 +1,7 @@
 # MCP Interoperability & Second-Agent Verification
 
+Current aggregator audit: [AGGREGATOR_READINESS](AGGREGATOR_READINESS.md) and [host contract blockers](AGGREGATOR_CONTRACT.md#host-configuration-blockers-for-d2) supersede earlier host claims/examples below. Actual reference-client MCP interoperability passes; OpenCode application support is NOT RUN. Existing adapter output uses incorrect maps for `.vscode/mcp.json` and `opencode.json`, and raw config apply is not an approval/safe-merge boundary. Do not apply the historical configuration examples below to personal host settings.
+
 **Universal Developer Intelligence Platform** · Hackathon Demo Specification & Verification Baseline
 
 This document records the exact setup, commands, and verified protocol interoperability for demonstrating cross-agent context sharing and engineering intelligence between VS Code and external AI coding agents (such as OpenCode and Claude Desktop).

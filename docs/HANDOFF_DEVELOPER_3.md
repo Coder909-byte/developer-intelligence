@@ -1,5 +1,7 @@
 # Developer 3 handoff — frontend
 
+Current aggregator assignment: read [AGGREGATOR_CONTRACT](AGGREGATOR_CONTRACT.md) and [AGGREGATOR_READINESS](AGGREGATOR_READINESS.md). Main `24475d4` already contains the verified native extension and initial dashboard; bootstrap gaps below are historical. Use agreed SDK methods for the new MCP Hub; external discovery/routing/history and safe host setup are not available in this baseline.
+
 ## Branch and ownership
 
 After bootstrap reaches origin/main:
