@@ -1757,3 +1757,241 @@ summary {
   flex-shrink: 0;
   accent-color: var(--accent);
 }
+/* Crew animation never represents live agent execution. Routes stay inside each SVG room. */
+.ship-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ship-motion-toggle {
+  white-space: nowrap;
+}
+.room-art-depth {
+  display: block;
+  width: 100%;
+  pointer-events: none;
+  transform: translateZ(10px);
+}
+.retro-shell .ship-room {
+  transform-style: preserve-3d;
+  transition:
+    transform 0.16s ease-out,
+    border-color 0.12s steps(2),
+    box-shadow 0.16s ease-out;
+}
+.retro-shell .ship-room-meta,
+.retro-shell .ship-room > strong {
+  transform: translateZ(5px);
+}
+.room-cursor-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  background: radial-gradient(
+    160px circle at var(--spot-x, 50%) var(--spot-y, 30%),
+    #c9f3e820,
+    transparent 75%
+  );
+  box-shadow: inset 0 0 20px #b5dbe90a;
+  transition: opacity 0.2s;
+}
+.retro-shell .ship-room[data-pointer-lit='true'] {
+  transform: perspective(850px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))
+    translateY(-3px);
+  box-shadow:
+    7px 12px 0 #030a16,
+    12px 20px 26px #0007,
+    0 0 22px color-mix(in srgb, var(--room-tint) 16%, transparent),
+    inset 2px 2px #d4eeff24;
+}
+.ship-room[data-pointer-lit='true'] .room-cursor-light {
+  opacity: 1;
+}
+.retro-shell .ship-room:active {
+  transform: perspective(850px) translateY(1px);
+}
+.pixel-roam {
+  --route-b-x: 0px;
+  --route-b-y: -9px;
+  --route-c-x: 0px;
+  --route-c-y: 0px;
+  --route-d-x: -10px;
+  --route-d-y: 0px;
+  animation: crew-patrol 18s linear infinite;
+}
+.ship-room-engineering .pixel-roam {
+  --route-b-x: 3px;
+  --route-b-y: -27px;
+  --route-c-x: 3px;
+  --route-c-y: 0px;
+  --route-d-x: -36px;
+  animation-duration: 23s;
+  animation-delay: -7s;
+}
+.ship-room-agents .pixel-roam {
+  --route-b-x: 0px;
+  --route-b-y: -8px;
+  --route-d-x: -10px;
+  animation-duration: 19s;
+  animation-delay: -3s;
+}
+.ship-room-mcp .pixel-roam {
+  --route-b-x: 11px;
+  --route-b-y: -5px;
+  --route-d-x: -12px;
+  animation-duration: 21s;
+  animation-delay: -12s;
+}
+.ship-room-settings .pixel-roam {
+  --route-b-x: -18px;
+  --route-b-y: 0px;
+  --route-d-x: 18px;
+  animation-duration: 24s;
+  animation-delay: -6s;
+}
+.ship-room-devices .pixel-roam {
+  --route-b-x: 1px;
+  --route-b-y: -7px;
+  --route-d-x: -12px;
+  animation-duration: 20s;
+  animation-delay: -9s;
+}
+.ship-room-bridge .pixel-roam {
+  --route-b-x: -22px;
+  --route-b-y: 0px;
+  --route-d-x: 20px;
+  animation-duration: 26s;
+  animation-delay: -14s;
+}
+.pixel-stride {
+  animation: crew-stride 0.65s steps(2, end) infinite;
+}
+.pixel-foot-left {
+  animation: crew-foot 0.65s steps(2, end) infinite;
+}
+.pixel-foot-right {
+  animation: crew-foot 0.65s steps(2, end) -0.325s infinite;
+}
+.ship-motion-on .pixel-light-console {
+  animation: console-breathe 8s ease-in-out infinite alternate;
+}
+.ship-motion-on .pixel-light-reactor {
+  animation: reactor-breathe 11s ease-in-out infinite alternate;
+}
+@keyframes crew-patrol {
+  0%,
+  12% {
+    transform: translate(0, 0);
+  }
+  27%,
+  38% {
+    transform: translate(var(--route-b-x), var(--route-b-y));
+  }
+  52%,
+  58% {
+    transform: translate(var(--route-c-x), var(--route-c-y));
+  }
+  77%,
+  87% {
+    transform: translate(var(--route-d-x), var(--route-d-y));
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+@keyframes crew-stride {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.5px);
+  }
+}
+@keyframes crew-foot {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+@keyframes console-breathe {
+  from {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes reactor-breathe {
+  from {
+    filter: drop-shadow(0 0 2px #ffdb88);
+  }
+  to {
+    filter: drop-shadow(0 0 5px #ffdb88);
+  }
+}
+.ship-motion-paused
+  :is(
+    .pixel-roam,
+    .pixel-stride,
+    .pixel-foot-left,
+    .pixel-foot-right,
+    .pixel-light-console,
+    .pixel-light-reactor
+  ) {
+  animation-play-state: paused;
+}
+.ship-motion-paused .room-cursor-light {
+  opacity: 0;
+}
+@media (max-width: 900px) {
+  .ship-controls {
+    justify-content: flex-start;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .retro-shell .ship-room[data-pointer-lit='true'] {
+    transform: none;
+  }
+  .room-cursor-light {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ship-workspace
+    :is(
+      .pixel-roam,
+      .pixel-stride,
+      .pixel-foot-left,
+      .pixel-foot-right,
+      .pixel-light-console,
+      .pixel-light-reactor
+    ) {
+    animation: none;
+  }
+  .retro-shell
+    .ship-workspace
+    :is(.ship-room, .room-art-depth, .ship-room-meta, .ship-room > strong) {
+    transform: none;
+    transition: none;
+  }
+  .ship-workspace .room-cursor-light {
+    display: none;
+    transition: none;
+  }
+  .ship-motion-toggle {
+    display: none;
+  }
+}
+@media (forced-colors: active) {
+  .room-cursor-light {
+    display: none;
+  }
+}

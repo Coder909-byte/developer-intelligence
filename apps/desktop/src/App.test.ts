@@ -155,6 +155,12 @@ describe('desktop user journeys', () => {
     );
     expect(host.querySelector('.ship-prompt')?.textContent).toContain('Enter Engineering bay');
     expect(host.textContent).toContain('Engine connected');
+    expect(host.querySelector('.ship-motion-on')).not.toBeNull();
+    await click('Pause motion');
+    expect(host.querySelector('.ship-motion-paused')).not.toBeNull();
+    expect(host.querySelector('button[aria-pressed="true"]')?.textContent).toBe('Resume motion');
+    await click('Resume motion');
+    expect(host.querySelector('.ship-motion-on')).not.toBeNull();
     for (const [room, screen] of [
       ['Crew quarters', 'Agent Workspace'],
       ['Communications', 'MCP Hub'],

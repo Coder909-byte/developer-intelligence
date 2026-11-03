@@ -107,12 +107,25 @@ export function PixelRoom({ room }: { room: Room }) {
         className="pixel-caretaker"
         transform={room === 'engineering' ? 'translate(67 44)' : 'translate(43 43)'}
       >
-        <path d="M1 8h11v3H1z" fill="#102033" opacity=".6" />
-        <path d="M3 0h6v2h2v6H9v3H7V8H5v3H3V8H1V2h2z" fill="#142331" />
-        <path d="M3 1h6v2h1v4H2V3h1z" fill="#b7cbd1" />
-        <path d="M4 2h5v3H4z" fill="#4c839b" />
-        <path d="M5 2h3v1H5z" fill="#b3e1e3" />
-        <path d="M3 7h2v3H3zM7 7h2v3H7z" fill="#819aa7" />
+        <g className="pixel-roam">
+          <ellipse
+            className="pixel-crew-shadow"
+            cx="6"
+            cy="10"
+            rx="7"
+            ry="2"
+            fill="#050b14"
+            opacity=".6"
+          />
+          <g className="pixel-stride">
+            <path d="M3 0h6v2h2v6H9v3H7V8H5v3H3V8H1V2h2z" fill="#142331" />
+            <path d="M3 1h6v2h1v4H2V3h1z" fill="#b7cbd1" />
+            <path d="M4 2h5v3H4z" fill="#4c839b" />
+            <path d="M5 2h3v1H5z" fill="#b3e1e3" />
+            <path className="pixel-foot-left" d="M3 7h2v3H3z" fill="#819aa7" />
+            <path className="pixel-foot-right" d="M7 7h2v3H7z" fill="#819aa7" />
+          </g>
+        </g>
       </g>
     </svg>
   );
