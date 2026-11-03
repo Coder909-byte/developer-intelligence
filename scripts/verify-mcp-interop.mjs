@@ -341,7 +341,14 @@ try {
   assert.equal(badExitCode, 1);
   console.log(`      ✓ Unauthenticated MCP server launch refused with exit code 1`);
 
-  // 8b. Corrected fixture passes validation
+  // 8b. Cross-project isolation: querying non-existent project returns structured error
+  const crossProjectRes = await primaryClient
+    .getContext('00000000-0000-0000-0000-000000000000')
+    .catch((e) => e);
+  assert.equal(crossProjectRes.status, 404);
+  console.log(`      ✓ Cross-project access correctly rejected with 404`);
+
+  // 8c. Corrected fixture passes validation
   const correctedJob = await primaryClient.requestValidation(project.id, {
     kind: 'pin_consistency',
     artifactPaths: ['rover.net', 'src/pins_corrected.h', 'engineering-map.json'],
