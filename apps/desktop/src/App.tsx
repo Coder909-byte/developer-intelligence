@@ -38,6 +38,7 @@ import { ContextInspectorScreen, ToolHubScreen } from './MissionControl.js';
 import type { MissionControlFactory, MissionControlSource } from './mission-control.js';
 import { HostSetup } from './HostSetup.js';
 import { IntegrationGuide } from './IntegrationGuide.js';
+import { Library } from './Library.js';
 export const screens = [
   'Overview',
   'MCP Hub',
@@ -46,6 +47,7 @@ export const screens = [
   'Devices',
   'Settings',
   'Context Inspector',
+  'Library',
 ] as const;
 type Screen = (typeof screens)[number];
 function Unavailable({ title, reason }: { title: string; reason: string }) {
@@ -753,6 +755,7 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
                             'devices',
                             'settings',
                             'engineering',
+                            'agents',
                           ] as const
                         )[i]!
                       }
@@ -966,6 +969,8 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
                           navigate={setScreen}
                           jobId={jobIds[project.id]}
                         />
+                      ) : screen === 'Library' ? (
+                        <Library client={client} projectId={project.id} />
                       ) : screen === 'Context Inspector' ? (
                         <ContextInspectorScreen
                           client={client}

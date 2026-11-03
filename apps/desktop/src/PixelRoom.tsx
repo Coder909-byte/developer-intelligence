@@ -1,4 +1,4 @@
-type Room = 'engineering' | 'agents' | 'mcp' | 'settings' | 'devices' | 'bridge';
+type Room = 'engineering' | 'agents' | 'mcp' | 'settings' | 'devices' | 'bridge' | 'library';
 
 /** Ambient monitor artwork, never a live terminal or telemetry source. */
 function MonitorAnimation({
@@ -198,6 +198,27 @@ export function PixelRoom({ room, door = 'bottom' }: { room: Room; door?: 'top' 
           <path d="M42 46h12v7H42z" fill="#5d8287" />
         </>
       )}
+      {room === 'library' && (
+        <>
+          <path d="M14 16h68v21H14z" fill="#302a36" />
+          <path d="M14 16h68v3H14zM14 33h68v4H14zM14 16h3v21h-3zM79 16h3v21h-3z" fill="#a17b58" />
+          {[20, 32, 44, 56, 68].map((x, i) => (
+            <g key={x}>
+              <rect
+                x={x}
+                y={21 + (i % 2) * 2}
+                width="7"
+                height={12 - (i % 2) * 2}
+                fill={['#a884b8', '#84b7ac', '#d3ad76', '#a8b8d2', '#bb8694'][i]}
+              />
+              <path d={`M${x + 2} 25h3M${x + 2} 29h3`} stroke="#ecdcbd" strokeWidth="1" />
+            </g>
+          ))}
+          <path d="M17 44h20v7H17zM19 42h16v3H19z" fill="#b4946d" />
+          <path d="M61 43h16v8H61z" fill="#5b4a64" />
+          <path d="M64 41h10v3H64z" fill="#dbc498" />
+        </>
+      )}
       <g
         className="pixel-caretaker"
         transform={room === 'engineering' ? 'translate(67 44)' : 'translate(43 43)'}
@@ -218,6 +239,13 @@ export function PixelRoom({ room, door = 'bottom' }: { room: Room; door?: 'top' 
               <path d="M3 1h6v2h1v4H2V3h1z" fill="var(--crew-suit, #efd6a4)" />
               <path d="M4 2h5v3H4z" fill="#3e626b" />
               <path d="M5 2h3v1H5z" fill="#d8eee0" />
+              {room === 'library' && (
+                <>
+                  <path d="M3 3h3v2H3zM7 3h3v2H7z" fill="none" stroke="#f0d8a3" strokeWidth=".6" />
+                  <path d="M7 6h4v3H7z" fill="#b28cc6" />
+                  <path d="M8 6v3" stroke="#f4dfb8" strokeWidth=".6" />
+                </>
+              )}
               <path className="pixel-foot-left" d="M3 7h2v3H3z" fill="var(--crew-boots, #b18e71)" />
               <path
                 className="pixel-foot-right"

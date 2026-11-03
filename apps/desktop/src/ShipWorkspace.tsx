@@ -52,6 +52,14 @@ const rooms = [
     number: '06',
     description: 'Project overview & recorded activity',
   },
+  {
+    id: 'library',
+    name: 'Library',
+    destination: 'Library',
+    icon: 'agents',
+    number: '07',
+    description: 'Librarian & saved session information',
+  },
 ] as const;
 
 export function ShipWorkspace({

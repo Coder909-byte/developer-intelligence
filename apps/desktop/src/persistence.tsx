@@ -371,7 +371,7 @@ function HandoffContent({ handoff }: { handoff: AgentHandoff }) {
     </>
   );
 }
-function HandoffDetail({
+export function HandoffDetail({
   client,
   projectId,
   handoffId,

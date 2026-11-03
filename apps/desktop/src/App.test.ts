@@ -146,6 +146,14 @@ afterEach(async () => {
   host.remove();
 });
 describe('desktop user journeys', () => {
+  it('enters the library through its ship compartment and loads saved session handoffs', async () => {
+    await render();
+    await select();
+    await click('Open Library');
+    expect(host.querySelector('h1')?.textContent).toBe('Library');
+    expect(host.textContent).toContain('Your shelf is waiting for its first story');
+    expect(api.listHandoffs).toHaveBeenCalledWith(id, { limit: 50, offset: 0 });
+  });
   it('opens the three-column inspector with actual scoped events and unknown metrics', async () => {
     await render();
     await select();
@@ -298,7 +306,7 @@ describe('desktop user journeys', () => {
     await render();
     expect(host.querySelector('nav[aria-label="Ship compartments"]')).not.toBeNull();
     expect(host.querySelector('#ship-title')?.textContent).toBe('Mission control');
-    expect(host.querySelectorAll('.pixel-room-scene[aria-hidden="true"]')).toHaveLength(6);
+    expect(host.querySelectorAll('.pixel-room-scene[aria-hidden="true"]')).toHaveLength(7);
     await act(async () =>
       host.querySelector<HTMLButtonElement>('button[aria-label="Open Engineering bay"]')!.focus(),
     );

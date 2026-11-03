@@ -1,5 +1,9 @@
 # Mission Control frontend integration
 
+## Session Library
+
+The Library ship compartment opens a bookshelf of actual persisted project handoffs. Each book opens `getHandoff(projectId, handoffId)` through the existing reviewed handoff detail view; Save session handoff uses the existing preview/approval flow. Shelves use `listHandoffs` with 50-item limit/offset pagination and a search of the loaded page. Incoming records are scope checked. This is saved session handoff information, not automatic chat capture. The librarian is decorative artwork, not a claimed running agent. No new backend contracts, seed records or local storage were added.
+
 The Context Inspector and MCP Hub → Tools screens follow the supplied three-column compression inspector and categorical switchboard design. Production code contains no demo metrics, classification records, tool categories, or injection payloads. Numeric fixtures exist only in tests.
 
 ## Connect the backend

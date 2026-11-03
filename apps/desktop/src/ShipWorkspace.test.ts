@@ -48,9 +48,9 @@ async function render() {
   );
 }
 describe('decorative crew and cursor effects', () => {
-  it('keeps six decorative crews independently scoped to their room and allows motion to be paused', async () => {
+  it('keeps seven decorative crews independently scoped to their room and allows motion to be paused', async () => {
     await render();
-    expect(host.querySelectorAll('.ship-room .pixel-roam')).toHaveLength(6);
+    expect(host.querySelectorAll('.ship-room .pixel-roam')).toHaveLength(7);
     const toggle = host.querySelector<HTMLButtonElement>('.ship-motion-toggle')!;
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
     await act(async () => toggle.click());

@@ -2720,6 +2720,252 @@ summary {
     color: #a89bb3;
   }
 }
+/* The archive connects to the same passage as the original six rooms. */
+.retro-shell .ship-floorplan .ship-deck {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 880px;
+}
+.retro-shell .ship-floorplan .ship-room-library {
+  grid-column: 4;
+  grid-row: 1;
+  --room-tint: #c5a5de;
+  --crew-suit: #cbb0e0;
+  --crew-boots: #8f709f;
+  --pixel-floor: #393247;
+  --pixel-wall: #b29ac0;
+  --pixel-wall-side: #746080;
+}
+.ship-room-library .pixel-roam {
+  --roam-x1: -10px;
+  --roam-y1: 0px;
+  --roam-x2: 12px;
+  --roam-y2: 2px;
+  --roam-x3: 0px;
+  --roam-y3: -3px;
+  animation-delay: -7s;
+}
+.retro-shell.app-fullscreen[data-screen='Overview'] .ship-floorplan .ship-deck {
+  min-width: 880px;
+  max-width: min(100%, calc((100dvh - 300px) * 3));
+}
+.session-library {
+  display: grid;
+  gap: 24px;
+}
+.library-welcome {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+  background: #252232;
+  border: 2px solid #8a739d;
+  box-shadow:
+    5px 6px 0 #080b16,
+    inset 0 0 0 2px #44364f;
+}
+.library-welcome h2 {
+  font-size: clamp(20px, 2.4vw, 32px);
+  color: #f1dfbd;
+}
+.library-librarian {
+  flex: 0 0 160px;
+  --crew-suit: #cbb0e0;
+  --crew-boots: #8f709f;
+}
+.library-librarian .pixel-room-scene {
+  width: 160px;
+  height: auto;
+  image-rendering: pixelated;
+}
+.library-note {
+  display: block;
+  margin-top: 12px;
+  color: #b3a4c1;
+}
+.library-actions {
+  display: grid;
+  flex-shrink: 0;
+  gap: 12px;
+  margin-left: auto;
+}
+.library-catalogue {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  color: #b3a4c1;
+}
+.library-catalogue .field {
+  width: min(100%, 400px);
+  margin: 0;
+}
+.library-shelves {
+  min-height: 310px;
+  padding: 30px 28px 0;
+  background: repeating-linear-gradient(90deg, #1e1c29 0 46px, #252131 47px 48px);
+  border: 9px solid #66516d;
+  border-bottom: 18px solid #a0806b;
+  box-shadow:
+    inset 0 10px 18px #080b1680,
+    0 8px 0 #100e19;
+}
+.library-book-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  column-gap: 16px;
+  row-gap: 18px;
+  grid-auto-rows: 284px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 284px,
+    #a0806b 284px 296px,
+    #302031 296px 302px
+  );
+  align-items: end;
+  padding-bottom: 18px;
+}
+.session-book {
+  --book-color: #b193ca;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 12px;
+  min-width: 0;
+  height: 252px;
+  padding: 20px 14px 16px 22px;
+  color: #f7ecda;
+  border: 1px solid #d8bfeb66;
+  border-left: 7px solid #362e4c;
+  border-radius: 3px 8px 8px 3px;
+  background:
+    linear-gradient(90deg, #ffffff12, transparent 12%),
+    color-mix(in srgb, var(--book-color) 35%, #181a29);
+  box-shadow:
+    5px 6px 0 #0c0d16,
+    inset -4px 0 0 #ffffff10;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+.session-book:nth-child(4n + 2) {
+  --book-color: #85bfaf;
+  height: 234px;
+}
+.session-book:nth-child(4n + 3) {
+  --book-color: #dbad75;
+  height: 264px;
+}
+.session-book:nth-child(4n) {
+  --book-color: #93b7d6;
+  height: 244px;
+}
+.session-book:hover,
+.session-book:focus-visible {
+  transform: translateY(-10px) rotate(-1deg);
+  border-color: var(--book-color);
+  outline: 2px solid var(--book-color);
+  outline-offset: 3px;
+  box-shadow:
+    0 0 12px color-mix(in srgb, var(--book-color) 55%, transparent),
+    0 0 32px color-mix(in srgb, var(--book-color) 30%, transparent),
+    inset 0 0 24px #ffffff14;
+  z-index: 1;
+}
+.book-binding {
+  position: absolute;
+  top: 13px;
+  left: -6px;
+  bottom: 12px;
+  width: 5px;
+  border-top: 3px solid var(--book-color);
+  border-bottom: 3px solid var(--book-color);
+}
+.book-volume {
+  font:
+    9px/1.6 Consolas,
+    monospace;
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+.session-book strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.book-rule {
+  width: 28px;
+  border-top: 2px solid var(--book-color);
+  margin-top: auto;
+}
+.book-date,
+.book-provenance {
+  font:
+    11px/1.4 Consolas,
+    monospace;
+}
+.book-provenance {
+  opacity: 0.75;
+}
+.book-open {
+  font-size: 11px;
+  color: var(--book-color);
+}
+.library-shelf-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+@media (max-width: 1000px) {
+  .library-welcome {
+    flex-wrap: wrap;
+  }
+  .library-librarian {
+    flex-basis: 110px;
+  }
+  .library-librarian .pixel-room-scene {
+    width: 110px;
+  }
+  .library-actions {
+    display: flex;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+}
+@media (max-width: 600px) {
+  .library-catalogue {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .library-shelves {
+    padding: 24px 16px 0;
+  }
+  .library-book-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 12px;
+  }
+  .library-welcome {
+    padding: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .session-book {
+    transition: none;
+  }
+  .session-book:hover,
+  .session-book:focus-visible {
+    transform: none;
+  }
+}
 /* Aggregator hierarchy uses the existing retro command-center visual system. */
 .hub-overview {
   margin-bottom: 24px;
