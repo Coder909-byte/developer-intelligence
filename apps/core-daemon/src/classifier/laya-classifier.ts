@@ -1,8 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type {
-  ClassifierCategory,
-  LayaClassificationResult,
-} from '@udi/contracts';
+import type { ClassifierCategory, LayaClassificationResult } from '@udi/contracts';
 
 export interface ClassifyInput {
   projectId: string;
@@ -43,9 +40,8 @@ export function deterministicScrub(raw: string): {
   }
 
   // Detect standard package manager / build scrollback noise patterns
-  const isNpmLog = /^(npm warn|npm notice|pnpm install|added \d+ packages|up to date in \d+)/im.test(
-    text,
-  );
+  const isNpmLog =
+    /^(npm warn|npm notice|pnpm install|added \d+ packages|up to date in \d+)/im.test(text);
   if (isNpmLog && !/(error|failed|fatal|exception)/i.test(text)) {
     return { scrubbed: text.slice(0, 300), isObviousNoise: true, truncated: true };
   }
@@ -89,9 +85,17 @@ export function evaluateRuleClassifier(
   }
 
   // 2. Architectural Decisions & Constraints
-  const decisionMatch = scrubbed.match(/(?:decision:|constraint:|we will|must not|do not|keep hardware|approved fix|recommendation:)/i);
-  if (decisionMatch || (sourceType === 'user_message' && /do not|keep|preserve|always|never|patch/i.test(scrubbed))) {
-    const cleanFact = scrubbed.replace(/^[-*•#\s]+/, '').slice(0, 140).replace(/\n/g, ' ');
+  const decisionMatch = scrubbed.match(
+    /(?:decision:|constraint:|we will|must not|do not|keep hardware|approved fix|recommendation:)/i,
+  );
+  if (
+    decisionMatch ||
+    (sourceType === 'user_message' && /do not|keep|preserve|always|never|patch/i.test(scrubbed))
+  ) {
+    const cleanFact = scrubbed
+      .replace(/^[-*•#\s]+/, '')
+      .slice(0, 140)
+      .replace(/\n/g, ' ');
     return {
       category: 'ARCHITECTURAL_DECISION',
       signalScore: 0.91,
@@ -101,7 +105,9 @@ export function evaluateRuleClassifier(
   }
 
   // 3. Validated Outcomes & Verification Results
-  const outcomeMatch = scrubbed.match(/(?:validation (?:passed|failed|completed)|finding\(s\)|revalidation|succeeded|exitCode:\s*[01])/i);
+  const outcomeMatch = scrubbed.match(
+    /(?:validation (?:passed|failed|completed)|finding\(s\)|revalidation|succeeded|exitCode:\s*[01])/i,
+  );
   if (outcomeMatch) {
     const isPass = /succeeded|exitCode:\s*0|0 active errors|zero findings/i.test(scrubbed);
     return {

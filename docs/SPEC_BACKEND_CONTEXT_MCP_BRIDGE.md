@@ -10,10 +10,12 @@
 ## 1. Executive Summary & Objective
 
 The judges specifically praised two breakthrough features:
+
 1. **Preserving while Compressing Context:** Preventing secondary AI sessions from blindly re-scouting the codebase by injecting a hyper-dense, verified ground-truth context block.
 2. **Single Unified MCP Gateway with Categorical Toggles:** Giving external agents (OpenCode, Claude, Codex) access to multiple tool domains (hardware checks, context memory, and bridged VS Code extensions) through **one single MCP connection**, where tool categories can be turned on or off in real-time.
 
 This spec details the implementation of:
+
 - **Dual-Mode Context Compression Engine** (`packages/context-engine`).
 - **Dynamic Categorical Tool Filtering in MCP Gateway** (`packages/mcp-gateway`).
 - **VS Code Extension ↔ MCP Tool Bridging Protocol**.
@@ -28,9 +30,9 @@ Add the following schemas to `packages/contracts/src/index.ts`:
 // 1. Tool Category Definition
 export const ToolCategorySchema = z.enum([
   'hardware_validation', // KiCad netlists, GPIO pin consistency, PlatformIO builds
-  'context_memory',      // get_project_context, record_decision, list_project_events
-  'ide_extension_bridge',// Tools dynamically exposed from VS Code extensions
-  'external_servers',    // Aggregated external MCP servers
+  'context_memory', // get_project_context, record_decision, list_project_events
+  'ide_extension_bridge', // Tools dynamically exposed from VS Code extensions
+  'external_servers', // Aggregated external MCP servers
 ]);
 export type ToolCategory = z.infer<typeof ToolCategorySchema>;
 
@@ -79,8 +81,9 @@ export type CompressedContextResult = z.infer<typeof CompressedContextResultSche
 Refactor / expand `packages/context-engine/src/index.ts` to implement two distinct compression pipelines:
 
 ### Mode A: Deterministic Delta Compression (`buildDeterministicDelta`)
-* **Purpose:** Zero-latency (<1ms), mathematically reproducible context distillation for code & hardware integrity.
-* **Algorithm:**
+
+- **Purpose:** Zero-latency (<1ms), mathematically reproducible context distillation for code & hardware integrity.
+- **Algorithm:**
   1. Fetch all SQLite `context_records` and `validation_findings` for `projectId`.
   2. Strip all transient compiler logs, stdout scrollbacks, and conversational filler.
   3. Extract **Hardware Ground Truth**:
@@ -93,14 +96,16 @@ Refactor / expand `packages/context-engine/src/index.ts` to implement two distin
   6. Assemble into an ultra-dense Markdown snippet:
      ```markdown
      ## Active Project State: rover-demo
+
      - [HW] Pin Mapping: MOTOR_EN -> GPIO14 (Schematic: rover.net:28, Firmware: src/pins.h:7)
      - [DECISION] (user): Patch pins.h without altering schematic netlist.
      - [STATUS] Zero active validation errors. Ready for PlatformIO build.
      ```
 
 ### Mode B: AI Distillation Rollup (`buildDistilledRollup`)
-* **Purpose:** Condenses long multi-turn sessions into a chronologically ordered executive summary when session history exceeds 10 turns.
-* **Algorithm:**
+
+- **Purpose:** Condenses long multi-turn sessions into a chronologically ordered executive summary when session history exceeds 10 turns.
+- **Algorithm:**
   1. Reads classified events tagged by the Laya classifier with `signalScore >= 0.70`.
   2. Synthesizes a structured punch-list categorized into:
      - `What was completed`
@@ -109,6 +114,7 @@ Refactor / expand `packages/context-engine/src/index.ts` to implement two distin
   3. Formats with explicit provenance tags (`[observed_tool:engineering-core]`, `[agent_summary:opencode]`).
 
 ### Token Estimation Helper
+
 Provide `estimateTokens(text: string): number` (using a standard ~4 chars/token heuristic or BPE estimator) to calculate `rawTokensEstimate`, `compressedTokensEstimate`, and `savingsPercent`.
 
 ---
@@ -118,7 +124,9 @@ Provide `estimateTokens(text: string): number` (using a standard ~4 chars/token 
 Update `packages/mcp-gateway/src/gateway.ts` and `cli.ts`:
 
 ### A. The Single Gateway Contract
+
 External harnesses configure **one single entry in their MCP config**:
+
 ```json
 {
   "mcpServers": {
@@ -135,22 +143,26 @@ External harnesses configure **one single entry in their MCP config**:
 ```
 
 ### B. Categorical Tool Registry Mapping
+
 Map internal tools to categories:
-* `hardware_validation`:
+
+- `hardware_validation`:
   - `run_engineering_validation`
   - `get_validation_results`
-* `context_memory`:
+- `context_memory`:
   - `get_project_context`
   - `record_decision`
   - `list_project_events`
-* `ide_extension_bridge`:
+- `ide_extension_bridge`:
   - `vscode_execute_command`
   - `vscode_list_diagnostics`
-* `external_servers`:
+- `external_servers`:
   - Dynamically proxied tools discovered from external servers in `aggregator.ts`.
 
 ### C. Dynamic Tool Filter in `tools/list`
+
 When an agent sends JSON-RPC `tools/list`:
+
 1. Check category toggle state from `store.settings` or daemon API.
 2. Filter the exposed tool array:
    ```typescript
@@ -162,10 +174,12 @@ When an agent sends JSON-RPC `tools/list`:
    ```json
    {
      "isError": true,
-     "content": [{
-       "type": "text",
-       "text": "Tool 'run_engineering_validation' is in category 'hardware_validation', which is currently toggled OFF in Mission Control."
-     }]
+     "content": [
+       {
+         "type": "text",
+         "text": "Tool 'run_engineering_validation' is in category 'hardware_validation', which is currently toggled OFF in Mission Control."
+       }
+     ]
    }
    ```
 
@@ -174,6 +188,7 @@ When an agent sends JSON-RPC `tools/list`:
 ## 5. VS Code Extension ↔ MCP Bridge Protocol
 
 In `packages/mcp-gateway/src/host-adapters.ts`:
+
 1. Expose an internal bridge registration method:
    `registerHostExtensionTool(toolDefinition: BridgedExtensionTool)`
 2. When the VS Code extension activates, it registers available commands (e.g. `PlatformIO: Build`, `KiCad: Inspect Netlist`, language server symbols) as MCP tools under category `ide_extension_bridge`.

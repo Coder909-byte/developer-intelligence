@@ -7,7 +7,8 @@ import {
 
 describe('Laya Classifier & Scrubbing Pipeline', () => {
   it('strips ANSI escape codes, progress bars, and detects obvious noise', () => {
-    const rawAnsi = '\u001b[32m[SUCCESS]\u001b[0m All tests passed \u001b[33m[=====>    ] 50%\u001b[0m';
+    const rawAnsi =
+      '\u001b[32m[SUCCESS]\u001b[0m All tests passed \u001b[33m[=====>    ] 50%\u001b[0m';
     const result = deterministicScrub(rawAnsi);
     expect(result.scrubbed).not.toContain('\u001b');
     expect(result.scrubbed).toContain('[SUCCESS] All tests passed');
@@ -16,12 +17,15 @@ describe('Laya Classifier & Scrubbing Pipeline', () => {
     const empty = deterministicScrub('   ');
     expect(empty.isObviousNoise).toBe(true);
 
-    const npmLog = deterministicScrub('npm notice created package in 45ms\nadded 14 packages in 2s');
+    const npmLog = deterministicScrub(
+      'npm notice created package in 45ms\nadded 14 packages in 2s',
+    );
     expect(npmLog.isObviousNoise).toBe(true);
   });
 
   it('correctly classifies hardware pin invariants with high signal score', () => {
-    const text = 'Signal MOTOR_EN pin mismatch: netlist specifies GPIO14 but firmware configures GPIO26 in rover.net and src/pins.h';
+    const text =
+      'Signal MOTOR_EN pin mismatch: netlist specifies GPIO14 but firmware configures GPIO26 in rover.net and src/pins.h';
     const classification = evaluateRuleClassifier(text, 'tool_output');
     expect(classification.category).toBe('HARDWARE_SPEC');
     expect(classification.signalScore).toBeGreaterThan(0.9);

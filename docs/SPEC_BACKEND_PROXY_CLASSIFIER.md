@@ -10,6 +10,7 @@
 ## 1. Executive Summary & Objective
 
 In order to bridge the gap between user prompts and AI coding systems (VS Code extensions, OpenCode, Claude Code, Codex CLI) without fragile disk scraping:
+
 1. Provide an **OpenAI-compatible HTTP Proxy** (`POST /api/v1/chat/completions`) inside the local core daemon. Any harness can point its `baseURL` / `OPENAI_BASE_URL` to `http://127.0.0.1:4317/api/v1`.
 2. Intercept outgoing user prompts to **inject compressed, verified project context** (active hardware invariants, pinouts, decisions) directly into the prompt system message.
 3. Pass all agent turns and tool outputs through a **Two-Stage Classifier Pipeline** powered by **Laya (semantic classifier)**:
@@ -28,10 +29,10 @@ Add the following schemas to `packages/contracts/src/index.ts`:
 ```typescript
 // 1. Classifier Categories
 export const ClassifierCategorySchema = z.enum([
-  'HARDWARE_SPEC',          // Pinouts, buses, baud rates, voltage (Must keep)
+  'HARDWARE_SPEC', // Pinouts, buses, baud rates, voltage (Must keep)
   'ARCHITECTURAL_DECISION', // Human / lead constraints and decisions (Must keep)
-  'VALIDATED_OUTCOME',      // Tool passes, fails, patches, regressions (Must keep)
-  'EPHEMERAL_NOISE',        // Build scrollbacks, retries, exploratory chatter (Drop)
+  'VALIDATED_OUTCOME', // Tool passes, fails, patches, regressions (Must keep)
+  'EPHEMERAL_NOISE', // Build scrollbacks, retries, exploratory chatter (Drop)
 ]);
 export type ClassifierCategory = z.infer<typeof ClassifierCategorySchema>;
 
@@ -125,8 +126,9 @@ export type ChatCompletionRequest = z.infer<typeof ChatCompletionRequestSchema>;
 ## 4. REST API Endpoints (`apps/core-daemon`)
 
 ### A. `POST /api/v1/chat/completions`
-* **Headers:** `Authorization: Bearer <token>`, `x-project-id: <uuid>` (or query param `?projectId=<uuid>`).
-* **Behavior:**
+
+- **Headers:** `Authorization: Bearer <token>`, `x-project-id: <uuid>` (or query param `?projectId=<uuid>`).
+- **Behavior:**
   1. Validate incoming payload against `ChatCompletionRequestSchema`.
   2. Query `store.context.getMemory(projectId)` to retrieve active facts and decisions.
   3. Format the injected header:
@@ -138,12 +140,13 @@ export type ChatCompletionRequest = z.infer<typeof ChatCompletionRequestSchema>;
      ```
   4. If `messages[0].role === 'system'`, prepend the context block. If not, insert a new `system` message at index 0.
   5. If an upstream LLM is configured (e.g. `UPSTREAM_OPENAI_URL`), forward the request.
-     *If running in offline / demo mode*, synthesize a contextual response referencing the injected hardware facts.
+     _If running in offline / demo mode_, synthesize a contextual response referencing the injected hardware facts.
   6. Pass the user prompt and model response asynchronously through the **Laya Classifier**.
   7. Return standard OpenAI completion JSON.
 
 ### B. `GET /api/v1/projects/:id/compression-metrics`
-* **Response:**
+
+- **Response:**
   ```json
   {
     "projectId": "a50eebbb-ae4d-4f5f-b88f-ee048ba0227e",
@@ -157,8 +160,9 @@ export type ChatCompletionRequest = z.infer<typeof ChatCompletionRequestSchema>;
   ```
 
 ### C. `GET /api/v1/projects/:id/classifier-stream`
-* **Query Params:** `limit` (default: 50).
-* **Response:** Array of `LayaClassificationResult` records in newest-first order, powering the middle classifier stream panel in the UI.
+
+- **Query Params:** `limit` (default: 50).
+- **Response:** Array of `LayaClassificationResult` records in newest-first order, powering the middle classifier stream panel in the UI.
 
 ---
 
@@ -178,14 +182,17 @@ export interface ClassifierService {
 ```
 
 ### Deterministic Pre-Scrub (Stage 1):
-* Strip ANSI escape codes (`\u001b\[[0-9;]*m`).
-* Strip long hex/base64 blobs (>64 chars without spaces).
-* Detect repetitive progress bars (e.g., `[=========>   ] 45%`).
-* If output is pure noise (e.g. standard empty tool responses), assign `EPHEMERAL_NOISE` immediately with `signalScore: 0.05` without calling Laya.
+
+- Strip ANSI escape codes (`\u001b\[[0-9;]*m`).
+- Strip long hex/base64 blobs (>64 chars without spaces).
+- Detect repetitive progress bars (e.g., `[=========>   ] 45%`).
+- If output is pure noise (e.g. standard empty tool responses), assign `EPHEMERAL_NOISE` immediately with `signalScore: 0.05` without calling Laya.
 
 ### Laya Classifier Prompt (Stage 2):
+
 If local Laya / Ollama model is available (`LAYA_MODEL_URL`):
-* Send compact system prompt asking for structured JSON:
+
+- Send compact system prompt asking for structured JSON:
   ```json
   {
     "signalScore": 0.95,
@@ -193,7 +200,7 @@ If local Laya / Ollama model is available (`LAYA_MODEL_URL`):
     "distilledFact": "MOTOR_EN signal is mapped to GPIO14"
   }
   ```
-* **Offline Fallback (Deterministic Rule Engine):**
+- **Offline Fallback (Deterministic Rule Engine):**
   If Laya endpoint is unreachable or disabled:
   - Text matching `#define`, `GPIO\d+`, `baud`, `0x[0-9A-Fa-f]+` ➔ `HARDWARE_SPEC` (signal: 0.90).
   - Text matching `decision:`, `constraint:`, `will use`, `do not change` ➔ `ARCHITECTURAL_DECISION` (signal: 0.85).
@@ -210,7 +217,7 @@ If local Laya / Ollama model is available (`LAYA_MODEL_URL`):
    - Fallback engine activates cleanly when Laya endpoint is offline.
 2. **Integration Test (`apps/core-daemon/src/proxy-api.test.ts`):**
    - Spins up daemon on ephemeral port.
-   - Sends `POST /api/v1/chat/completions` with user message *"What is the motor pin?"*.
+   - Sends `POST /api/v1/chat/completions` with user message _"What is the motor pin?"_.
    - Verifies that outgoing message contains the injected compressed context.
    - Verifies `GET /api/v1/projects/:id/compression-metrics` increments raw and compressed token counters.
    - Verifies `GET /api/v1/projects/:id/classifier-stream` contains the classified records.

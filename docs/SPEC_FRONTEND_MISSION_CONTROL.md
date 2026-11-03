@@ -10,11 +10,13 @@
 ## 1. Executive Summary & Objective
 
 In Round 1, the judges loved:
+
 1. Cross-session context preservation with intelligent compression.
 2. The single unified platform housing all MCPs, plugins, and bridged extensions.
 3. The ability to categorically toggle tools on and off for connected agents.
 
 To turn these capabilities into an unforgettable, visual demonstration in Round 2:
+
 1. Build a **Live Context Compression & Quality Inspector** in the Desktop Dashboard:
    - Visual 3-panel split: **Raw Stream** ➔ **Laya Classifier Stream** ➔ **Injected Compressed Context**.
    - **Token Savings Gauge** displaying raw tokens vs. injected tokens (e.g. 14,250 ➔ 340 tokens, **97.6% savings**).
@@ -30,6 +32,7 @@ To turn these capabilities into an unforgettable, visual demonstration in Round 
 ## 2. Shared Contracts & Types Consumed
 
 From `@udi/contracts` (via `@udi/client-sdk`):
+
 - `LayaClassificationResult` (id, timestamp, signalScore, category, decision, distilledFact, sourceActor)
 - `CompressionMetrics` (totalRawTokens, totalCompressedTokens, compressionRatio, preservedFactsCount, prunedNoiseCount)
 - `ToolCategoryConfig` (category, enabled, name, description, toolCount)
@@ -63,8 +66,9 @@ App.tsx
 ## 4. Detailed Component Specifications
 
 ### Component 1: `ContextCompressionInspector.tsx`
-* **Route / Tab:** `Context Inspector`
-* **Layout:**
+
+- **Route / Tab:** `Context Inspector`
+- **Layout:**
   - **Top Bar (Token Economy Gauge):**
     - High-contrast stat cards:
       - **Raw Session Footprint:** e.g. `14,250 tokens` (orange text).
@@ -95,8 +99,9 @@ App.tsx
 ---
 
 ### Component 2: `CategoricalToolHub.tsx`
-* **Route / Tab:** `MCP Hub`
-* **Functionality:**
+
+- **Route / Tab:** `MCP Hub`
+- **Functionality:**
   - Displays a clean switchboard of tool categories:
     1. **Hardware & Embedded Tools** (KiCad netlist validator, PlatformIO runner) — `[Toggle Switch: ON/OFF]`
     2. **Core Project Memory** (`get_project_context`, `record_decision`, `list_events`) — `[Toggle Switch: ON/OFF]`
@@ -105,7 +110,7 @@ App.tsx
   - **Live Client Interaction:**
     - Flipping a toggle calls `client.toggleToolCategory({ projectId, category, enabled })`.
     - The tool list below immediately filters with a smooth animation showing tools entering/exiting the active scope.
-    - Live badge indicates: *"OpenCode / Claude currently sees N active tools"*.
+    - Live badge indicates: _"OpenCode / Claude currently sees N active tools"_.
 
 ---
 
@@ -113,7 +118,7 @@ App.tsx
 
 1. **Status Bar Widget (`src/status-bar.ts`):**
    - Renders in the bottom right: `$(chip) UDI: 340 tok (97.6% saved) | 5 MCP Tools`.
-   - Tooltip: *"Universal Developer Intelligence: Compressed context injected. Click to inspect memory."*
+   - Tooltip: _"Universal Developer Intelligence: Compressed context injected. Click to inspect memory."_
    - Clicking opens the Desktop Dashboard or VS Code Webview panel directly on the Context Inspector tab.
 2. **Command Palette Integration (`src/extension.ts`):**
    - `Developer Intelligence: View Injected Context Payload`
@@ -125,7 +130,7 @@ App.tsx
 
 ## 5. UI/UX Style & Visual Polish
 
-* Maintain the established **dark, retro-futuristic pixel-art and sci-fi aesthetic**:
+- Maintain the established **dark, retro-futuristic pixel-art and sci-fi aesthetic**:
   - Backgrounds: Dark slate / obsidian (`#0b0d13`, `#131722`).
   - Borders: Crisp 1px neon borders with subtle box-shadows.
   - Accent colors:
