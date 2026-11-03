@@ -462,3 +462,131 @@ export const McpToolCallResponseSchema = z.strictObject({
   durationMs: z.number().nonnegative(),
 });
 export type McpToolCallResponse = z.infer<typeof McpToolCallResponseSchema>;
+
+// Classifier & Proxy Schemas (Round 2 Backend 1)
+export const ClassifierCategorySchema = z.enum([
+  'HARDWARE_SPEC',
+  'ARCHITECTURAL_DECISION',
+  'VALIDATED_OUTCOME',
+  'EPHEMERAL_NOISE',
+]);
+export type ClassifierCategory = z.infer<typeof ClassifierCategorySchema>;
+
+export const LayaClassificationResultSchema = z.strictObject({
+  id: IdSchema,
+  projectId: IdSchema,
+  timestamp: TimestampSchema,
+  rawLengthChars: z.number().int().nonnegative(),
+  signalScore: z.number().min(0).max(1),
+  category: ClassifierCategorySchema,
+  decision: z.enum(['preserve', 'discard']),
+  distilledFact: z.string().optional(),
+  sourceActor: z.string(),
+  sourceType: z.enum(['user_message', 'assistant_thought', 'tool_output', 'system_message']),
+});
+export type LayaClassificationResult = z.infer<typeof LayaClassificationResultSchema>;
+
+export const LayaClassificationListSchema = z.strictObject({
+  items: z.array(LayaClassificationResultSchema),
+});
+export type LayaClassificationList = z.infer<typeof LayaClassificationListSchema>;
+
+export const CompressionMetricsSchema = z.strictObject({
+  projectId: IdSchema,
+  totalRawTokens: z.number().int().nonnegative(),
+  totalCompressedTokens: z.number().int().nonnegative(),
+  compressionRatio: z.number().min(0).max(1),
+  preservedFactsCount: z.number().int().nonnegative(),
+  prunedNoiseCount: z.number().int().nonnegative(),
+  lastInjectedAt: TimestampSchema.optional(),
+});
+export type CompressionMetrics = z.infer<typeof CompressionMetricsSchema>;
+
+export const ChatCompletionMessageSchema = z.strictObject({
+  role: z.enum(['system', 'user', 'assistant', 'tool']),
+  content: z.string().nullable().optional(),
+  name: z.string().optional(),
+  tool_call_id: z.string().optional(),
+  tool_calls: z.array(z.record(z.string(), JsonValueSchema)).optional(),
+});
+export type ChatCompletionMessage = z.infer<typeof ChatCompletionMessageSchema>;
+
+export const ChatCompletionRequestSchema = z.object({
+  model: z.string().default('default'),
+  messages: z.array(ChatCompletionMessageSchema),
+  temperature: z.number().optional(),
+  stream: z.boolean().optional().default(false),
+  projectId: IdSchema.optional(),
+});
+export type ChatCompletionRequest = z.infer<typeof ChatCompletionRequestSchema>;
+
+export const ChatCompletionResponseSchema = z.strictObject({
+  id: z.string(),
+  object: z.literal('chat.completion'),
+  created: z.number().int().positive(),
+  model: z.string(),
+  choices: z.array(
+    z.strictObject({
+      index: z.number().int().nonnegative(),
+      message: ChatCompletionMessageSchema,
+      finish_reason: z.string(),
+    }),
+  ),
+  usage: z.strictObject({
+    prompt_tokens: z.number().int().nonnegative(),
+    completion_tokens: z.number().int().nonnegative(),
+    total_tokens: z.number().int().nonnegative(),
+  }),
+  injectedContext: z
+    .strictObject({
+      tokensSaved: z.number().int().nonnegative(),
+      compressionRatio: z.number().min(0).max(1),
+      preservedFactsCount: z.number().int().nonnegative(),
+    })
+    .optional(),
+});
+export type ChatCompletionResponse = z.infer<typeof ChatCompletionResponseSchema>;
+
+// Category Switchboard & Compression Schemas (Round 2 Backend 2 / Frontend)
+export const ToolCategorySchema = z.enum([
+  'hardware_validation',
+  'context_memory',
+  'ide_extension_bridge',
+  'external_servers',
+]);
+export type ToolCategory = z.infer<typeof ToolCategorySchema>;
+
+export const ToolCategoryConfigSchema = z.strictObject({
+  category: ToolCategorySchema,
+  enabled: z.boolean(),
+  name: z.string(),
+  description: z.string(),
+  toolCount: z.number().int().nonnegative(),
+});
+export type ToolCategoryConfig = z.infer<typeof ToolCategoryConfigSchema>;
+
+export const ToolCategoryListSchema = z.strictObject({
+  projectId: IdSchema,
+  categories: z.array(ToolCategoryConfigSchema),
+});
+export type ToolCategoryList = z.infer<typeof ToolCategoryListSchema>;
+
+export const ToggleCategoryRequestSchema = z.strictObject({
+  projectId: IdSchema,
+  category: ToolCategorySchema,
+  enabled: z.boolean(),
+});
+export type ToggleCategoryRequest = z.infer<typeof ToggleCategoryRequestSchema>;
+
+export const CompressedContextResultSchema = z.strictObject({
+  projectId: IdSchema,
+  mode: z.enum(['deterministic_delta', 'ai_distillation']),
+  rawTokensEstimate: z.number().int().nonnegative(),
+  compressedTokensEstimate: z.number().int().nonnegative(),
+  savingsPercent: z.number().min(0).max(100),
+  injectedBlock: z.string(),
+  activeInvariants: z.array(z.string()),
+  openIssuesCount: z.number().int().nonnegative(),
+  generatedAt: TimestampSchema,
+});
+export type CompressedContextResult = z.infer<typeof CompressedContextResultSchema>;

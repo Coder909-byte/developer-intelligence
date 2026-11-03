@@ -144,6 +144,9 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
       discoverServerTools: vi.fn(async () => ({ items: [] })),
       callMcpTool: vi.fn(),
       listMcpExecutions: vi.fn(async () => ({ items: [] })),
+      chatCompletion: vi.fn(),
+      getCompressionMetrics: vi.fn(),
+      listClassifierStream: vi.fn(async () => ({ items: [] })),
     };
   }
 

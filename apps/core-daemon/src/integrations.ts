@@ -15,6 +15,7 @@ import {
 import { LocalToolRunner } from '@udi/tool-runners';
 import { discoverServerTools, routeToolCall, buildUnifiedInventory } from '@udi/mcp-gateway';
 import type { DiscoveredTool } from '@udi/contracts';
+import { LayaClassifierService } from './classifier/laya-classifier.js';
 import type { PlatformIntegrations } from './platform-routes.js';
 
 function toPersistenceCode(
@@ -42,6 +43,7 @@ export function createDefaultIntegrations(
   });
 
   return {
+    classifier: new LayaClassifierService(process.env.LAYA_MODEL_URL),
     context: new DefaultContextEngine(store.context),
     engineering: {
       async validate(request, signal) {

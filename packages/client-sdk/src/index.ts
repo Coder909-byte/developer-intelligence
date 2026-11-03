@@ -27,6 +27,14 @@ import {
   McpToolCallRequestSchema,
   McpToolCallResponseSchema,
   McpToolExecutionListSchema,
+  ChatCompletionRequestSchema,
+  ChatCompletionResponseSchema,
+  CompressionMetricsSchema,
+  LayaClassificationListSchema,
+  type ChatCompletionRequest,
+  type ChatCompletionResponse,
+  type CompressionMetrics,
+  type LayaClassificationResult,
   type CorrectionPreviewRequest,
   type CorrectionApplyRequest,
   type CorrectionRollbackRequest,
@@ -350,6 +358,46 @@ export function createClient(options: ClientOptions = {}) {
         `/projects/${IdSchema.parse(projectId)}/mcp-executions${query(PageQuerySchema.parse(options))}`,
         McpToolExecutionListSchema,
       ),
+    chatCompletion: async (
+      input: z.input<typeof ChatCompletionRequestSchema>,
+      customHeaders: Record<string, string> = {},
+    ): Promise<ChatCompletionResponse> => {
+      const parsed = ChatCompletionRequestSchema.parse(input);
+      const token = typeof options.token === 'function' ? options.token() : options.token;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      Object.assign(headers, customHeaders);
+      const res = await fetcher(`${url.origin}${API_PREFIX}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(parsed),
+      });
+      if (!res.ok) {
+        let errMessage = `HTTP ${res.status}`;
+        try {
+          const errJson = (await res.json()) as { error?: { message?: string } };
+          errMessage = errJson.error?.message || errMessage;
+        } catch {
+          /* ignore non-json error responses */
+        }
+        throw new DaemonClientError('INTERNAL_ERROR', errMessage, res.status);
+      }
+      return ChatCompletionResponseSchema.parse(await res.json());
+    },
+    getCompressionMetrics: (projectId: string) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/compression-metrics`,
+        CompressionMetricsSchema,
+      ),
+    listClassifierStream: (projectId: string, limit = 50) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/classifier-stream${query({ limit })}`,
+        LayaClassificationListSchema,
+      ),
   };
 }
 export type DaemonClient = ReturnType<typeof createClient>;
@@ -359,4 +407,8 @@ export type {
   DiscoveredToolList,
   IntegrationList,
   McpToolExecutionList,
+  ChatCompletionRequest,
+  ChatCompletionResponse,
+  CompressionMetrics,
+  LayaClassificationResult,
 };

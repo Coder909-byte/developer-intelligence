@@ -21,6 +21,10 @@ import {
   type PageOptions,
   type EventListOptions,
   type FindingListOptions,
+  LayaClassificationResultSchema,
+  type LayaClassificationResult,
+  CompressionMetricsSchema,
+  type CompressionMetrics,
 } from '@udi/contracts';
 
 export class PersistenceError extends Error {
@@ -58,6 +62,14 @@ export interface PlatformRepositories {
     getJob(projectId: string, id: string): Promise<Job | undefined>;
     listFindings(projectId: string, options?: FindingListOptions): Promise<ValidationFinding[]>;
   };
+  classification: {
+    record(result: LayaClassificationResult): Promise<void>;
+    list(projectId: string, limit?: number): Promise<LayaClassificationResult[]>;
+  };
+  metrics: {
+    get(projectId: string): Promise<CompressionMetrics | undefined>;
+    record(metrics: CompressionMetrics): Promise<void>;
+  };
 }
 
 /** Called only by openDatabase. This module contains persistence, never tool execution or synthesis. */
@@ -85,6 +97,7 @@ export function createPlatformRepositories(db: DatabaseSync): PlatformRepositori
     | 'agent_handoffs'
     | 'validation_jobs'
     | 'engineering_findings'
+    | 'classification_results'
     | 'mcp_servers';
   const decodeJson = (body: unknown): unknown => {
     try {
@@ -299,5 +312,44 @@ export function createPlatformRepositories(db: DatabaseSync): PlatformRepositori
       ).map((row) => validateStored(ValidationFindingSchema, decodeJson(row.body)));
     },
   };
-  return { events, context, handoffs, mcpServers, validation };
+  const classification: PlatformRepositories['classification'] = {
+    async record(input) {
+      const parsed = LayaClassificationResultSchema.parse(input);
+      insert(
+        'classification_results',
+        { id: parsed.id, projectId: parsed.projectId, createdAt: parsed.timestamp },
+        parsed,
+      );
+    },
+    async list(projectId, limit = 50) {
+      requireProject(projectId);
+      const capped = Math.min(Math.max(1, limit), 200);
+      return db
+        .prepare(
+          'SELECT body FROM classification_results WHERE project_id = ? ORDER BY julianday(created_at) DESC, id DESC LIMIT ?',
+        )
+        .all(projectId, capped)
+        .map((row) => validateStored(LayaClassificationResultSchema, decodeJson(row.body)));
+    },
+  };
+
+  const metrics: PlatformRepositories['metrics'] = {
+    async get(projectId) {
+      requireProject(projectId);
+      const row = db
+        .prepare('SELECT body FROM compression_metrics WHERE project_id = ?')
+        .get(projectId);
+      return row ? validateStored(CompressionMetricsSchema, decodeJson(row.body)) : undefined;
+    },
+    async record(input) {
+      const parsed = CompressionMetricsSchema.parse(input);
+      requireProject(parsed.projectId);
+      const now = new Date().toISOString();
+      db.prepare(
+        'INSERT INTO compression_metrics (project_id, updated_at, body) VALUES (?, ?, ?) ON CONFLICT(project_id) DO UPDATE SET updated_at = excluded.updated_at, body = excluded.body',
+      ).run(parsed.projectId, now, JSON.stringify(parsed));
+    },
+  };
+
+  return { events, context, handoffs, mcpServers, validation, classification, metrics };
 }
