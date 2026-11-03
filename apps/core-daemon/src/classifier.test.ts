@@ -47,7 +47,7 @@ describe('Laya Classifier & Scrubbing Pipeline', () => {
     const classification = evaluateRuleClassifier(text, 'tool_output');
     expect(classification.category).toBe('VALIDATED_OUTCOME');
     expect(classification.decision).toBe('preserve');
-    expect(classification.distilledFact).toContain('passed with 0 findings');
+    expect(classification.distilledFact).toContain('validation succeeded with exitCode: 0');
   });
 
   it('prunes ephemeral noise with low signal score', () => {
