@@ -3,7 +3,11 @@ import type { McpServer } from '@udi/contracts';
 
 export type HostType = 'vscode' | 'opencode' | 'claude_desktop';
 
-export function generateHostConfig(host: HostType, servers: McpServer[]): Record<string, unknown> {
+export function generateHostConfig(
+  host: HostType,
+  servers: McpServer[],
+  env?: Record<string, string>,
+): Record<string, unknown> {
   const activeServers = servers.filter((s) => s.enabled);
 
   if (host === 'vscode') {
@@ -13,6 +17,7 @@ export function generateHostConfig(host: HostType, servers: McpServer[]): Record
         mcpServers[s.name] = {
           command: s.transport.executableId,
           args: s.transport.args,
+          ...(env && Object.keys(env).length > 0 ? { env } : {}),
         };
       } else {
         mcpServers[s.name] = {
@@ -28,18 +33,19 @@ export function generateHostConfig(host: HostType, servers: McpServer[]): Record
     for (const s of activeServers) {
       if (s.transport.type === 'stdio') {
         serversMap[s.name] = {
-          type: 'stdio',
-          command: s.transport.executableId,
-          args: s.transport.args,
+          type: 'local',
+          command: [s.transport.executableId, ...s.transport.args],
+          ...(env && Object.keys(env).length > 0 ? { environment: env } : {}),
         };
       } else {
         serversMap[s.name] = {
-          type: 'http',
+          type: 'remote',
           url: s.transport.url,
         };
       }
     }
     return {
+      $schema: 'https://opencode.ai/config.json',
       mcp: {
         servers: serversMap,
       },
@@ -53,6 +59,7 @@ export function generateHostConfig(host: HostType, servers: McpServer[]): Record
       mcpServers[s.name] = {
         command: s.transport.executableId,
         args: s.transport.args,
+        ...(env && Object.keys(env).length > 0 ? { env } : {}),
       };
     } else {
       mcpServers[s.name] = {
