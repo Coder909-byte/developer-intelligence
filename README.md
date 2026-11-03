@@ -1,6 +1,6 @@
 # Universal Developer Intelligence Platform
 
-UPSIDE DOWN.EXE · PS-01 — Beyond the App. Local-first VS Code enhancement, shared agent context, and engineering validation. The backend now persists project events, context records, handoffs, MCP inventory and validation results, alongside projects and daemon connectivity. The merged desktop and VS Code extension use the shared SDK; see the runtime demo guide for current verification limits.
+UPSIDE DOWN.EXE · PS-01 — Beyond the App. Local-first VS Code enhancement, shared agent context, and engineering validation. The backend persists project events, context records, handoffs, MCP inventory and validation results. The actual VS Code Development Host and an installed VSIX have passed the rover validation/context/handoff workflow on the demo Mac. See [final runtime guide](docs/FINAL_RUNTIME.md) for exact launch commands, results and remaining limits.
 
 ## Start
 
@@ -41,7 +41,7 @@ Configure `UDI_PORT`, `UDI_DATA_DIR` (prefer an absolute path), or `UDI_TOKEN` (
 
 Shared package edits require rebuilding (`pnpm build:packages`); the dev commands do this once at startup. App source changes are watched. No command claims to run VS Code when only a bundle watcher is active.
 
-Run `node scripts/demo-e2e.mjs --keep` after building to retain private demo data. For a host process, use `node scripts/mcp-stdio.mjs` with UDI_PROJECT_ID, UDI_DATA_DIR and UDI_DAEMON_URL; it launches Developer 2's gateway and keeps stdout protocol-only.
+Run `node scripts/demo-e2e.mjs --keep` after building to retain private demo data. For a host process, use `node packages/mcp-gateway/dist/cli.js` with UDI_PROJECT_ID, UDI_DATA_DIR and UDI_DAEMON_URL; it launches Developer 2's gateway and keeps stdout protocol-only. `pnpm package:extension` produces dist/developer-intelligence-0.1.0.vsix. With the isolated graphical windows running as documented, `pnpm test:vscode` and `pnpm test:demo-state` exercise the actual editor, browser and same-project MCP process. `pnpm demo` runs the automated backend/MCP verification.
 
 ## Repository
 
@@ -61,7 +61,7 @@ Developer 1 owns core/contracts/SDK/SQLite/CI. Developer 2 owns intelligence, ad
 
 `pnpm install --frozen-lockfile && pnpm typecheck && pnpm lint && pnpm test && pnpm build` is the CI gate. `pnpm smoke` additionally exercises sockets and process restart. Native builds require [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). Node 24.14.1's built-in SQLite emits an experimental API warning; avoiding a native SQLite addon makes bootstrap portable, but runtime upgrades must retain the persistence tests.
 
-With intelligence integrations enabled, validation-jobs executes the real validator, persists results/events and publishes observed context. With integrations disabled, execution routes still return structured 501 errors. Run `pnpm demo:verify` for real rover validation, SQLite restart persistence and actual stdio MCP requests. This does not verify a commercial agent host, native UI execution, firmware build or hardware operation. See [runtime demo](docs/RUNTIME_DEMO.md) for exact commands, results and the unmerged frontend job-scoping fix.
+With intelligence integrations enabled, validation-jobs executes the real validator, persists results/events and publishes observed context. With integrations disabled, execution routes still return structured 501 errors. Run `pnpm demo:verify` for real rover validation, SQLite restart persistence and actual stdio MCP requests. The separate real VS Code/installed-VSIX and browser checks are documented in [final runtime](docs/FINAL_RUNTIME.md). Commercial agent hosts, native Tauri packaging, firmware builds and hardware operations remain outside the verified demonstration.
 
 See [persistence integration](docs/INTEGRATION_PERSISTENCE.md) for backend interfaces and shared SDK examples, [integration readiness](docs/INTEGRATION_READINESS.md) for teammate actions and blockers, and [demo plan](docs/DEMO_PLAN.md) for deterministic end-to-end acceptance gates.
 
