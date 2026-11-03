@@ -2198,3 +2198,78 @@ summary {
     padding: 20px 14px;
   }
 }
+/* Tiny self-contained screen loops are decorative artwork, not daemon output. */
+.pixel-monitor {
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+.monitor-tape {
+  animation: monitor-scroll 8s steps(16, end) infinite;
+}
+.monitor-caret {
+  animation: monitor-caret 2.8s ease-in-out infinite alternate;
+}
+.monitor-sweep {
+  transform-origin: 12px 8px;
+  animation: monitor-radar 10s linear infinite;
+}
+.monitor-blip {
+  animation: monitor-caret 3.5s ease-in-out -1s infinite alternate;
+}
+.monitor-wave {
+  animation: monitor-signal 6s linear infinite;
+}
+.ship-room-settings .monitor-tape,
+.ship-room-engineering .monitor-tape {
+  animation-delay: -3s;
+}
+.ship-room-bridge .monitor-tape {
+  animation-delay: -5s;
+}
+.ship-room-settings .monitor-sweep {
+  animation-delay: -4s;
+}
+.ship-room-bridge .monitor-wave {
+  animation-delay: -2s;
+}
+@keyframes monitor-scroll {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-16px);
+  }
+}
+@keyframes monitor-caret {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes monitor-radar {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes monitor-signal {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-24px);
+  }
+}
+.ship-motion-paused
+  :is(.monitor-tape, .monitor-caret, .monitor-sweep, .monitor-blip, .monitor-wave) {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ship-workspace :is(.monitor-tape, .monitor-caret, .monitor-sweep, .monitor-blip, .monitor-wave) {
+    animation: none;
+  }
+}
