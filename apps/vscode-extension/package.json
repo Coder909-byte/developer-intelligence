@@ -2,7 +2,10 @@
   "name": "@udi/vscode-extension",
   "displayName": "Developer Intelligence",
   "publisher": "developer-intelligence",
-  "description": "Local developer intelligence host integration scaffold",
+  "description": "Shared project context and engineering diagnostics inside VS Code",
+  "extensionKind": [
+    "workspace"
+  ],
   "version": "0.1.0",
   "private": true,
   "main": "./dist/extension.cjs",
@@ -13,14 +16,93 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:udi.health"
+    "onView:udi.workspace"
   ],
   "scripts": {
     "build": "node build.mjs",
     "dev": "node build.mjs --watch"
   },
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "udi",
+          "title": "Developer Intelligence",
+          "icon": "media/intelligence.svg"
+        }
+      ]
+    },
+    "views": {
+      "udi": [
+        {
+          "id": "udi.workspace",
+          "name": "Workspace"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "udi.refresh",
+          "when": "view == udi.workspace",
+          "group": "navigation"
+        },
+        {
+          "command": "udi.setToken",
+          "when": "view == udi.workspace"
+        }
+      ]
+    },
     "commands": [
+      {
+        "command": "udi.refresh",
+        "title": "Developer Intelligence: Refresh Workspace",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "udi.setToken",
+        "title": "Developer Intelligence: Set Daemon Token"
+      },
+      {
+        "command": "udi.selectProject",
+        "title": "Developer Intelligence: Select Project"
+      },
+      {
+        "command": "udi.registerProject",
+        "title": "Developer Intelligence: Register Workspace"
+      },
+      {
+        "command": "udi.context",
+        "title": "Developer Intelligence: Get Project Context"
+      },
+      {
+        "command": "udi.findings",
+        "title": "Developer Intelligence: Review Engineering Findings"
+      },
+      {
+        "command": "udi.openEvidence",
+        "title": "Developer Intelligence: Open Source Evidence"
+      },
+      {
+        "command": "udi.mcp",
+        "title": "Developer Intelligence: Open MCP Hub"
+      },
+      {
+        "command": "udi.validate",
+        "title": "Developer Intelligence: Validate Engineering Project"
+      },
+      {
+        "command": "udi.createHandoff",
+        "title": "Developer Intelligence: Review Handoff Draft"
+      },
+      {
+        "command": "udi.latestHandoff",
+        "title": "Developer Intelligence: Retrieve Latest Handoff"
+      },
+      {
+        "command": "udi.openDashboard",
+        "title": "Developer Intelligence: Open Desktop Dashboard"
+      },
       {
         "command": "udi.health",
         "title": "Developer Intelligence: Check Daemon Connection"
@@ -29,7 +111,14 @@
     "configuration": {
       "title": "Developer Intelligence",
       "properties": {
+        "udi.dashboardUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:5173",
+          "scope": "machine",
+          "description": "Local dashboard origin. Start pnpm dev:desktop first."
+        },
         "udi.daemonUrl": {
+          "scope": "machine",
           "type": "string",
           "default": "http://127.0.0.1:4317",
           "description": "Local daemon HTTP origin."
@@ -38,7 +127,8 @@
     }
   },
   "dependencies": {
-    "@udi/client-sdk": "workspace:*"
+    "@udi/client-sdk": "workspace:*",
+    "@udi/contracts": "workspace:*"
   },
   "type": "module"
 }
