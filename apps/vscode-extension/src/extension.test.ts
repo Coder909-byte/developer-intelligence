@@ -147,6 +147,7 @@ function host(
         artifacts: [],
       };
     }
+    if (input.includes('/events')) data = { items: [] };
     if (input.includes('/context/records')) data = { items: record ? [record] : [] };
     else if (input.includes('/context?') && project)
       data = {
@@ -192,6 +193,8 @@ function host(
     AbortController,
     setTimeout,
     clearTimeout,
+    setInterval,
+    clearInterval,
     console,
   });
   const subscriptions: { dispose: () => void }[] = [];
@@ -224,6 +227,79 @@ function host(
   };
 }
 describe('extension activation in mocked VS Code host', () => {
+  it('clears active diagnostics when a desktop correction completion event records a new job', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'udi-correction-diagnostics-'));
+    const id = '61d626eb-26fa-4bae-bbe7-64dc03fb921b';
+    const newer = 'b785354e-2e71-4b89-94ac-55a5d7c154d8';
+    const createdAt = '2026-11-03T13:00:00Z';
+    await writeFile(path.join(directory, 'pins.h'), '#define MOTOR_EN GPIO26');
+    const finding = {
+      id,
+      projectId: id,
+      jobId: id,
+      createdAt,
+      updatedAt: createdAt,
+      ruleId: 'pin_consistency',
+      severity: 'error',
+      message: 'GPIO mismatch',
+      expected: 'GPIO14',
+      observed: 'GPIO26',
+      evidence: [{ filePath: 'pins.h', line: 1 }],
+      status: 'open',
+      verifiedBy: { tool: 'pin-validator', version: '1' },
+    } as ValidationFinding;
+    const h = host(
+      false,
+      { id, name: 'Rover', rootPath: directory, description: '', createdAt, updatedAt: createdAt },
+      [finding],
+    );
+    try {
+      await vi.waitFor(() => expect(h.diagnosticEntries.size).toBe(1));
+      const original = h.fetch.getMockImplementation()!;
+      h.fetch.mockImplementation(async (url, init) => {
+        if (
+          url.includes('/events') &&
+          new URL(url).searchParams.get('type') === 'engineering.correction.applied'
+        )
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              data: {
+                items: [
+                  {
+                    id: newer,
+                    projectId: id,
+                    type: 'engineering.correction.applied',
+                    actor: 'safe-correction-engine',
+                    sourceKind: 'observed_tool',
+                    sourceRef: newer,
+                    createdAt: '2026-11-03T14:00:00Z',
+                    schemaVersion: 1,
+                    payload: { status: 'succeeded' },
+                  },
+                ],
+              },
+              meta: { apiVersion: 'v1', requestId: id, timestamp: createdAt },
+            }),
+          );
+        return original(url, init);
+      });
+      await h.callbacks.get('udi.refresh')!();
+      expect(h.diagnosticEntries.size).toBe(0);
+      expect(h.getRows()?.some((r) => r.label === 'GPIO mismatch')).toBe(false);
+      expect(
+        h.fetch.mock.calls.some(
+          ([url]) =>
+            url.includes('/engineering/findings') &&
+            new URL(url).searchParams.get('jobId') === newer,
+        ),
+      ).toBe(true);
+    } finally {
+      for (const d of h.subscriptions) d.dispose();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('does not save a cancelled handoff and saves only the explicitly approved payload', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'udi-handoff-'));
     const id = '61d626eb-26fa-4bae-bbe7-64dc03fb921b';

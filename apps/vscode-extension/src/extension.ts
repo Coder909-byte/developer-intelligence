@@ -9,6 +9,7 @@ import {
   type ValidationFinding,
   type ProjectMemory,
 } from '@udi/contracts';
+import { latestCompletionEvent } from './completion-events.js';
 import { pinValidationInput } from './validation-input.js';
 import { latestStoredHandoff } from './handoffs.js';
 import { containedFile, evidencePosition, scopedFindings, workspaceProjects } from './evidence.js';
@@ -181,6 +182,15 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
       const p = selected;
+      const completion = await latestCompletionEvent(api, p.id);
+      if (!current()) return;
+      if (
+        completion &&
+        completion.id !== context.workspaceState.get<string>(`udi.completionEvent:${p.id}`)
+      ) {
+        await context.workspaceState.update(`udi.validationJob:${p.id}`, completion.sourceRef);
+        await context.workspaceState.update(`udi.completionEvent:${p.id}`, completion.id);
+      }
       const savedJob = context.workspaceState.get<string>(`udi.validationJob:${p.id}`);
       const jobId = IdSchema.safeParse(savedJob).success ? savedJob : undefined;
       const [c, j, f] = await Promise.allSettled([
@@ -695,6 +705,29 @@ export function activate(context: vscode.ExtensionContext) {
       },
     },
   );
+  let checkingCompletion = false;
+  const completionTimer = setInterval(() => {
+    if (checkingCompletion || disposed || !selected) return;
+    const p = selected;
+    const capturedOrigin = origin();
+    checkingCompletion = true;
+    void client()
+      .then((api) => latestCompletionEvent(api, p.id))
+      .then(async (event) => {
+        if (disposed || selected?.id !== p.id || origin() !== capturedOrigin || !event) return;
+        if (event.id !== context.workspaceState.get<string>(`udi.completionEvent:${p.id}`)) {
+          diagnostics.clear();
+          await refresh();
+        }
+      })
+      .catch(() => {
+        /* Explicit refresh surfaces daemon errors; polling never claims success. */
+      })
+      .finally(() => {
+        checkingCompletion = false;
+      });
+  }, 5000);
+  context.subscriptions.push({ dispose: () => clearInterval(completionTimer) });
   void refresh();
 }
 export function deactivate() {}
