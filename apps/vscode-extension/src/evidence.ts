@@ -17,8 +17,8 @@ export async function containedFile(root: string, filePath: string): Promise<str
 export function evidencePosition(line?: number, column?: number) {
   return { line: Math.max(0, (line ?? 1) - 1), character: Math.max(0, (column ?? 1) - 1) };
 }
-export function scopedFindings(projectId: string, findings: ValidationFinding[]) {
-  if (findings.some((f) => f.projectId !== projectId))
+export function scopedFindings(projectId: string, findings: ValidationFinding[], jobId?: string) {
+  if (findings.some((f) => f.projectId !== projectId || (jobId !== undefined && f.jobId !== jobId)))
     throw new Error('Daemon returned findings from another project');
   return findings;
 }

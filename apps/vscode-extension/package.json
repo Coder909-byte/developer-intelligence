@@ -118,6 +118,10 @@
       {
         "command": "udi.jobLogs",
         "title": "Developer Intelligence: View Stored Job Logs"
+      },
+      {
+        "command": "udi.selectValidationJob",
+        "title": "Developer Intelligence: Select Validation Job"
       }
     ],
     "configuration": {

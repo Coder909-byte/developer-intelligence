@@ -9,6 +9,7 @@ import {
   type ValidationFinding,
   type ProjectMemory,
 } from '@udi/contracts';
+import { pinValidationInput } from './validation-input.js';
 import { latestStoredHandoff } from './handoffs.js';
 import { containedFile, evidencePosition, scopedFindings, workspaceProjects } from './evidence.js';
 const actions = [
@@ -27,6 +28,7 @@ const actions = [
   'events',
   'recordDecision',
   'jobLogs',
+  'selectValidationJob',
   'openDashboard',
 ] as const;
 type Action = (typeof actions)[number];
@@ -84,6 +86,8 @@ export function activate(context: vscode.ExtensionContext) {
   let generation = 0;
   let disposed = false;
   let writingHandoff = false;
+  let validating = false;
+  let selectedJobId: string | undefined;
   function setting(key: string, fallback: string) {
     const s = vscode.workspace.getConfiguration('udi').inspect<string>(key);
     return s?.globalValue ?? s?.defaultValue ?? fallback;
@@ -142,6 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
     const request = ++generation;
     selected = undefined;
     memory = undefined;
+    selectedJobId = undefined;
     diagnostics.clear();
     sidebar.update([{ label: 'Loading workspace…' }]);
     status.text = '$(sync) Intelligence';
@@ -176,10 +181,18 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
       const p = selected;
-      const [c, f] = await Promise.allSettled([api.getContext(p.id), api.listFindings(p.id)]);
+      const savedJob = context.workspaceState.get<string>(`udi.validationJob:${p.id}`);
+      const jobId = IdSchema.safeParse(savedJob).success ? savedJob : undefined;
+      const [c, j, f] = await Promise.allSettled([
+        api.getContext(p.id),
+        jobId ? api.getJob(p.id, jobId) : Promise.resolve(undefined),
+        jobId
+          ? api.listFindings(p.id, { jobId, limit: 100, offset: 0 })
+          : Promise.resolve({ items: [] }),
+      ]);
       if (!current()) return;
       let contextState = 'Unavailable';
-      let findingState = 'Unavailable';
+      let findingState = jobId ? 'Selected job unavailable' : 'No validation job selected';
       let findings: ValidationFinding[] = [];
       if (
         c.status === 'fulfilled' &&
@@ -189,17 +202,30 @@ export function activate(context: vscode.ExtensionContext) {
         memory = c.value;
         contextState = `${memory.records.length} stored records (bounded)`;
       } else if (c.status === 'rejected') contextState = errorLabel(c.reason);
-      if (f.status === 'fulfilled') {
-        findings = scopedFindings(p.id, f.value.items);
-        findingState = `${findings.filter((v) => v.status === 'open').length} open findings (first page)`;
-        await publish(p, findings, request);
-      } else findingState = errorLabel(f.reason);
+      if (
+        jobId &&
+        j.status === 'fulfilled' &&
+        j.value?.id === jobId &&
+        j.value.projectId === p.id
+      ) {
+        selectedJobId = jobId;
+        if (f.status === 'fulfilled') {
+          findings = scopedFindings(p.id, f.value.items, jobId);
+          findingState = `${findings.filter((v) => v.status === 'open').length} open | selected job ${jobId} | first 100`;
+          await publish(p, findings, request);
+        } else findingState = errorLabel(f.reason);
+      } else if (j.status === 'rejected') findingState = errorLabel(j.reason);
       if (!current()) return;
       sidebar.update([
         { label: p.name, description: p.rootPath, action: 'selectProject' },
         { label: 'Core engine', description: 'Connected' },
         { label: 'Project context', description: contextState, action: 'context' },
         { label: 'Engineering findings', description: findingState, action: 'findings' },
+        {
+          label: 'Select validation job',
+          description: selectedJobId ?? 'No job selected',
+          action: 'selectValidationJob',
+        },
         ...([
           { label: 'Validate project', action: 'validate' },
           { label: 'MCP Hub', action: 'mcp' },
@@ -297,9 +323,52 @@ export function activate(context: vscode.ExtensionContext) {
           throw new Error('Project scope mismatch');
         return document('Project context · provenance preserved', value);
       }
+      case 'selectValidationJob': {
+        const p = await project();
+        const api = await client();
+        const capturedOrigin = origin();
+        const id = await vscode.window.showInputBox({
+          title: 'Select recorded validation job UUID',
+          prompt:
+            'No automatic current-job pointer exists. Choose the job to inspect; all other findings are historical.',
+          validateInput: (v) =>
+            IdSchema.safeParse(v.trim()).success ? undefined : 'Enter a job UUID',
+        });
+        if (!id) return;
+        generation++;
+        selectedJobId = undefined;
+        diagnostics.clear();
+        await context.workspaceState.update(`udi.validationJob:${p.id}`, undefined);
+        try {
+          const job = await api.getJob(p.id, id.trim());
+          if (
+            job.id !== id.trim() ||
+            job.projectId !== p.id ||
+            selected?.id !== p.id ||
+            origin() !== capturedOrigin
+          )
+            throw new Error('Job scope changed');
+          await context.workspaceState.update(`udi.validationJob:${p.id}`, job.id);
+        } catch (error) {
+          await refresh();
+          throw error;
+        }
+        return refresh();
+      }
       case 'findings': {
         const p = await project();
-        const result = scopedFindings(p.id, (await (await client()).listFindings(p.id)).items);
+        const jobId = selectedJobId;
+        if (!jobId) {
+          await vscode.window.showWarningMessage(
+            'Select a recorded validation job before viewing current findings. Historical findings are available in the desktop History tab.',
+          );
+          return;
+        }
+        const result = scopedFindings(
+          p.id,
+          (await (await client()).listFindings(p.id, { jobId, limit: 100, offset: 0 })).items,
+          jobId,
+        );
         const picked =
           typeof arg === 'string'
             ? result.find((f) => f.id === arg)
@@ -353,18 +422,85 @@ export function activate(context: vscode.ExtensionContext) {
             status: s.status,
           })),
         );
-      case 'validate':
-        await vscode.window.showWarningMessage(
-          'Validation execution is not implemented by this daemon yet. The reserved endpoint returns NOT_IMPLEMENTED; stored findings and job logs remain available.',
-        );
-        return;
+      case 'validate': {
+        if (validating) {
+          await vscode.window.showWarningMessage('A validation request is already in progress.');
+          return;
+        }
+        if (!vscode.workspace.isTrusted) {
+          await vscode.window.showWarningMessage('Trust this workspace before running validation.');
+          return;
+        }
+        const api = await client();
+        const health = await api.health();
+        if (!health.capabilities.engineering) {
+          await vscode.window.showWarningMessage(
+            'Engineering execution is not enabled in this daemon. Stored job results remain available.',
+          );
+          return;
+        }
+        const p = await project();
+        const capturedOrigin = origin();
+        const text = await vscode.window.showInputBox({
+          title: 'Pin consistency artifact paths',
+          prompt:
+            'Relative workspace paths separated by semicolons. Example: rover.net; src/pins.h; engineering-map.json',
+          validateInput: (v) => {
+            try {
+              pinValidationInput(v);
+              return undefined;
+            } catch {
+              return 'Provide relative workspace artifact paths without parent traversal.';
+            }
+          },
+        });
+        if (text === undefined) return;
+        const input = pinValidationInput(text);
+        await document('Review pin consistency request', { projectId: p.id, ...input });
+        if (
+          (await vscode.window.showWarningMessage(
+            `Run the reviewed read-only pin consistency check for ${p.name}? No source files will be edited.`,
+            { modal: true },
+            'Run validation',
+          )) !== 'Run validation'
+        )
+          return;
+        if (selected?.id !== p.id || origin() !== capturedOrigin)
+          throw new Error('Workspace or daemon changed');
+        validating = true;
+        generation++;
+        selectedJobId = undefined;
+        diagnostics.clear();
+        await context.workspaceState.update(`udi.validationJob:${p.id}`, undefined);
+        try {
+          const job = await api.requestValidation(p.id, input);
+          if (job.projectId !== p.id) throw new Error('Job scope mismatch');
+          if (origin() === capturedOrigin)
+            await context.workspaceState.update(`udi.validationJob:${p.id}`, job.id);
+          await document('Validation job result', job);
+          await vscode.window.showInformationMessage(
+            `Validation job recorded: ${job.id} (${job.status})`,
+          );
+          return refresh();
+        } catch (error) {
+          if (error instanceof DaemonClientError && error.code === 'TIMEOUT') {
+            await vscode.window.showWarningMessage(
+              'Validation response timed out. The job may still finish; inspect stored activity before retrying.',
+            );
+            return;
+          }
+          throw error;
+        } finally {
+          validating = false;
+        }
+      }
       case 'events': {
         const p = await project();
         const offset =
           typeof arg === 'number' && Number.isInteger(arg) && arg >= 0 && arg <= 1000000 ? arg : 0;
         const result = await (await client()).listEvents(p.id, { limit: 50, offset });
         if (result.items.some((e) => e.projectId !== p.id)) throw new Error('Scope mismatch');
-        await document(`Stored activity � offset ${offset} � oldest first`, result);
+        await document(`Stored activity  |  offset ${offset}  |  oldest first`, result);
         if (
           result.items.length === 50 &&
           offset < 1000000 &&
@@ -423,7 +559,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (!id) return;
         const job = await (await client()).getJob(p.id, id);
         if (job.projectId !== p.id) throw new Error('Scope mismatch');
-        return document('Stored adapter job output � persistence is not proof of execution', job);
+        return document('Stored adapter job output  |  persistence is not proof of execution', job);
       }
       case 'latestHandoff': {
         const p = await project();
@@ -432,7 +568,7 @@ export function activate(context: vscode.ExtensionContext) {
           await vscode.window.showInformationMessage('No stored handoffs for this project.');
           return;
         }
-        return document('Latest stored handoff � original provenance', handoff);
+        return document('Latest stored handoff  |  original provenance', handoff);
       }
       case 'createHandoff': {
         if (writingHandoff) {
@@ -453,7 +589,7 @@ export function activate(context: vscode.ExtensionContext) {
           const picked = await vscode.window.showQuickPick(
             records.items.map((r) => ({
               label: r.text,
-              description: `${r.provenance.sourceKind} � ${r.id}`,
+              description: `${r.provenance.sourceKind}  |  ${r.id}`,
               record: r,
             })),
             {

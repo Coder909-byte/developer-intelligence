@@ -105,16 +105,27 @@ export function Dialog({
   title,
   onClose,
   children,
-}: PropsWithChildren<{ title: string; onClose: () => void }>) {
+  busy = false,
+}: PropsWithChildren<{ title: string; onClose: () => void; busy?: boolean }>) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     ref.current?.showModal();
   }, []);
   return (
-    <dialog ref={ref} aria-label={title} onCancel={onClose} onClose={onClose}>
+    <dialog
+      ref={ref}
+      aria-label={title}
+      onCancel={(e) => {
+        e.preventDefault();
+        if (!busy) onClose();
+      }}
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+    >
       <header className="card-heading">
         <h2>{title}</h2>
-        <Button onClick={onClose} aria-label="Close dialog">
+        <Button disabled={busy} onClick={onClose} aria-label="Close dialog">
           Close
         </Button>
       </header>
