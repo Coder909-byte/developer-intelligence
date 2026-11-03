@@ -2093,3 +2093,108 @@ summary {
   background: #3e322c;
   color: #f1cf92;
 }
+/* Sidebar-free workspace mode retains project and section controls in a compact HUD. */
+.fullscreen-toolbar {
+  justify-content: flex-end;
+}
+.app-fullscreen .topbar {
+  height: auto;
+  min-height: 54px;
+  padding: 8px 18px;
+  gap: 16px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.app-fullscreen .fullscreen-toolbar {
+  flex: 1;
+  gap: 10px;
+}
+.app-fullscreen .fullscreen-toolbar select {
+  width: auto;
+  max-width: 230px;
+  min-width: 140px;
+  padding: 7px 10px;
+  min-height: 34px;
+}
+.app-fullscreen main {
+  max-width: none;
+  padding: 14px 20px 28px;
+}
+.app-fullscreen[data-screen='Overview'] .page-heading {
+  display: none;
+}
+.app-fullscreen[data-screen='Overview'] .ship-workspace {
+  margin-bottom: 12px;
+}
+.app-fullscreen[data-screen='Overview'] .ship-heading {
+  padding: 14px 24px 12px;
+}
+.app-fullscreen[data-screen='Overview'] .ship-heading .eyebrow {
+  margin-bottom: 10px !important;
+}
+.app-fullscreen[data-screen='Overview'] .ship-subtitle {
+  margin-top: 8px;
+}
+.app-fullscreen[data-screen='Overview'] .ship-manifest {
+  padding: 10px 0;
+}
+.app-fullscreen[data-screen='Overview'] .ship-chart {
+  padding: 26px 44px 32px 60px;
+}
+.app-fullscreen[data-screen='Overview'] .ship-deck {
+  grid-template-rows: minmax(170px, calc((100dvh - 330px) / 2)) 40px minmax(
+      170px,
+      calc((100dvh - 330px) / 2)
+    );
+}
+.app-fullscreen[data-screen='Overview'] .ship-room {
+  padding: 10px 14px;
+}
+.app-fullscreen[data-screen='Overview'] .ship-room .pixel-room-scene {
+  height: clamp(68px, 13dvh, 110px);
+  margin: 4px 0 8px;
+}
+.app-fullscreen[data-screen='Overview']
+  :is(.ship-room-engineering, .ship-room-bridge)
+  .pixel-room-scene {
+  height: clamp(130px, 25dvh, 240px);
+}
+.app-fullscreen[data-screen='Overview'] .ship-legend {
+  padding: 12px 24px;
+}
+@media (min-width: 901px) and (max-height: 800px) {
+  .app-fullscreen[data-screen='Overview'] .ship-room-description {
+    display: none;
+  }
+  .app-fullscreen[data-screen='Overview'] .ship-heading .eyebrow {
+    display: none;
+  }
+  .app-fullscreen[data-screen='Overview'] .ship-deck {
+    grid-template-rows: minmax(170px, calc((100dvh - 295px) / 2)) 36px minmax(
+        170px,
+        calc((100dvh - 295px) / 2)
+      );
+  }
+}
+@media (max-width: 900px) {
+  .app-fullscreen[data-screen='Overview'] .ship-deck {
+    grid-template-rows: none;
+  }
+  .app-fullscreen .topbar {
+    position: static;
+  }
+  .app-fullscreen .topbar > span:first-child {
+    display: none;
+  }
+  .app-fullscreen .fullscreen-toolbar {
+    justify-content: flex-start;
+  }
+  .app-fullscreen main {
+    padding: 12px;
+  }
+  .app-fullscreen[data-screen='Overview'] .ship-chart {
+    padding: 20px 14px;
+  }
+}

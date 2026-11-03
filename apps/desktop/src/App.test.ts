@@ -145,6 +145,46 @@ afterEach(async () => {
   host.remove();
 });
 describe('desktop user journeys', () => {
+  it('expands without a sidebar, retains project/navigation and restores the sidebar with Escape', async () => {
+    await render();
+    await select();
+    await click('Fullscreen view');
+    expect(host.querySelector('.sidebar')).toBeNull();
+    expect(host.querySelector('.app-fullscreen')).not.toBeNull();
+    expect(
+      host.querySelector<HTMLSelectElement>('select[aria-label="Active project"]')?.value,
+    ).toBe(id);
+    await click('Open Control room');
+    expect(host.querySelector('h1')?.textContent).toBe('Settings');
+    expect(host.querySelector('.sidebar')).toBeNull();
+    const section = host.querySelector<HTMLSelectElement>(
+      'select[aria-label="Workspace section"]',
+    )!;
+    await act(async () => {
+      section.value = 'Overview';
+      section.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(host.querySelector('#ship-title')).not.toBeNull();
+    const dialog = document.createElement('dialog');
+    dialog.setAttribute('open', '');
+    host.append(dialog);
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
+    );
+    expect(host.querySelector('.sidebar')).toBeNull();
+    dialog.remove();
+    await act(async () =>
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
+    );
+    expect(host.querySelector('.sidebar')).not.toBeNull();
+    expect(
+      host.querySelector<HTMLSelectElement>('select[aria-label="Active project"]')?.value,
+    ).toBe(id);
+    await click('Fullscreen view');
+    await click('Exit fullscreen');
+    expect(host.querySelector('.sidebar')).not.toBeNull();
+  });
+
   it('opens real workspaces from ship compartments and keeps navigation usable offline', async () => {
     await render();
     expect(host.querySelector('nav[aria-label="Ship compartments"]')).not.toBeNull();
