@@ -133,6 +133,9 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
       createHandoff: vi.fn(),
       recordValidationResult: vi.fn(),
       requestValidation: vi.fn(),
+      previewCorrection: vi.fn(),
+      applyCorrection: vi.fn(),
+      rollbackCorrection: vi.fn(),
     };
   }
 

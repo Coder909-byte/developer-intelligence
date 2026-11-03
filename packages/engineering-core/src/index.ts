@@ -24,3 +24,4 @@ export * from './platformio-adapter.js';
 export * from './rtl-adapter.js';
 export * from './iot-adapter.js';
 export * from './validator.js';
+export * from './correction.js';

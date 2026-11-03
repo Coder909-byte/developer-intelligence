@@ -307,3 +307,58 @@ export type McpServerCreate = z.input<typeof McpServerCreateSchema>;
 export type McpServerUpdate = z.input<typeof McpServerUpdateSchema>;
 export type PersistedValidationResult = z.infer<typeof ValidationResultSchema>;
 export type ValidationRequestBody = z.input<typeof ValidationRequestBodySchema>;
+
+// Correction API schemas for safe engineering repair
+export const CorrectionPreviewRequestSchema = z.strictObject({
+  findingId: IdSchema,
+});
+export type CorrectionPreviewRequest = z.infer<typeof CorrectionPreviewRequestSchema>;
+
+export const CorrectionPreviewSchema = z.strictObject({
+  id: IdSchema,
+  projectId: IdSchema,
+  findingId: IdSchema,
+  targetFile: z.string().min(1),
+  originalHash: z.string().min(1),
+  originalLineNumber: z.number().int().positive(),
+  originalLineText: z.string(),
+  proposedLineText: z.string(),
+  diff: z.string(),
+  explanation: z.string(),
+  generatedAt: TimestampSchema,
+});
+export type CorrectionPreview = z.infer<typeof CorrectionPreviewSchema>;
+
+export const CorrectionApplyRequestSchema = z.strictObject({
+  previewId: IdSchema,
+  findingId: IdSchema,
+  expectedOriginalHash: z.string().min(1),
+  userApproved: z.literal(true),
+});
+export type CorrectionApplyRequest = z.infer<typeof CorrectionApplyRequestSchema>;
+
+export const CorrectionApplyResultSchema = z.strictObject({
+  ok: z.literal(true),
+  projectId: IdSchema,
+  targetFile: z.string().min(1),
+  backupPath: z.string().min(1),
+  revalidationJob: JobSchema,
+  revalidationFindings: z.array(ValidationFindingSchema),
+  contextRecord: ContextRecordSchema,
+  appliedAt: TimestampSchema,
+});
+export type CorrectionApplyResult = z.infer<typeof CorrectionApplyResultSchema>;
+
+export const CorrectionRollbackRequestSchema = z.strictObject({
+  targetFile: z.string().min(1),
+  backupPath: z.string().min(1),
+});
+export type CorrectionRollbackRequest = z.infer<typeof CorrectionRollbackRequestSchema>;
+
+export const CorrectionRollbackResultSchema = z.strictObject({
+  ok: z.literal(true),
+  targetFile: z.string().min(1),
+  restoredAt: TimestampSchema,
+  revalidationJob: JobSchema,
+});
+export type CorrectionRollbackResult = z.infer<typeof CorrectionRollbackResultSchema>;
