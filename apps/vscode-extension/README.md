@@ -1,31 +1,28 @@
 # Developer Intelligence VS Code extension
 
-Run `pnpm dev:extension` from the repository root. Press F5 in VS Code using the repository launch configuration. Open the **Developer Intelligence** activity-bar sidebar. Start the daemon separately; this extension does not launch a second backend.
+Build/watch from repository root with `pnpm dev:extension`, then press F5 in VS Code using the existing launch configuration. Start the local daemon separately. Use the Developer Intelligence activity-bar sidebar and **Set Daemon Token** to enter `.data/token` into SecretStorage. Register/select an open workspace; projects outside open canonical workspace roots are not selected.
 
-Use **Set Daemon Token** to enter the existing `.data/token` credential. It is stored in VS Code SecretStorage per daemon origin. Daemon and dashboard origins are user/machine configuration, not workspace-overridable token destinations. Use **Register Workspace** to explicitly register an open trusted folder, or select its existing project. Nonmatching daemon workspaces are not offered.
+## Persisted workflows
+
+- Get scoped context and view its original provenance.
+- View paged stored activity and explicitly record a user-entered project decision.
+- Inspect findings and navigate to canonical in-workspace evidence. One-based API positions convert to zero-based VS Code ranges; missing positions are labeled file-level. Resolved findings are excluded from diagnostics.
+- Inspect stored job output by project/job UUID.
+- View persisted MCP inventory, separately from live MCP execution.
+- Create a handoff by selecting up to the first 500 context records, entering an external agent UUID and summary/steps, reviewing the exact payload, and explicitly approving save. Cancelling makes no write. Agent IDs do not imply connected-agent discovery.
+- Retrieve the latest stored handoff by traversing 500-record pages. Empty history is an honest empty state.
+
+All communication uses `@udi/client-sdk`. Context/MCP/engineering capability flags describe execution/intelligence support and do not disable stored reads. Context/inventory/findings views label their bounded results. Event history offers next-page navigation. Source and project scope are checked before displaying returned records.
 
 ## Commands
 
-| ID                  | Behavior                                                        |
-| ------------------- | --------------------------------------------------------------- |
-| udi.health          | Check real daemon health and refresh                            |
-| udi.refresh         | Reload workspace state                                          |
-| udi.setToken        | Store existing token or forget with blank input                 |
-| udi.selectProject   | Select registered project matching an open folder               |
-| udi.registerProject | Confirm and register an open trusted workspace                  |
-| udi.context         | Retrieve scoped context and provenance as a JSON document       |
-| udi.findings        | Inspect findings and choose source evidence                     |
-| udi.openEvidence    | Open canonical in-workspace source path and API position        |
-| udi.mcp             | Inspect recorded MCP inventory; secretRef omitted               |
-| udi.validate        | Explain unavailable validation job API; no fake run             |
-| udi.createHandoff   | Review/copy explicitly UNSAVED local draft, when context exists |
-| udi.latestHandoff   | Explain unavailable handoff retrieval API                       |
-| udi.openDashboard   | Open configured loopback dashboard; it must already be running  |
+udi.health, udi.refresh, udi.setToken, udi.selectProject, udi.registerProject,
+udi.context, udi.events, udi.recordDecision, udi.findings, udi.openEvidence,
+udi.jobLogs, udi.mcp, udi.createHandoff, udi.latestHandoff, udi.validate,
+udi.openDashboard.
 
-Diagnostics convert positive 1-based API line/column to 0-based VS Code positions. Missing positions are marked file-level. Resolved findings are excluded. Project scope is checked, source paths are realpath-resolved and escapes/missing files are ignored for diagnostics. Selecting evidence reports a useful error if it cannot be safely opened.
+`udi.validate` explicitly explains that the execution service remains unavailable; it does not fabricate a run. Handoffs now save real records and are no longer just local drafts. Decisions and handoffs require a trusted workspace and explicit save approval.
 
-Context, MCP and findings return 501 in the bootstrap daemon. The sidebar keeps connection/project status and navigation usable and displays this honestly. Build, handoff storage, patch application and host-config writes are not implemented in the SDK, so the extension does not invent requests for them.
+Daemon/dashboard origins are machine/user configuration, not workspace-controlled token destinations. The extension does not launch another daemon or read private agent conversations. No full desktop UI is embedded.
 
-Tests exercise the actual bundled activation function in a mocked VS Code API with SDK HTTP responses, plus evidence scope/path tests. An actual Extension Host session is still a separate verification gate. No webview or duplicate full desktop application is embedded. No private agent conversations are scraped.
-
-See `../desktop/FRONTEND_HANDOFF.md` for integration requirements and current verification evidence.
+Tests execute actual bundled activation/commands against a mocked VS Code API, including cancelled/approved writes and diagnostic mapping. A separate QA run exercised compiled context/event/handoff commands against the actual daemon over HTTP and verified persistence after restart. Actual Extension Host execution and VSIX packaging remain separate gates. See `../desktop/FRONTEND_HANDOFF.md` for complete integration details.

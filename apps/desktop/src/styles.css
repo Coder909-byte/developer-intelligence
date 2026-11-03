@@ -631,3 +631,41 @@ dialog::backdrop {
     transition: none !important;
   }
 }
+.field textarea {
+  display: block;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 10px;
+  width: 100%;
+  max-width: 680px;
+  font: inherit;
+}
+.record-choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.record-choice input {
+  margin-top: 4px;
+}
+.record-choice small,
+.artifact {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+}
+.pagination {
+  justify-content: space-between;
+  margin-top: 18px;
+}
+summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 12px;
+  margin: 16px 0;
+}

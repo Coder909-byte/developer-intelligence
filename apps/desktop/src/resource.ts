@@ -1,8 +1,9 @@
 import { DaemonClientError } from '@udi/client-sdk';
+import type { ApiError } from '@udi/contracts';
 export type ResourceState<T> =
   | { status: 'loading' }
   | { status: 'ready'; data: T }
-  | { status: 'error'; title: string; message: string };
+  | { status: 'error'; title: string; message: string; code?: ApiError['code'] };
 export function describeError(error: unknown): { title: string; message: string } {
   if (error instanceof DaemonClientError) {
     switch (error.code) {
@@ -20,6 +21,22 @@ export function describeError(error: unknown): { title: string; message: string 
         return {
           title: 'Access denied',
           message: 'Check daemon origin and workspace permissions.',
+        };
+      case 'VALIDATION_ERROR':
+        return {
+          title: 'Invalid request',
+          message:
+            'Check the required fields and referenced project records. No write was retried automatically.',
+        };
+      case 'NOT_FOUND':
+        return {
+          title: 'Record no longer available',
+          message: 'Refresh the project and check the selected record.',
+        };
+      case 'CONFLICT':
+        return {
+          title: 'Conflicting record',
+          message: 'Reload stored state before retrying. Writes are not retried automatically.',
         };
       case 'CONNECTION_ERROR':
       case 'TIMEOUT':
@@ -63,7 +80,11 @@ export class Resource<T> {
       if (generation === this.generation) this.publish({ status: 'ready', data });
     } catch (error) {
       if (generation === this.generation)
-        this.publish({ status: 'error', ...describeError(error) });
+        this.publish({
+          status: 'error',
+          ...describeError(error),
+          ...(error instanceof DaemonClientError ? { code: error.code } : {}),
+        });
     }
   }
   cancel() {

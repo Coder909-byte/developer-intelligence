@@ -10,6 +10,16 @@ const api = vi.hoisted(() => ({
   getContext: vi.fn(),
   listFindings: vi.fn(),
   listMcpServers: vi.fn(),
+  listContextRecords: vi.fn(),
+  listEvents: vi.fn(),
+  listHandoffs: vi.fn(),
+  createHandoff: vi.fn(),
+  getHandoff: vi.fn(),
+  createContextRecord: vi.fn(),
+  getJob: vi.fn(),
+  createMcpServer: vi.fn(),
+  replaceMcpServer: vi.fn(),
+  deleteMcpServer: vi.fn(),
 }));
 vi.mock('@udi/client-sdk', async (original) => ({
   ...(await original<typeof import('@udi/client-sdk')>()),
@@ -17,6 +27,9 @@ vi.mock('@udi/client-sdk', async (original) => ({
 }));
 import { DaemonClientError } from '@udi/client-sdk';
 import { App, Findings, McpList } from './App.js';
+import { CreateHandoff, StoredEvents, RegistryControls } from './persistence.js';
+import type { DaemonClient } from '@udi/client-sdk';
+const client = api as unknown as DaemonClient;
 const id = '61d626eb-26fa-4bae-bbe7-64dc03fb921b';
 const project: Project = {
   id,
@@ -83,12 +96,40 @@ async function select() {
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
 }
+async function fill(label: string, value: string) {
+  const field = [...host.querySelectorAll('label')]
+    .find((l) => l.textContent?.startsWith(label))
+    ?.querySelector('input,textarea') as HTMLInputElement | HTMLTextAreaElement;
+  if (!field) throw new Error(`Missing field ${label}`);
+  const proto =
+    field.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(field, value);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.clearAllMocks();
   api.health.mockResolvedValue({ version: '0.1.0', status: 'ok' });
   api.listProjects.mockResolvedValue({ items: [project] });
   api.getContext.mockResolvedValue(memory);
+  api.listContextRecords.mockResolvedValue({ items: memory.records });
+  api.listEvents.mockResolvedValue({
+    items: [
+      {
+        id,
+        projectId: id,
+        type: 'firmware.updated',
+        sourceKind: 'imported',
+        actor: 'fixture-import',
+        createdAt: project.createdAt,
+        schemaVersion: 1,
+        payload: { fixture: true },
+      },
+    ],
+  });
+  api.listHandoffs.mockResolvedValue({ items: [] });
   api.listFindings.mockResolvedValue({ items: [finding] });
   api.listMcpServers.mockResolvedValue({ items: [] });
   host = document.createElement('div');
@@ -101,13 +142,126 @@ afterEach(async () => {
   host.remove();
 });
 describe('desktop user journeys', () => {
+  it('updates global connection state when a project request fails and recovers on retry', async () => {
+    api.listHandoffs.mockRejectedValue(new DaemonClientError('CONNECTION_ERROR', 'offline'));
+    await render();
+    await select();
+    await click('Agent Workspace');
+    await click('Agent Handoffs');
+    expect(host.querySelector('.topbar')?.textContent).toContain('Disconnected');
+    api.listHandoffs.mockResolvedValue({ items: [] });
+    await click('Retry');
+    expect(host.querySelector('.topbar')?.textContent).toContain('Daemon 0.1.0');
+  });
+  it('requires review and explicit confirmation before saving a scoped handoff', async () => {
+    const onSaved = vi.fn();
+    const saved = {
+      id,
+      projectId: id,
+      fromAgentId: id,
+      summary: 'Continue review',
+      recordIds: [id],
+      nextSteps: ['Inspect GPIO'],
+      provenance: { sourceKind: 'user_entered' as const, actor: 'desktop-user' },
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    };
+    api.createHandoff.mockResolvedValue(saved);
+    await render(
+      createElement(CreateHandoff, { client, projectId: id, onClose: vi.fn(), onSaved }),
+    );
+    await fill('From agent UUID', id);
+    await fill('Handoff summary', 'Continue review');
+    await fill('Next steps', 'Inspect GPIO');
+    await act(async () => host.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());
+    await click('Review handoff');
+    expect(api.createHandoff).not.toHaveBeenCalled();
+    expect(host.textContent).toContain('Review this exact project-scoped payload');
+    await click('Confirm and save handoff');
+    expect(api.createHandoff).toHaveBeenCalledExactlyOnceWith(id, {
+      fromAgentId: id,
+      summary: 'Continue review',
+      recordIds: [id],
+      nextSteps: ['Inspect GPIO'],
+      provenance: { sourceKind: 'user_entered', actor: 'desktop-user' },
+    });
+    expect(onSaved).toHaveBeenCalledWith(saved);
+  });
+  it('retains the handoff preview after a failed save and allows explicit retry', async () => {
+    const onSaved = vi.fn();
+    api.createHandoff.mockRejectedValue(new DaemonClientError('VALIDATION_ERROR', 'bad reference'));
+    await render(
+      createElement(CreateHandoff, { client, projectId: id, onClose: vi.fn(), onSaved }),
+    );
+    await fill('From agent UUID', id);
+    await fill('Handoff summary', 'Keep this summary');
+    await click('Review handoff');
+    await click('Confirm and save handoff');
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(host.textContent).toContain('Invalid request');
+    expect(host.textContent).toContain('Keep this summary');
+    expect(api.createHandoff).toHaveBeenCalledTimes(1);
+    await click('Back to edit');
+    expect(host.querySelector('textarea')?.value).toBe('Keep this summary');
+  });
+  it('pages stored activity and keeps original provenance and payload visible', async () => {
+    api.listEvents.mockImplementation((_id: string, options: { offset: number }) =>
+      Promise.resolve({
+        items:
+          options.offset === 0
+            ? Array.from({ length: 50 }, (_, i) => ({
+                id: `event-${i}`,
+                projectId: id,
+                type: 'fixture.imported',
+                actor: 'adapter',
+                sourceKind: 'imported',
+                createdAt: project.createdAt,
+                schemaVersion: 1,
+                payload: { fixture: true },
+              }))
+            : [],
+      }),
+    );
+    await render(createElement(StoredEvents, { client, projectId: id }));
+    expect(host.textContent).toContain('Imported');
+    expect(host.textContent).toContain('"fixture": true');
+    await click('Next page');
+    expect(api.listEvents).toHaveBeenLastCalledWith(id, { limit: 50, offset: 50 });
+    expect(host.textContent).toContain('No stored activity');
+  });
+  it('replaces MCP configuration as a complete snapshot without inventing healthy status', async () => {
+    const server = {
+      id,
+      name: 'Stored MCP',
+      transport: { type: 'stdio' as const, executableId: 'allowed', args: [] },
+      enabled: true,
+      status: 'healthy' as const,
+      secretRef: 'private-reference',
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    };
+    api.replaceMcpServer.mockResolvedValue({ ...server, status: 'unknown' });
+    await render(
+      createElement(RegistryControls, { client, servers: [server], onChanged: vi.fn() }),
+    );
+    await click('Configure inventory');
+    expect(host.textContent).not.toContain('private-reference');
+    await click('Save inventory');
+    expect(api.replaceMcpServer).toHaveBeenCalledWith(id, {
+      name: 'Stored MCP',
+      transport: server.transport,
+      enabled: true,
+      status: 'unknown',
+      secretRef: 'private-reference',
+    });
+  });
   it('explains real and planned application integrations inside Settings', async () => {
     await render();
     await click('Settings');
     expect(host.textContent).toContain('How integrations work');
     expect(host.textContent).toContain('KiCad');
     expect(host.textContent).toContain('PlatformIO');
-    expect(host.textContent).toContain('Gateway & context service required');
+    expect(host.textContent).toContain('Gateway setup & host verification required');
     expect(host.textContent).toContain(
       'Private conversations and hidden agent reasoning are not automatically captured',
     );
@@ -119,16 +273,16 @@ describe('desktop user journeys', () => {
       name: 'Second project',
     };
     api.listProjects.mockResolvedValue({ items: [project, second] });
-    let resolveFirst!: (data: ProjectMemory) => void;
-    api.getContext.mockImplementation((key: string) =>
+    let resolveFirst!: (data: { items: ProjectMemory['records'] }) => void;
+    api.listContextRecords.mockImplementation((key: string) =>
       key === id
-        ? new Promise<ProjectMemory>((resolve) => {
+        ? new Promise<{ items: ProjectMemory['records'] }>((resolve) => {
             resolveFirst = resolve;
           })
         : Promise.resolve({
             ...memory,
             projectId: second.id,
-            records: memory.records.map((r) => ({
+            items: memory.records.map((r) => ({
               ...r,
               projectId: second.id,
               text: 'Second project context',
@@ -144,7 +298,7 @@ describe('desktop user journeys', () => {
       input.dispatchEvent(new Event('change', { bubbles: true }));
     });
     expect(host.textContent).toContain('Second project context');
-    await act(async () => resolveFirst(memory));
+    await act(async () => resolveFirst({ items: memory.records }));
     expect(host.textContent).not.toContain('Review motor mapping');
   });
   it('renders dashboard, selected workspace and navigation for all six screens', async () => {
@@ -152,7 +306,7 @@ describe('desktop user journeys', () => {
     expect(host.textContent).toContain('Choose your active project');
     await select();
     expect(host.textContent).toContain('Firmware project');
-    expect(api.listFindings).toHaveBeenCalledWith(id);
+    expect(api.listFindings).toHaveBeenCalledWith(id, { limit: 100, offset: 0 });
     for (const screen of [
       'Engineering',
       'MCP Hub',
@@ -164,7 +318,7 @@ describe('desktop user journeys', () => {
       await click(screen);
       expect(host.querySelector('h1')?.textContent).toBe(screen);
     }
-    expect(host.textContent).toContain('Live API · No demo data');
+    expect(host.textContent).toContain('Live daemon API · Original provenance');
   });
   it('shows loading, then disconnected and authenticated-data errors while preserving navigation', async () => {
     let reject!: (e: Error) => void;
@@ -190,19 +344,21 @@ describe('desktop user journeys', () => {
     expect(host.textContent).toContain('Review motor mapping');
     expect(host.textContent).toContain('User entered');
     await click('Context Timeline');
-    expect(host.textContent).toContain('Review motor mapping');
-    api.getContext.mockRejectedValue(new DaemonClientError('NOT_IMPLEMENTED', 'not ready'));
+    expect(host.textContent).toContain('firmware.updated');
+    expect(host.textContent).toContain('Imported');
+    await click('Project Memory');
+    api.listContextRecords.mockRejectedValue(new DaemonClientError('NOT_IMPLEMENTED', 'not ready'));
     await click('Retrieve latest context');
     expect(host.textContent).toContain('Not available from this daemon');
     await click('Agent Handoffs');
-    expect(host.textContent).toContain('Handoff storage is not available yet');
+    expect(host.textContent).toContain('No stored handoffs');
   });
-  it('renders empty MCP inventory and honestly disabled actions', async () => {
+  it('renders empty MCP inventory and enables supported registration', async () => {
     await render();
     await click('MCP Hub');
     expect(host.textContent).toContain('No registered servers');
     const add = [...host.querySelectorAll('button')].find((b) => b.textContent === 'Add MCP');
-    expect(add?.disabled).toBe(true);
+    expect(add?.disabled).toBe(false);
   });
   it('shows source evidence and expected/observed values in the finding dialog', async () => {
     await render(createElement(Findings, { items: [finding] }));

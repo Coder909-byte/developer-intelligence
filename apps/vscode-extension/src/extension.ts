@@ -2,10 +2,14 @@ import * as vscode from 'vscode';
 import { createClient, DaemonClientError } from '@udi/client-sdk';
 import {
   EvidenceSchema,
+  IdSchema,
+  HandoffCreateSchema,
+  ContextRecordCreateSchema,
   type Project,
   type ValidationFinding,
   type ProjectMemory,
 } from '@udi/contracts';
+import { latestStoredHandoff } from './handoffs.js';
 import { containedFile, evidencePosition, scopedFindings, workspaceProjects } from './evidence.js';
 const actions = [
   'health',
@@ -20,6 +24,9 @@ const actions = [
   'validate',
   'createHandoff',
   'latestHandoff',
+  'events',
+  'recordDecision',
+  'jobLogs',
   'openDashboard',
 ] as const;
 type Action = (typeof actions)[number];
@@ -76,6 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
   let memory: ProjectMemory | undefined;
   let generation = 0;
   let disposed = false;
+  let writingHandoff = false;
   function setting(key: string, fallback: string) {
     const s = vscode.workspace.getConfiguration('udi').inspect<string>(key);
     return s?.globalValue ?? s?.defaultValue ?? fallback;
@@ -179,11 +187,11 @@ export function activate(context: vscode.ExtensionContext) {
         c.value.records.every((r) => r.projectId === p.id)
       ) {
         memory = c.value;
-        contextState = `${memory.records.length} records`;
+        contextState = `${memory.records.length} stored records (bounded)`;
       } else if (c.status === 'rejected') contextState = errorLabel(c.reason);
       if (f.status === 'fulfilled') {
         findings = scopedFindings(p.id, f.value.items);
-        findingState = `${findings.filter((v) => v.status === 'open').length} open findings`;
+        findingState = `${findings.filter((v) => v.status === 'open').length} open findings (first page)`;
         await publish(p, findings, request);
       } else findingState = errorLabel(f.reason);
       if (!current()) return;
@@ -195,7 +203,9 @@ export function activate(context: vscode.ExtensionContext) {
         ...([
           { label: 'Validate project', action: 'validate' },
           { label: 'MCP Hub', action: 'mcp' },
-          { label: 'Review handoff draft', action: 'createHandoff' },
+          { label: 'Create saved handoff', action: 'createHandoff' },
+          { label: 'Stored activity events', action: 'events' },
+          { label: 'Record project decision', action: 'recordDecision' },
           { label: 'Retrieve latest handoff', action: 'latestHandoff' },
           { label: 'Open desktop dashboard', action: 'openDashboard' },
         ] as Row[]),
@@ -345,38 +355,160 @@ export function activate(context: vscode.ExtensionContext) {
         );
       case 'validate':
         await vscode.window.showWarningMessage(
-          'Validation submission unavailable: the shared SDK has no job creation method. Review Engineering Findings for recorded results.',
+          'Validation execution is not implemented by this daemon yet. The reserved endpoint returns NOT_IMPLEMENTED; stored findings and job logs remain available.',
         );
         return;
-      case 'latestHandoff':
-        await vscode.window.showWarningMessage(
-          'Handoff retrieval unavailable: shared handoff API and SDK methods are required. Project Context retrieves current memory.',
-        );
-        return;
-      case 'createHandoff': {
+      case 'events': {
         const p = await project();
-        if (!memory) {
+        const offset =
+          typeof arg === 'number' && Number.isInteger(arg) && arg >= 0 && arg <= 1000000 ? arg : 0;
+        const result = await (await client()).listEvents(p.id, { limit: 50, offset });
+        if (result.items.some((e) => e.projectId !== p.id)) throw new Error('Scope mismatch');
+        await document(`Stored activity � offset ${offset} � oldest first`, result);
+        if (
+          result.items.length === 50 &&
+          offset < 1000000 &&
+          (await vscode.window.showInformationMessage(
+            'More stored activity may be available.',
+            'Next page',
+          )) === 'Next page'
+        )
+          return act('events', offset + 50);
+        return;
+      }
+      case 'recordDecision': {
+        if (!vscode.workspace.isTrusted) {
           await vscode.window.showWarningMessage(
-            'Retrieve project context first. Handoff storage is not supported yet.',
+            'Trust the workspace before recording a decision.',
           );
           return;
         }
-        const summary = await vscode.window.showInputBox({
-          title: 'Review UNSAVED handoff draft',
-          prompt: 'Creates a local review document only. No handoff save API exists.',
-          validateInput: (v) => (v.trim() ? undefined : 'Enter a summary'),
+        const p = await project();
+        const api = await client();
+        const text = await vscode.window.showInputBox({
+          title: 'Record project decision',
+          prompt: 'Saved as user-entered context; not an observed tool result.',
+          validateInput: (v) => (v.trim() ? undefined : 'Enter a decision'),
         });
-        if (!summary) return;
-        const draft = { projectId: p.id, summary, context: memory };
-        await document('UNSAVED handoff draft · backend storage unavailable', draft);
+        if (!text) return;
+        const input = ContextRecordCreateSchema.parse({
+          kind: 'decision',
+          text: text.trim(),
+          provenance: { sourceKind: 'user_entered', actor: 'vscode-user' },
+          evidence: [],
+        });
         if (
-          (await vscode.window.showInformationMessage(
-            'Draft opened for review. Not saved to daemon.',
-            'Copy draft',
-          )) === 'Copy draft'
+          (await vscode.window.showWarningMessage(
+            `Save this decision to ${p.name}?`,
+            { modal: true },
+            'Save decision',
+          )) !== 'Save decision'
         )
-          await vscode.env.clipboard.writeText(JSON.stringify(draft, null, 2));
-        return;
+          return;
+        if (selected?.id !== p.id) throw new Error('Workspace changed');
+        await api.createContextRecord(p.id, input);
+        await vscode.window.showInformationMessage('Decision saved to the daemon.');
+        return refresh();
+      }
+      case 'jobLogs': {
+        const p = await project();
+        const id =
+          typeof arg === 'string'
+            ? arg
+            : await vscode.window.showInputBox({
+                title: 'Stored job UUID',
+                validateInput: (v) =>
+                  IdSchema.safeParse(v).success ? undefined : 'Enter a job UUID',
+              });
+        if (!id) return;
+        const job = await (await client()).getJob(p.id, id);
+        if (job.projectId !== p.id) throw new Error('Scope mismatch');
+        return document('Stored adapter job output � persistence is not proof of execution', job);
+      }
+      case 'latestHandoff': {
+        const p = await project();
+        const handoff = await latestStoredHandoff(await client(), p.id);
+        if (!handoff) {
+          await vscode.window.showInformationMessage('No stored handoffs for this project.');
+          return;
+        }
+        return document('Latest stored handoff � original provenance', handoff);
+      }
+      case 'createHandoff': {
+        if (writingHandoff) {
+          await vscode.window.showWarningMessage('Handoff creation is already in progress.');
+          return;
+        }
+        if (!vscode.workspace.isTrusted) {
+          await vscode.window.showWarningMessage('Trust the workspace before saving a handoff.');
+          return;
+        }
+        writingHandoff = true;
+        try {
+          const p = await project();
+          const capturedOrigin = origin();
+          const api = await client();
+          const records = await api.listContextRecords(p.id, { limit: 500, offset: 0 });
+          if (records.items.some((r) => r.projectId !== p.id)) throw new Error('Scope mismatch');
+          const picked = await vscode.window.showQuickPick(
+            records.items.map((r) => ({
+              label: r.text,
+              description: `${r.provenance.sourceKind} � ${r.id}`,
+              record: r,
+            })),
+            {
+              canPickMany: true,
+              placeHolder: 'Select context records (first 500 stored records; Cancel aborts)',
+            },
+          );
+          if (picked === undefined) return;
+          const fromAgentId = await vscode.window.showInputBox({
+            title: 'From agent UUID',
+            prompt:
+              'External agent identity agreed by your team. This does not register a connected agent.',
+            validateInput: (v) =>
+              IdSchema.safeParse(v.trim()).success ? undefined : 'Enter an agent UUID',
+          });
+          if (!fromAgentId) return;
+          const summary = await vscode.window.showInputBox({
+            title: 'Handoff summary',
+            validateInput: (v) => (v.trim() ? undefined : 'Enter a summary'),
+          });
+          if (!summary) return;
+          const next = await vscode.window.showInputBox({
+            title: 'Next steps (optional)',
+            prompt: 'Separate steps with semicolons',
+          });
+          if (next === undefined) return;
+          const input = HandoffCreateSchema.parse({
+            fromAgentId: fromAgentId.trim(),
+            summary: summary.trim(),
+            recordIds: picked.map((r) => r.record.id),
+            nextSteps: next
+              .split(';')
+              .map((v) => v.trim())
+              .filter(Boolean),
+            provenance: { sourceKind: 'user_entered', actor: 'vscode-user' },
+          });
+          await document('Review handoff before saving', { projectId: p.id, ...input });
+          if (
+            (await vscode.window.showWarningMessage(
+              `Save the reviewed handoff to ${p.name}?`,
+              { modal: true },
+              'Save handoff',
+            )) !== 'Save handoff'
+          )
+            return;
+          if (selected?.id !== p.id || origin() !== capturedOrigin)
+            throw new Error('Workspace or daemon changed');
+          const saved = await api.createHandoff(p.id, input);
+          if (saved.projectId !== p.id) throw new Error('Scope mismatch');
+          await document('Saved handoff', saved);
+          await vscode.window.showInformationMessage(`Handoff saved: ${saved.id}`);
+          return refresh();
+        } finally {
+          writingHandoff = false;
+        }
       }
       case 'openDashboard': {
         const url = new URL(setting('dashboardUrl', 'http://127.0.0.1:5173'));
@@ -405,6 +537,11 @@ export function activate(context: vscode.ExtensionContext) {
         try {
           await act(a, arg);
         } catch (e) {
+          if (
+            e instanceof DaemonClientError &&
+            ['CONNECTION_ERROR', 'TIMEOUT', 'UNAUTHORIZED'].includes(e.code)
+          )
+            await refresh();
           await vscode.window.showErrorMessage(errorLabel(e));
         }
       }),

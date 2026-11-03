@@ -93,7 +93,7 @@
       },
       {
         "command": "udi.createHandoff",
-        "title": "Developer Intelligence: Review Handoff Draft"
+        "title": "Developer Intelligence: Create Saved Handoff"
       },
       {
         "command": "udi.latestHandoff",
@@ -106,6 +106,18 @@
       {
         "command": "udi.health",
         "title": "Developer Intelligence: Check Daemon Connection"
+      },
+      {
+        "command": "udi.events",
+        "title": "Developer Intelligence: View Stored Activity"
+      },
+      {
+        "command": "udi.recordDecision",
+        "title": "Developer Intelligence: Record Project Decision"
+      },
+      {
+        "command": "udi.jobLogs",
+        "title": "Developer Intelligence: View Stored Job Logs"
       }
     ],
     "configuration": {

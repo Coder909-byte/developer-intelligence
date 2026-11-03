@@ -1,65 +1,50 @@
-# Frontend milestone — Developer 3
+# Developer 3 — persisted platform frontend
 
-Branch: `feat/frontend`. Backend contracts and services remain owned by Developers 1 and 2.
+Branch: `feat/frontend`. Synced with the project lead's persistence merge `cb848d5` from `origin/main` without discarding the earlier frontend milestone. No backend services or shared contracts were changed by this integration.
 
-## Implemented
+## Working screens
 
-- React/Tauri frontend with Overview, Agent Workspace, MCP Hub, Engineering, Devices and Settings; responsive dark styling and keyboard focus states.
-- Workspace registration/selection through the shared SDK. Local token onboarding is memory-only in desktop; credentials are never saved to browser storage or bundled in environment variables.
-- Context memory/timeline with source provenance, explicit retrieval and structured-context copying when the daemon returns records.
-- MCP registry rendering and server detail inspection; engineering findings with severity, expected/observed values, source evidence and verification tool.
-- Loading, empty, 401, 501, disconnected and retry states. Request generations prevent late reads from replacing current project state.
-- In-app integration guide under Settings explains shared daemon, VS Code, MCP hosts and planned open-source engineering adapters, with availability boundaries.
-- Native VS Code activity-bar sidebar, 13 commands, status bar, SecretStorage, canonical workspace/project matching, diagnostics, source navigation, MCP inventory and explicitly unsaved handoff draft review/copy.
-- Shared UI: tokens, restrained SVG icons, buttons, cards, badges, fields, dialogs, empty states, skeletons, timeline, finding detail panel and log viewer.
+- Overview: actual selected project, bounded registry/finding summaries, stored context and paged activity events. Counts explicitly describe loaded records rather than inventing global totals or a validation pass.
+- Agent Workspace: paged original context records, user-entered decision creation, event timeline with exact type filtering and payload inspection, and persisted handoffs.
+- Handoffs: choose project-scoped records, enter external agent UUIDs/summary/next steps, review exact payload, explicitly confirm save, inspect saved details, copy JSON and retrieve latest across all pages. Backend-rejected input preserves the review form. No automated summary generation is claimed.
+- MCP Hub: paged global inventory, configuration inspection, registration, full configuration replacement and confirmed inventory-record removal. Configuration changes use unknown/disabled status, preserve existing secret references and never imply server execution.
+- Engineering: scoped stored findings/evidence, verification tool, and stored job status/exit code/stdout/stderr/artifacts. No findings is not a validation pass. Stored adapter output is not proof the daemon executed a tool.
+- Devices and Settings: honest unsupported device/environment/storage states, session-only desktop token onboarding, loopback settings and updated integration guide.
 
-## Run
+The daemon's context/MCP/engineering capability flags indicate intelligence/execution integration, not storage availability. Stored reads work even while those flags are false. HTTP transport uses only `@udi/client-sdk`; type/schema definitions come from `@udi/contracts`.
 
-From repository root on the pinned Node/pnpm versions:
+## SDK methods used
 
-```sh
-pnpm install --frozen-lockfile
-pnpm dev:daemon
-# In a separate terminal:
-pnpm dev:desktop
-```
+Health/projects: health, listProjects, createProject.
+Context/events: getContext, listContextRecords, createContextRecord, listEvents.
+Handoffs: listHandoffs, getHandoff, createHandoff.
+Inventory: listMcpServers, createMcpServer, replaceMcpServer, deleteMcpServer.
+Engineering: listFindings, getJob.
 
-Open `http://127.0.0.1:5173`. Use Settings to enter the daemon token from `.data/token`, then register an existing workspace directory. The token is cleared on reload. The current scaffold has no OS-backed desktop credential store; this is an explicit limitation.
+Canonical HTTP prefix remains `/api/v1`. No new request bodies or response types were invented. Create bodies omit server-generated IDs/timestamps/project metadata. Handoff provenance is explicitly user_entered and record references are selected from that project.
 
-For VS Code: run `pnpm dev:extension`, open the repository in VS Code and press F5 using the existing launch configuration. The watcher does not launch VS Code itself. Open the Developer Intelligence activity-bar view, run Set Daemon Token, and register/select an open workspace. Multiple open roots require selection; unrelated daemon projects are never silently selected.
+Lists use bounded limit/offset navigation (50 records per desktop page). Overview reads are labeled first 100. Native context, inventory and findings views are bounded and labeled. Latest-handoff retrieval walks 500-record pages until a short page; offset paging is not a snapshot during concurrent writes. Desktop summaries do not pretend a partial page is a total.
 
-Native desktop: `pnpm --filter @udi/desktop build:native` requires Rust/Cargo and platform prerequisites. Root build verifies web and extension bundles separately from native packaging.
+## VS Code extension
 
-## API integration
+Native sidebar/status/diagnostics remain in place. New commands access actual stored activity, record an explicitly approved decision, and inspect scoped job output. Handoff creation now uses the actual SDK: select records, enter an external from-agent UUID and summary/steps, review a JSON document, confirm save, and show the persisted record. Cancelled approval makes no write. Latest retrieval now reads persisted history instead of reporting unsupported.
 
-All HTTP is through `@udi/client-sdk`, using contract types from `@udi/contracts`. Canonical prefix is `/api/v1`.
+Commands: udi.health, udi.refresh, udi.setToken, udi.selectProject, udi.registerProject, udi.context, udi.events, udi.recordDecision, udi.findings, udi.openEvidence, udi.jobLogs, udi.mcp, udi.createHandoff, udi.latestHandoff, udi.validate, udi.openDashboard.
 
-| SDK method     | Route                                    | Frontend use                     | Bootstrap result            |
-| -------------- | ---------------------------------------- | -------------------------------- | --------------------------- |
-| health         | GET /health                              | Desktop/extension status         | Implemented                 |
-| listProjects   | GET /projects                            | Selection and workspace matching | Implemented; token required |
-| createProject  | POST /projects                           | Explicit workspace registration  | Implemented; token required |
-| getContext     | GET /projects/:id/context                | Memory/timeline/context document | 501 until service lands     |
-| listMcpServers | GET /mcp/servers                         | Registry and inventory document  | 501 until service lands     |
-| listFindings   | GET /engineering/findings?projectId=UUID | Findings and native diagnostics  | 501 until service lands     |
+Token storage uses SecretStorage per daemon origin. Desktop token remains memory-only. Reads are isolated by client/project identity; stale results cannot replace the active project. Desktop health is refreshed periodically and project connection failures update global status. No write is retried automatically. Source evidence remains canonicalized to the active workspace.
 
-No new API schemas, routes or intelligence algorithms were introduced.
+## Runtime verification
 
-## Developer 1 / Developer 2 integration requirements
+Using an isolated daemon database on loopback port 4318, QA explicitly created user-entered context, an imported event and disabled MCP inventory. All records were visibly labeled QA fixtures; no validator or live MCP connection was claimed. The real browser read these through the SDK, created a reviewed handoff with a selected stored record, retrieved it, showed a disconnected request after daemon stop, and retrieved it again after restart. Stored findings were genuinely empty and displayed as such.
 
-1. Implement existing context, MCP and findings response contracts. Findings must include actual evidence and verification tool; all returned project IDs must match the requested scope.
-2. Publish frozen SDK methods and request schemas for validation submission/job progress, handoff create/list/latest, MCP mutation/health/tools/permissions/config preview/apply. The entity schemas are not sufficient to infer safe write payloads.
-3. Publish optional artifact/toolchain/build-log, devices/telemetry, agents/environments and storage APIs before enabling corresponding controls.
-4. Provide a reviewed correction preview/approval/apply/rollback protocol. Frontend does not locally patch files or invoke engineering tools.
-5. Agree daemon discovery and OS-backed desktop credential storage before persistent credential onboarding. Default origin follows the bootstrap; non-default native ports also need Tauri CSP changes.
-6. Verify a real VS Code Extension Host run, native shell packaging and the second MCP host end-to-end. Compilation and mocked-host activation are not proof of those integrations.
+The compiled extension's context/events/latest-handoff commands were also executed in a mocked VS Code host against this actual daemon over HTTP. Data matched the browser and survived restart. This is stronger than mocked HTTP but is still not an actual Extension Host run.
 
-## Verification evidence
+Automated tests cover pagination, project isolation, provenance, handoff review/approval/cancellation/failure, actual SDK command serialization in the mocked native host, latest-page traversal, inventory replacement without fake healthy status, authentication/offline/loading/empty states and native diagnostic mapping. See the final report for the final root check counts and published SHA.
 
-Full milestone check: `pnpm typecheck`, `pnpm lint`, `pnpm test` (51 tests; 20 frontend-specific) and `pnpm build` passed. Frontend tests cover navigation, SDK loading/401/offline/501 states, project selection, provenance, MCP inventory, finding evidence, form validation, stale requests, evidence containment/position conversion and mocked-host extension activation/command execution.
+## Run and remaining gates
 
-Real browser against the actual local daemon: health connected; missing-token state shown; token entry succeeded without browser persistence; rover fixture registered via POST /projects; active workspace selected; context/findings 501 responses shown as unavailable. Disconnected/retry behavior and narrow-window layout were also verified in the real browser. No fake live data or simulated success mode exists.
+Run `pnpm dev:daemon` and `pnpm dev:desktop` in separate terminals from the root. Use Settings to enter `.data/token`, then select/register a workspace. For VS Code run `pnpm dev:extension`, open the repository and press F5 using its existing launch configuration. The watcher does not launch VS Code itself.
 
-Environment limitations: pnpm workspace symlinks are denied by this Windows sandbox. Registry dependencies were installed with a local hoisted store and shared package build outputs copied into ignored node_modules for verification. No package-manager workaround or vendored dependency is committed. Standard install must still be checked in normal CI. VS Code CLI launch was blocked by sandbox EPERM while changing into the installed application directory, so actual Extension Host activation is pending. Native build was attempted and is blocked because Cargo is not installed. VSIX packaging is not yet configured.
+Remaining backend gates: validation execution and MCP health checks still return 501; toolchain/artifact detection, patch preview/approval/apply/rollback, tool/permission discovery and host config application, device monitoring and live agent inventory remain unimplemented. Persistence is available; the UI no longer incorrectly marks it unavailable.
 
-The final handoff report records the final verification count and published commit/PR after the last changes.
+Remaining frontend/runtime gates: actual VS Code Extension Host execution, native Tauri packaging (Cargo absent), VSIX packaging and OS-backed persistent desktop credentials. The Windows sandbox restricts pnpm workspace symlinks; local checks use ignored copied shared build outputs, with standard installation covered by GitHub CI on the prior milestone and to be rechecked on this update.

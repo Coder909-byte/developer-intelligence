@@ -28,8 +28,8 @@ export function IntegrationGuide() {
             <strong>Connect an MCP-compatible host when available.</strong>
             <p>
               A supported host calls the team's MCP gateway with an explicit project ID. It can
-              retrieve stored context once the gateway and context service are implemented and
-              tested.
+              retrieve the stored project context once gateway setup and host compatibility are
+              verified. Context persistence is already available in the local engine.
             </p>
           </li>
           <li>
@@ -60,14 +60,14 @@ export function IntegrationGuide() {
                 <th scope="row">Desktop & VS Code</th>
                 <td>Local daemon, shared workspace and token</td>
                 <td>
-                  <Badge>Health & project APIs wired</Badge>
+                  <Badge>Persisted project data wired</Badge>
                 </td>
               </tr>
               <tr>
                 <th scope="row">MCP-compatible agents</th>
                 <td>Scoped tools through the team's MCP gateway</td>
                 <td>
-                  <Badge tone="warning">Gateway & context service required</Badge>
+                  <Badge tone="warning">Gateway setup & host verification required</Badge>
                 </td>
               </tr>
               <tr>
@@ -84,7 +84,7 @@ export function IntegrationGuide() {
                 <th scope="row">PlatformIO</th>
                 <td>Approved build runner records real output and exit code</td>
                 <td>
-                  <Badge tone="warning">Build API required</Badge>
+                  <Badge tone="warning">Build execution service required</Badge>
                 </td>
               </tr>
               <tr>

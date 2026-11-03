@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import type { Project, ValidationFinding } from '@udi/contracts';
+import type { Project, ValidationFinding, AgentHandoff, HandoffCreate } from '@udi/contracts';
 const require = createRequire(import.meta.url);
 const source = buildSync({
   entryPoints: [fileURLToPath(new URL('./extension.ts', import.meta.url))],
@@ -65,8 +65,11 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
       showInformationMessage: info,
       showErrorMessage: error,
       showWarningMessage: warning,
-      showInputBox: vi.fn(async () => undefined),
-      showQuickPick: vi.fn(async () => undefined),
+      showInputBox: vi.fn<(...args: unknown[]) => Promise<string | undefined>>(
+        async () => undefined,
+      ),
+      showQuickPick: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
+      showTextDocument: vi.fn(async () => undefined),
     },
     commands: {
       registerCommand: (id: string, callback: (arg?: unknown) => Promise<void>) => {
@@ -75,6 +78,8 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
       },
     },
     workspace: {
+      isTrusted: true,
+      openTextDocument: vi.fn(async (input: unknown) => input),
       workspaceFolders: project ? [{ uri: { scheme: 'file', fsPath: project.rootPath } }] : [],
       getConfiguration: () => ({ inspect: () => undefined }),
       onDidChangeWorkspaceFolders: () => disposable,
@@ -83,9 +88,22 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
     env: { openExternal: vi.fn(async () => true) },
     Uri: { parse: (v: string) => v, file: (fsPath: string) => ({ fsPath }) },
   };
-  const fetch = vi.fn(async (input: string) => {
+  let savedHandoff: AgentHandoff | undefined;
+  const record = project
+    ? {
+        id: project.id,
+        projectId: project.id,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        kind: 'decision',
+        text: 'Review fixture',
+        provenance: { sourceKind: 'user_entered', actor: 'test-user' },
+        evidence: [],
+      }
+    : undefined;
+  const fetch = vi.fn(async (input: string, init?: RequestInit) => {
     if (fail) throw new Error('offline');
-    const data = input.endsWith('/health')
+    let data: unknown = input.endsWith('/health')
       ? {
           status: 'ok',
           version: '0.1.0',
@@ -96,6 +114,26 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
       : input.includes('/engineering/findings')
         ? { items: findings }
         : { items: project ? [project] : [] };
+    if (input.includes('/context/records')) data = { items: record ? [record] : [] };
+    else if (input.includes('/context?') && project)
+      data = {
+        projectId: project.id,
+        generatedAt: project.createdAt,
+        schemaVersion: 1,
+        records: record ? [record] : [],
+        openIssues: [],
+      };
+    if (input.includes('/handoffs')) {
+      if (init?.method === 'POST' && project)
+        savedHandoff = {
+          ...(JSON.parse(String(init.body)) as HandoffCreate),
+          id: project.id,
+          projectId: project.id,
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+        };
+      data = init?.method === 'POST' ? savedHandoff : { items: savedHandoff ? [savedHandoff] : [] };
+    }
     return new Response(
       JSON.stringify({
         ok: true,
@@ -116,6 +154,7 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
     require: (id: string) => (id === 'vscode' ? vscode : require(id)),
     fetch,
     URL,
+    URLSearchParams,
     Response,
     AbortController,
     setTimeout,
@@ -138,10 +177,56 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
     subscriptions,
     fetch,
     diagnosticSet,
+    ui: vscode.window,
+    record,
     getRows: () => provider?.getChildren(),
   };
 }
 describe('extension activation in mocked VS Code host', () => {
+  it('does not save a cancelled handoff and saves only the explicitly approved payload', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'udi-handoff-'));
+    const id = '61d626eb-26fa-4bae-bbe7-64dc03fb921b';
+    const createdAt = '2026-11-03T13:00:00Z';
+    const h = host(false, {
+      id,
+      name: 'Rover',
+      rootPath: directory,
+      description: '',
+      createdAt,
+      updatedAt: createdAt,
+    });
+    try {
+      await vi.waitFor(() => expect(h.getRows()?.some((r) => r.label === 'Rover')).toBe(true));
+      const prepare = () => {
+        h.ui.showQuickPick.mockResolvedValueOnce([{ record: h.record }]);
+        h.ui.showInputBox
+          .mockResolvedValueOnce(id)
+          .mockResolvedValueOnce('Continue review')
+          .mockResolvedValueOnce('Inspect GPIO; Review mapping');
+      };
+      prepare();
+      h.warning.mockResolvedValueOnce('Cancel');
+      await h.callbacks.get('udi.createHandoff')!();
+      expect(h.fetch.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+      prepare();
+      h.warning.mockResolvedValueOnce('Save handoff');
+      await h.callbacks.get('udi.createHandoff')!();
+      const writes = h.fetch.mock.calls.filter(([, init]) => init?.method === 'POST');
+      expect(writes).toHaveLength(1);
+      expect(JSON.parse(String(writes[0]![1]!.body))).toEqual({
+        fromAgentId: id,
+        summary: 'Continue review',
+        recordIds: [id],
+        nextSteps: ['Inspect GPIO', 'Review mapping'],
+        provenance: { sourceKind: 'user_entered', actor: 'vscode-user' },
+      });
+      expect(h.error).not.toHaveBeenCalled();
+      expect(h.info).toHaveBeenCalledWith(`Handoff saved: ${id}`);
+    } finally {
+      for (const d of h.subscriptions) d.dispose();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
   it('publishes native source diagnostics using SDK findings and one-based evidence', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'udi-host-'));
     await writeFile(path.join(directory, 'pins.h'), 'GPIO26');
@@ -216,7 +301,8 @@ describe('extension activation in mocked VS Code host', () => {
     const h = host();
     await h.callbacks.get('udi.validate')!();
     await h.callbacks.get('udi.latestHandoff')!();
-    expect(h.warning).toHaveBeenCalledTimes(2);
+    expect(h.warning).toHaveBeenCalledTimes(1);
+    expect(h.error).toHaveBeenCalled();
     expect(h.info).not.toHaveBeenCalled();
     for (const d of h.subscriptions) d.dispose();
   });
