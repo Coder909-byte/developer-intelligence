@@ -9,6 +9,7 @@ import {
   type ValidationFinding,
   type ProjectMemory,
 } from '@udi/contracts';
+import { pinValidationInput } from './validation-input.js';
 import { latestStoredHandoff } from './handoffs.js';
 import { containedFile, evidencePosition, scopedFindings, workspaceProjects } from './evidence.js';
 const actions = [
@@ -85,6 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
   let generation = 0;
   let disposed = false;
   let writingHandoff = false;
+  let validating = false;
   let selectedJobId: string | undefined;
   function setting(key: string, fallback: string) {
     const s = vscode.workspace.getConfiguration('udi').inspect<string>(key);
@@ -420,11 +422,78 @@ export function activate(context: vscode.ExtensionContext) {
             status: s.status,
           })),
         );
-      case 'validate':
-        await vscode.window.showWarningMessage(
-          'Validation execution is not implemented by this daemon yet. The reserved endpoint returns NOT_IMPLEMENTED; stored findings and job logs remain available.',
-        );
-        return;
+      case 'validate': {
+        if (validating) {
+          await vscode.window.showWarningMessage('A validation request is already in progress.');
+          return;
+        }
+        if (!vscode.workspace.isTrusted) {
+          await vscode.window.showWarningMessage('Trust this workspace before running validation.');
+          return;
+        }
+        const api = await client();
+        const health = await api.health();
+        if (!health.capabilities.engineering) {
+          await vscode.window.showWarningMessage(
+            'Engineering execution is not enabled in this daemon. Stored job results remain available.',
+          );
+          return;
+        }
+        const p = await project();
+        const capturedOrigin = origin();
+        const text = await vscode.window.showInputBox({
+          title: 'Pin consistency artifact paths',
+          prompt:
+            'Relative workspace paths separated by semicolons. Example: rover.net; src/pins.h; engineering-map.json',
+          validateInput: (v) => {
+            try {
+              pinValidationInput(v);
+              return undefined;
+            } catch {
+              return 'Provide relative workspace artifact paths without parent traversal.';
+            }
+          },
+        });
+        if (text === undefined) return;
+        const input = pinValidationInput(text);
+        await document('Review pin consistency request', { projectId: p.id, ...input });
+        if (
+          (await vscode.window.showWarningMessage(
+            `Run the reviewed read-only pin consistency check for ${p.name}? No source files will be edited.`,
+            { modal: true },
+            'Run validation',
+          )) !== 'Run validation'
+        )
+          return;
+        if (selected?.id !== p.id || origin() !== capturedOrigin)
+          throw new Error('Workspace or daemon changed');
+        validating = true;
+        generation++;
+        selectedJobId = undefined;
+        diagnostics.clear();
+        await context.workspaceState.update(`udi.validationJob:${p.id}`, undefined);
+        try {
+          const job = await api.requestValidation(p.id, input);
+          if (job.projectId !== p.id) throw new Error('Job scope mismatch');
+          if (origin() === capturedOrigin)
+            await context.workspaceState.update(`udi.validationJob:${p.id}`, job.id);
+          await document('Validation job result', job);
+          await vscode.window.showInformationMessage(
+            `Validation job recorded: ${job.id} (${job.status})`,
+          );
+          return refresh();
+        } catch (error) {
+          if (error instanceof DaemonClientError && error.code === 'TIMEOUT') {
+            await vscode.window.showWarningMessage(
+              'Validation response timed out. The job may still finish; inspect stored activity before retrying.',
+            );
+            return;
+          }
+          throw error;
+        } finally {
+          validating = false;
+        }
+      }
       case 'events': {
         const p = await project();
         const offset =

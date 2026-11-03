@@ -633,6 +633,23 @@ export function RegistryControls({
   const [remove, setRemove] = useState<McpServer>();
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [checking, setChecking] = useState<string>();
+  async function probe(server: McpServer) {
+    if (checking) return;
+    setChecking(server.id);
+    try {
+      const result = await client.checkMcpServerHealth(server.id);
+      if (result.id !== server.id) throw new Error('Server mismatch');
+      setMessage(
+        `Daemon transport probe: ${result.status}. This does not establish MCP tool compatibility.`,
+      );
+      onChanged();
+    } catch (e) {
+      setMessage(failure(e));
+    } finally {
+      setChecking(undefined);
+    }
+  }
   async function deleteServer() {
     if (!remove || saving) return;
     setSaving(true);
@@ -655,6 +672,19 @@ export function RegistryControls({
             <div className="row" key={s.id}>
               <small>{s.name}</small>
               <Button onClick={() => setEdit(s)}>Configure inventory</Button>
+              <Button
+                disabled={!s.enabled || Boolean(checking)}
+                onClick={() => {
+                  void probe(s);
+                }}
+                title={
+                  s.enabled
+                    ? 'Probe the configured transport via the daemon'
+                    : 'Enable the inventory record before probing'
+                }
+              >
+                {checking === s.id ? 'Probing…' : 'Probe connection'}
+              </Button>
               <Button onClick={() => setRemove(s)}>Remove record</Button>
             </div>
           ))

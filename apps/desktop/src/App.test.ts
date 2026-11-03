@@ -20,6 +20,8 @@ const api = vi.hoisted(() => ({
   createMcpServer: vi.fn(),
   replaceMcpServer: vi.fn(),
   deleteMcpServer: vi.fn(),
+  requestValidation: vi.fn(),
+  checkMcpServerHealth: vi.fn(),
 }));
 vi.mock('@udi/client-sdk', async (original) => ({
   ...(await original<typeof import('@udi/client-sdk')>()),
@@ -28,6 +30,7 @@ vi.mock('@udi/client-sdk', async (original) => ({
 import { DaemonClientError } from '@udi/client-sdk';
 import { App, Findings, McpList } from './App.js';
 import { CreateHandoff, StoredEvents, RegistryControls } from './persistence.js';
+import { ValidationRun } from './ValidationRun.js';
 import type { DaemonClient } from '@udi/client-sdk';
 const client = api as unknown as DaemonClient;
 const id = '61d626eb-26fa-4bae-bbe7-64dc03fb921b';
@@ -142,6 +145,73 @@ afterEach(async () => {
   host.remove();
 });
 describe('desktop user journeys', () => {
+  it('reviews validation paths and clears the old scope before using an actual returned job', async () => {
+    const onStart = vi.fn(),
+      onJob = vi.fn();
+    let resolve!: (job: unknown) => void;
+    api.requestValidation.mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    await render(
+      createElement(ValidationRun, { client, projectId: id, onClose: vi.fn(), onStart, onJob }),
+    );
+    await fill('Workspace artifact paths', 'rover.net\nsrc/pins.h\nengineering-map.json');
+    await click('Review validation request');
+    expect(api.requestValidation).not.toHaveBeenCalled();
+    await click('Confirm and run validation');
+    expect(onStart).toHaveBeenCalledOnce();
+    expect(onJob).not.toHaveBeenCalled();
+    expect(api.requestValidation).toHaveBeenCalledExactlyOnceWith(id, {
+      kind: 'pin_consistency',
+      artifactPaths: ['rover.net', 'src/pins.h', 'engineering-map.json'],
+      requestedBy: 'desktop-user',
+    });
+    const job = { id, projectId: id, status: 'failed' };
+    await act(async () => resolve(job));
+    expect(onJob).toHaveBeenCalledWith(job);
+  });
+  it('keeps unsupported validation honest and does not invent a returned job', async () => {
+    api.requestValidation.mockRejectedValue(
+      new DaemonClientError('NOT_IMPLEMENTED', 'not enabled'),
+    );
+    const onJob = vi.fn();
+    await render(
+      createElement(ValidationRun, {
+        client,
+        projectId: id,
+        onClose: vi.fn(),
+        onStart: vi.fn(),
+        onJob,
+      }),
+    );
+    await fill('Workspace artifact paths', 'rover.net\nsrc/pins.h');
+    await click('Review validation request');
+    await click('Confirm and run validation');
+    expect(host.textContent).toContain('Not available from this daemon');
+    expect(onJob).not.toHaveBeenCalled();
+    expect(api.requestValidation).toHaveBeenCalledTimes(1);
+  });
+  it('shows a real probe result without treating it as MCP tool compatibility', async () => {
+    const server = {
+      id,
+      name: 'Probe test',
+      transport: { type: 'http' as const, url: 'http://127.0.0.1:9999' },
+      enabled: true,
+      status: 'unknown' as const,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    };
+    api.checkMcpServerHealth.mockResolvedValue({ ...server, status: 'unreachable' });
+    await render(
+      createElement(RegistryControls, { client, servers: [server], onChanged: vi.fn() }),
+    );
+    await click('Probe connection');
+    expect(api.checkMcpServerHealth).toHaveBeenCalledWith(id);
+    expect(host.textContent).toContain('unreachable');
+    expect(host.textContent).toContain('does not establish MCP tool compatibility');
+  });
   it('keeps history separate and removes old failures when another validation job is selected', async () => {
     const newer = 'b785354e-2e71-4b89-94ac-55a5d7c154d8';
     api.getJob.mockImplementation(async (_projectId: string, jobId: string) => ({

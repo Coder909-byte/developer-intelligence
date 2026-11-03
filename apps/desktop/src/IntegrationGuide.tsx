@@ -29,17 +29,23 @@ export function IntegrationGuide() {
             <p>
               A supported host calls the team's MCP gateway with an explicit project ID. It can
               retrieve the stored project context once gateway setup and host compatibility are
-              verified. Context persistence is already available in the local engine.
+              verified. Context persistence is already available in the local engine. Registry
+              probes test transport availability, not MCP tool compatibility.
             </p>
           </li>
           <li>
             <strong>Inspect engineering evidence.</strong>
             <p>
-              Tool adapters will record actual validation results. Review the expected and observed
-              values and source files before making a correction.
+              With integrations enabled, the daemon records actual validation results. Review the
+              expected and observed values and source files before making a correction.
             </p>
           </li>
         </ol>
+        <p className="muted">
+          Engineering execution requires the daemon integration opt-in (
+          <code>UDI_ENABLE_INTEGRATIONS=1</code>) and the relevant local tools. Saved results remain
+          readable when execution is disabled.
+        </p>
         <div className="notice">
           Agents receive explicitly shared project context. Private conversations and hidden agent
           reasoning are not automatically captured.
@@ -77,21 +83,21 @@ export function IntegrationGuide() {
                   pin mappings
                 </td>
                 <td>
-                  <Badge tone="warning">Engineering service required</Badge>
+                  <Badge tone="warning">Opt-in pin consistency check</Badge>
                 </td>
               </tr>
               <tr>
                 <th scope="row">PlatformIO</th>
                 <td>Approved build runner records real output and exit code</td>
                 <td>
-                  <Badge tone="warning">Build execution service required</Badge>
+                  <Badge tone="warning">Adapter available; build controls pending</Badge>
                 </td>
               </tr>
               <tr>
                 <th scope="row">Icarus Verilog</th>
                 <td>Optional RTL compilation and testbench runner</td>
                 <td>
-                  <Badge>Planned extension</Badge>
+                  <Badge>Adapter available; RTL controls pending</Badge>
                 </td>
               </tr>
               <tr>

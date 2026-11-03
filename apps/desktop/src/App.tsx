@@ -19,6 +19,7 @@ import {
 } from '@udi/ui';
 import { describeError } from './resource.js';
 import { JobPicker, readJobFindings } from './validation.js';
+import { ValidationRun } from './ValidationRun.js';
 import { useResource, Result, ConnectionReporter } from './data.js';
 import {
   StoredRecords,
@@ -158,8 +159,9 @@ function Mcp({ client }: { client: DaemonClient }) {
           )}
         </Result>
         <p className="muted">
-          MCP health checks and host configuration execution remain unavailable. Inventory changes
-          do not execute servers.
+          Connection probes require an enabled runtime integration and do not verify MCP tool
+          compatibility. Host configuration writes are not exposed. Inventory changes alone do not
+          execute servers.
         </p>
       </Card>
     </>
@@ -216,14 +218,17 @@ function Engineering({
   project,
   jobId,
   onJobSelect,
+  canValidate,
 }: {
   client: DaemonClient;
   project: Project;
   jobId: string | undefined;
   onJobSelect: (id: string | undefined) => void;
+  canValidate: boolean;
 }) {
   const page = usePage();
   const [mode, setMode] = useState('Selected job');
+  const [runningDialog, setRunningDialog] = useState(false);
   const findings = useResource(
     async () => {
       if (mode === 'History') {
@@ -301,15 +306,38 @@ function Engineering({
         </Result>
       </Card>
       <Card title="Validation execution">
-        <Unavailable
-          title="Execution is not available yet"
-          reason="The validation submission endpoint remains unimplemented. You can inspect persisted job results without claiming that a new check ran."
-        />
-        <Button disabled>Run validation</Button>
+        <Badge tone={canValidate ? 'good' : 'warning'}>
+          {canValidate ? 'Engineering service available' : 'Engineering execution not enabled'}
+        </Badge>
+        <p className="muted">
+          Run a read-only pin consistency check through the daemon. Review artifact paths before
+          submitting. Missing adapters and unavailable services are reported honestly.
+        </p>
+        <Button disabled={!canValidate} onClick={() => setRunningDialog(true)}>
+          Run pin consistency
+        </Button>
         <p className="muted">
           Configuration checks do not verify physical wiring or electrical safety.
         </p>
       </Card>
+      {runningDialog && (
+        <ValidationRun
+          client={client}
+          projectId={project.id}
+          onClose={() => setRunningDialog(false)}
+          onStart={() => {
+            onJobSelect(undefined);
+            setMode('Selected job');
+            page.reset();
+          }}
+          onJob={(job) => {
+            onJobSelect(job.id);
+            setMode('Selected job');
+            page.reset();
+            setRunningDialog(false);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -712,6 +740,10 @@ export function App() {
                           client={client}
                           project={project}
                           jobId={jobIds[project.id]}
+                          canValidate={Boolean(
+                            health.state.status === 'ready' &&
+                            health.state.data.capabilities?.engineering,
+                          )}
                           onJobSelect={(id) =>
                             setJobIds((previous) => ({ ...previous, [project.id]: id }))
                           }

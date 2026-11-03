@@ -21,7 +21,7 @@ udi.context, udi.events, udi.recordDecision, udi.findings, udi.openEvidence,
 udi.jobLogs, udi.mcp, udi.createHandoff, udi.latestHandoff, udi.validate,
 udi.openDashboard.
 
-`udi.validate` explicitly explains that the execution service remains unavailable; it does not fabricate a run. Handoffs now save real records and are no longer just local drafts. Decisions and handoffs require a trusted workspace and explicit save approval.
+`udi.validate` reviews relative artifact paths and requires approval before a real pin-consistency request. It requires a trusted workspace and daemon engineering capability (`UDI_ENABLE_INTEGRATIONS=1`). The returned job becomes the findings/diagnostic scope; previous diagnostics are cleared before submitting. Disabled execution, adapter failures and timeouts remain explicit. A timeout never triggers an automatic retry. Handoffs now save real records and are no longer just local drafts. Decisions and handoffs require a trusted workspace and explicit save approval.
 
 Daemon/dashboard origins are machine/user configuration, not workspace-controlled token destinations. The extension does not launch another daemon or read private agent conversations. No full desktop UI is embedded.
 
@@ -31,4 +31,6 @@ Tests execute actual bundled activation/commands against a mocked VS Code API, i
 
 Run **Developer Intelligence: Select Validation Job** (`udi.selectValidationJob`) and enter a recorded job UUID. The extension verifies that job against the active project and scopes findings using the SDK's jobId filter. Diagnostics clear before a job switch and only verified selected-job findings are published. No selected job means no current diagnostics; use the desktop History tab for older results. This intentionally avoids treating an old failure as the latest validation result.
 
-There is no agreed backend current/latest-job pointer yet, so the extension does not guess from finding timestamps. A successful job with no findings must still be selected explicitly; it cannot be discovered by looking only at old error records. Runtime QA verified one-to-zero diagnostic clearing over actual daemon HTTP using clearly imported failed/cancelled test snapshots and a mocked VS Code host. This is not an actual Extension Host or validator execution claim.
+There is no agreed backend current/latest-job pointer yet, so the extension does not guess from finding timestamps. A job returned by this extension is selected automatically. After restart, any other job with no findings must be selected explicitly; it cannot be discovered by looking only at old error records. Runtime QA verified one-to-zero diagnostic clearing over actual daemon HTTP using clearly imported failed/cancelled test snapshots and a mocked VS Code host. This is not an actual Extension Host or validator execution claim.
+
+Current execution verification and limitations: see [integration status](../desktop/INTEGRATION_STATUS.md). It supersedes the older execution-unavailable notes in the original handoff.

@@ -28,6 +28,9 @@ export function JobPicker({
   onSelect: (id: string | undefined) => void;
 }) {
   const [value, setValue] = useState(jobId ?? '');
+  useEffect(() => {
+    if (jobId) setValue(jobId);
+  }, [jobId]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const busy = useRef(false);
