@@ -1,4 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
+import { migrate } from './migrations.js';
+import { createPlatformRepositories } from './repositories.js';
+export * from './repositories.js';
 import { randomUUID } from 'node:crypto';
 import {
   ProjectSchema,
@@ -18,34 +21,12 @@ export interface ProjectRepository {
   update(id: string, input: ProjectUpdate): Project | undefined;
   delete(id: string): boolean;
 }
-/** Daemon-owned SQLite connection. EventStore implementation belongs to Developer 2. */
+/** Daemon-owned SQLite connection. Algorithms consume repositories; only the daemon opens SQLite. */
 export function openDatabase(filename: string) {
   const db = new DatabaseSync(filename);
   try {
     db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
-    db.exec(
-      `CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);`,
-    );
-    const version = db
-      .prepare('SELECT max(version) AS version FROM schema_migrations')
-      .get()?.version;
-    if (version !== null && version !== undefined && Number(version) > 1)
-      throw new Error('Database schema is newer than this daemon');
-    db.exec('BEGIN IMMEDIATE');
-    try {
-      if (!version) {
-        db.exec(`
-          CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, root_path TEXT NOT NULL UNIQUE, description TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-          CREATE TABLE activity_events (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE, created_at TEXT NOT NULL, body TEXT NOT NULL CHECK(json_valid(body)));
-          CREATE INDEX activity_events_project_time ON activity_events(project_id, created_at);
-        `);
-        db.prepare('INSERT INTO schema_migrations VALUES (1, ?)').run(new Date().toISOString());
-      }
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
+    migrate(db);
   } catch (error) {
     db.close();
     throw error;
@@ -103,5 +84,6 @@ export function openDatabase(filename: string) {
     },
     delete: (id) => Number(db.prepare('DELETE FROM projects WHERE id = ?').run(id).changes) > 0,
   };
-  return { projects, close: () => db.close() };
+  return { projects, ...createPlatformRepositories(db), close: () => db.close() };
 }
+export type PlatformDatabase = ReturnType<typeof openDatabase>;
