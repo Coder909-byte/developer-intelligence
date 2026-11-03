@@ -1,0 +1,21 @@
+{
+  "board": "esp32",
+  "mcuComponent": "U2",
+  "signals": {
+    "MOTOR_EN": {
+      "net": "Net-(U1-MOTOR_EN)",
+      "gpio": "GPIO14",
+      "mcuPin": "12"
+    },
+    "MOTOR_IN1": {
+      "net": "Net-(U1-MOTOR_IN1)",
+      "gpio": "GPIO27",
+      "mcuPin": "11"
+    },
+    "MOTOR_IN2": {
+      "net": "Net-(U1-MOTOR_IN2)",
+      "gpio": "GPIO25",
+      "mcuPin": "9"
+    }
+  }
+}

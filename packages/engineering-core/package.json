@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@udi/contracts": "workspace:*",
-    "@udi/tool-runners": "workspace:*"
+    "@udi/tool-runners": "workspace:*",
+    "zod": "4.6.7"
   }
 }
