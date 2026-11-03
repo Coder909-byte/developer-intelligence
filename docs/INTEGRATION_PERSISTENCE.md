@@ -1,6 +1,6 @@
 # Core-platform persistence integration
 
-Current owner: Developer 1. Branch: feat/core-platform. This milestone adds database/API/SDK support without changing frontend or intelligence implementations. Consult API_CONTRACTS for all route/input/filter details. These additions must reach the integration baseline through the lead; do not merge teammate branches without approval.
+Current owner: Developer 1. Persistence baseline is merged into main (cb848d5); readiness work continues on feat/core-platform. This milestone adds database/API/SDK support without changing frontend or intelligence implementations. Consult API_CONTRACTS for all route/input/filter details. Consume the merged baseline through the lead's team workflow; do not merge teammate branches without approval.
 
 ## Developer 2
 
@@ -60,3 +60,5 @@ No UI modules changed. Render valid empty data, offline/401/400/404/409 errors, 
 ## Verification
 
 Migration tests preserve a preexisting v1 project's data/events and verify forward-only/idempotent behavior. Integration tests exercise all records through the SDK, project isolation, authentication, invalid scope/references, pagination, conflicts, atomic rollback and provider output validation. `node scripts/smoke.mjs` restarts the actual daemon process over HTTP and rechecks every record type; all engineering data in that test is explicitly synthetic persistence-test input, not an executed validation.
+
+See [integration readiness](INTEGRATION_READINESS.md) for the current branch audit, exact teammate actions and contract gaps, and [demo plan](DEMO_PLAN.md) for deterministic product acceptance gates.

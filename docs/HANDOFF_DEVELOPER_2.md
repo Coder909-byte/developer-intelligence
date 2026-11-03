@@ -28,7 +28,7 @@ Own `context-engine`, `mcp-gateway`, `engineering-core`, `tool-runners`, host/ag
 2. Inject your context implementation through the daemon integration factory. Persisted context reads already work; add algorithm tests before claiming synthesis support.
 3. Build real MCP tools: get_project_context, list_project_events, get_validation_results, list_available_tools; record_decision is a reviewed write. Keep stdio stdout protocol-only, logs on stderr. Test a real second host before naming it supported.
 4. Add sourced KiCad-exported fixture and firmware pin map in examples/rover; deterministic mismatch and corrected comparison with both file references. Fixtures are intentionally absent; never relabel a hand-authored synthetic file as exported KiCad output.
-5. Implement findings/job persistence and daemon integration. PlatformIO, RTL and serial are real integrations only when tools/hardware exist; unavailable is never success.
+5. Use existing findings/job persistence and coordinate daemon execution integration with Developer 1. PlatformIO, RTL and serial are real integrations only when tools/hardware exist; unavailable is never success.
 
 Current frozen reads: `/api/v1/projects/:id/context`, `/api/v1/mcp/servers`, `/api/v1/engineering/findings?projectId=UUID` return persisted data. Write schemas are documented in API_CONTRACTS. Import them directly; never invent private frontend/adapter payloads. Execution/health checks remain 501 pending your implementations.
 
@@ -39,3 +39,7 @@ Scoped storage isolation, restart persistence, migration preservation, provenanc
 ## Updated core-platform milestone
 
 The current Developer 1 assignment supersedes the bootstrap event-persistence work above: migration v2, event/context/handoff repositories, MCP inventory and completed validation-result storage are implemented on feat/core-platform. Do not duplicate persistence or introduce another migration v2. Your intelligence, MCP execution and validation algorithms remain unchanged in ownership. See [persistence integration](INTEGRATION_PERSISTENCE.md), [ADR 0002](ADR/0002-persistence.md), and the new API_CONTRACTS section for exact ports and SDK write methods. Existing EventStore and ContextRepository interfaces remain structurally compatible. Coordinate integration with the lead; do not merge teammate branches without approval.
+
+## Integration readiness follow-up
+
+Persistence is now merged into main (cb848d5). See [integration readiness](INTEGRATION_READINESS.md) for the actual production composition, completed-event/context publication, current-job discovery, exact stdio entry point and fixture requirements, and [demo plan](DEMO_PLAN.md) for release gates. The fetched intelligence branch is still at bootstrap; unpublished local work was not reviewed. No competing persistence or migration implementation is required.

@@ -51,4 +51,8 @@ Test SDK-based loading/error/401/501 flows, project selection/isolation, no acci
 
 ## Updated core-platform milestone
 
-Context, MCP inventory and findings reads now return persisted data rather than bootstrap 501s. Events, context records, handoffs, inventory and completed validation-result writes have typed SDK methods. Existing successful project/health APIs and entity shapes remain unchanged. See [persistence integration](INTEGRATION_PERSISTENCE.md) for examples and API_CONTRACTS for the full route table, pagination and create-versus-snapshot request rules. Validation execution and MCP health checks remain explicit 501s. Changes live on feat/core-platform until integrated through the lead; no frontend files were changed by this milestone.
+Context, MCP inventory and findings reads now return persisted data rather than bootstrap 501s. Events, context records, handoffs, inventory and completed validation-result writes have typed SDK methods. Existing successful project/health APIs and entity shapes remain unchanged. See [persistence integration](INTEGRATION_PERSISTENCE.md) for examples and API_CONTRACTS for the full route table, pagination and create-versus-snapshot request rules. Validation execution and MCP health checks remain explicit 501s. Persistence is merged into main (cb848d5); no frontend files were changed by that milestone.
+
+## Integration readiness follow-up
+
+Read-only review of frontend d1ce340 confirms compatible existing read calls, but validation/handoff commands and unavailable copy still target the bootstrap baseline. Wire the existing handoff SDK, select findings by current job ID, clear historical diagnostics after correction and verify real Extension Host behavior. See [integration readiness](INTEGRATION_READINESS.md) and [demo plan](DEMO_PLAN.md) for exact requirements. This audit did not merge or modify your branch.

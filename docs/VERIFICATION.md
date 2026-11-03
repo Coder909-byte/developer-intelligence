@@ -30,3 +30,13 @@ Verified on feat/core-platform after the bootstrap:
 - No desktop, extension, UI, context-engine, MCP gateway, engineering-core or tool-runner source files were modified. Existing native/toolchain limitations from bootstrap remain unchanged.
 
 Storage and additive contracts are committed separately from routes/SDK/integration documentation. Git push is limited to feat/core-platform; main and teammate branches are not merged or pushed by this milestone.
+
+## Post-merge integration readiness audit — 3 November 2026
+
+- Started from clean feat/core-platform at fa048ec. Fetched refs, confirmed HEAD was an ancestor of merged main cb848d5, and fast-forwarded the feature branch with no content changes. Local main and teammate branches were preserved.
+- Read-only review covered frontend d1ce340 and the fetched intelligence branch at bootstrap 9c233ba. Unpublished local teammate code and a combined frontend/intelligence runtime were not evaluated.
+- On the synchronized backend baseline, pnpm typecheck/lint/test/build/format:check passed; 50 tests passed in 6 files. Portable web/extension builds do not verify the unmerged frontend branch or native runtime.
+- Expanded actual loopback HTTP smoke passed: missing/wrong-token 401, rejected write leaves no project, authenticated project creation, protected-resource checks, browser PUT preflight, context/event/handoff/inventory/results persistence, cross-project read/write rejection, no partial handoff, generated token reuse and all stored IDs after graceful process restart. Execution still returns truthful 501 responses. All validation records here are synthetic storage fixtures.
+- Startup, HTTP assertions and shutdown have deadlines so failed integration checks do not wait indefinitely. Temporary data is removed; no daemon or demo data is left running in the real workspace.
+- No entity schemas, shared SDK signatures, endpoint behavior, database migration, frontend or intelligence algorithm implementation changed. Necessary updates are the stronger smoke test, current integration documentation and deterministic demo gates.
+- Doctor still reports missing code, cargo/rustc, platformio, kicad-cli and iverilog on this machine. Actual VS Code activation, native packaging, real engineering comparison and second-host MCP retrieval remain NOT RUN/BLOCKED, not inferred from persistence success.
