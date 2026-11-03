@@ -172,9 +172,25 @@ real Laya executions. The existing eight-step MCP script ran; its available chec
 passed, with OpenCode explicitly skipped because it is not installed.
 
 An earlier full suite passed 175 tests in 27 files. A subsequent regression test
-adds latest-binding precedence. Final focused results are recorded in the delivery
-report. Build and typecheck passed. Per the user's request, no native GUI automation
-or repeat of the long full suite is required for this delivery.
+adds latest-binding precedence. After isolating this change on the fetched main
+base, final focused verification passed:
+
+| Command                                                                                                                                                      | Actual result                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `python3 scripts/verify_spec2.py`                                                                                                                            | 45 assertions passed in 7.52 seconds while other focused checks ran concurrently; 79 estimated compressed tokens / 97.60% savings |
+| `pnpm exec vitest run packages/context-engine/src/compressor.test.ts packages/mcp-gateway/src/gateway-toggle.test.ts packages/mcp-gateway/src/index.test.ts` | 21 tests / 3 files passed in 8.65 seconds                                                                                         |
+| `pnpm exec tsc --noEmit -p tsconfig.json`                                                                                                                    | Passed, after building workspace packages                                                                                         |
+| `pnpm lint`                                                                                                                                                  | Passed                                                                                                                            |
+| `pnpm build`                                                                                                                                                 | All workspace package and application builds passed                                                                               |
+| `node scripts/smoke.mjs`                                                                                                                                     | Actual HTTP auth, persistence-only API compatibility and restart checks passed                                                    |
+| `pnpm exec prettier --check` with the changed implementation files and new handoff document                                                                  | All selected files passed                                                                                                         |
+
+The existing MCP interop command was `node scripts/verify-mcp-interop.mjs`, using
+the already-built packages rather than repeating its build prelude. Its OpenCode
+step was skipped, so this is not a claim that all eight steps executed. Per the
+user's request, no native GUI automation or repeat of the long full suite was run
+for final verification. Test-owned daemon/MCP processes were closed; unrelated
+development servers were left alone.
 
 Please verify these in real VS Code:
 
