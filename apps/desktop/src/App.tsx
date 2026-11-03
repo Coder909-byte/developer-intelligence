@@ -19,6 +19,7 @@ import {
 } from '@udi/ui';
 import { describeError } from './resource.js';
 import { JobPicker, readJobFindings } from './validation.js';
+import { SafeCorrection, supportsCorrection } from './SafeCorrection.js';
 import { ValidationRun } from './ValidationRun.js';
 import { useResource, Result, ConnectionReporter } from './data.js';
 import {
@@ -168,7 +169,15 @@ function Mcp({ client }: { client: DaemonClient }) {
     </>
   );
 }
-export function Findings({ items, client }: { items: ValidationFinding[]; client?: DaemonClient }) {
+export function Findings({
+  items,
+  client,
+  onPreview,
+}: {
+  items: ValidationFinding[];
+  client?: DaemonClient;
+  onPreview?: (finding: ValidationFinding) => void;
+}) {
   const [selected, setSelected] = useState<ValidationFinding>();
   if (!items.length)
     return (
@@ -180,22 +189,31 @@ export function Findings({ items, client }: { items: ValidationFinding[]; client
     <>
       <div className="finding-list">
         {items.map((f) => (
-          <button key={f.id} className="finding-row" onClick={() => setSelected(f)}>
-            <Badge
-              tone={
-                f.severity === 'error' ? 'error' : f.severity === 'warning' ? 'warning' : 'neutral'
-              }
-            >
-              {f.severity}
-            </Badge>
-            <span>
-              <strong>{f.message}</strong>
-              <small>
-                {f.ruleId} · Job {f.jobId} · {f.evidence[0]?.filePath}
-              </small>
-            </span>
-            <span>View evidence →</span>
-          </button>
+          <div key={f.id}>
+            <button className="finding-row" onClick={() => setSelected(f)}>
+              <Badge
+                tone={
+                  f.severity === 'error'
+                    ? 'error'
+                    : f.severity === 'warning'
+                      ? 'warning'
+                      : 'neutral'
+                }
+              >
+                {f.severity}
+              </Badge>
+              <span>
+                <strong>{f.message}</strong>
+                <small>
+                  {f.ruleId} · Job {f.jobId} · {f.evidence[0]?.filePath}
+                </small>
+              </span>
+              <span>View evidence →</span>
+            </button>
+            {onPreview && supportsCorrection(f) && (
+              <Button onClick={() => onPreview(f)}>Preview Fix</Button>
+            )}
+          </div>
         ))}
       </div>
       {selected && (
@@ -205,10 +223,21 @@ export function Findings({ items, client }: { items: ValidationFinding[]; client
             <StoredJob client={client} projectId={selected.projectId} jobId={selected.jobId} />
           )}
           <p className="muted">
-            Open evidence in the VS Code extension. Desktop source navigation and patch approval are
-            not exposed by this SDK.
+            Open evidence in the VS Code extension. Supported firmware corrections require a
+            reviewed diff and explicit approval.
           </p>
-          <Button disabled>Propose correction</Button>
+          {onPreview && supportsCorrection(selected) ? (
+            <Button
+              onClick={() => {
+                onPreview(selected);
+                setSelected(undefined);
+              }}
+            >
+              Preview Fix
+            </Button>
+          ) : (
+            <Button disabled>Correction unavailable for this finding</Button>
+          )}
         </Dialog>
       )}
     </>
@@ -230,6 +259,7 @@ function Engineering({
   const page = usePage();
   const [mode, setMode] = useState('Selected job');
   const [runningDialog, setRunningDialog] = useState(false);
+  const [correctionFinding, setCorrectionFinding] = useState<ValidationFinding>();
   const findings = useResource(
     async () => {
       if (mode === 'History') {
@@ -292,6 +322,7 @@ function Engineering({
                   key={`${mode}:${jobId ?? ''}:${page.offset}`}
                   items={data.items}
                   client={client}
+                  {...(mode !== 'History' ? { onPreview: setCorrectionFinding } : {})}
                 />
                 <PageControls page={page} count={data.items.length} />
                 {mode !== 'History' && jobId && (
@@ -306,6 +337,22 @@ function Engineering({
           }
         </Result>
       </Card>
+      <SafeCorrection
+        client={client}
+        projectId={project.id}
+        finding={correctionFinding}
+        onCancel={() => setCorrectionFinding(undefined)}
+        onStart={() => {
+          onJobSelect(undefined);
+          setMode('Selected job');
+          page.reset();
+        }}
+        onJob={(job) => {
+          onJobSelect(job.id);
+          setMode('Selected job');
+          page.refresh();
+        }}
+      />
       <Card title="Validation execution">
         <Badge tone={canValidate ? 'good' : 'warning'}>
           {canValidate ? 'Engineering service available' : 'Engineering execution not enabled'}

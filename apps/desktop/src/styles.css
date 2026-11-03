@@ -1744,3 +1744,16 @@ summary {
     filter: none;
   }
 }
+.correction-approval {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 18px 0;
+  line-height: 1.7;
+  color: var(--text);
+}
+.correction-approval input {
+  margin-top: 5px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}

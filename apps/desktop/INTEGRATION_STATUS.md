@@ -28,3 +28,7 @@ The compiled extension ran approved validation commands against actual daemon HT
 - Device/serial telemetry, agent discovery, permission editing, arbitrary host setup and source corrections remain unavailable unless their contracts/services exist.
 - Native Tauri packaging requires Cargo/system prerequisites; this environment has no Cargo. Portable builds pass separately.
 - Actual VS Code Extension Host launch was blocked by this environment. Bundle and mocked-host integration are verified; local F5 verification is still required. VSIX packaging is not configured.
+
+## Safe correction milestone
+
+[Safe correction integration](SAFE_CORRECTION_INTEGRATION.md) supersedes the earlier source-correction and native latest-job limitations above. The reviewed preview/apply/rollback flow is now wired, with real daemon/React/browser verification and completion-event-driven diagnostic refresh. The rollback persistence gap and frontend workaround are documented there.
