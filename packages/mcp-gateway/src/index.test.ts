@@ -140,6 +140,29 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
       previewCorrection: vi.fn(),
       applyCorrection: vi.fn(),
       rollbackCorrection: vi.fn(),
+      getToolCategories: vi.fn(async () => ({
+        projectId,
+        categories: [
+          'hardware_validation',
+          'context_memory',
+          'ide_extension_bridge',
+          'external_servers',
+        ].map((category) => ({
+          category: category as import('@udi/contracts').ToolCategory,
+          enabled: true,
+          name: category,
+          description: category,
+          toolCount: 1,
+        })),
+      })),
+      toggleToolCategory: vi.fn(),
+      getCompressedContext: vi.fn(),
+      registerHostExtensionTool: vi.fn(),
+      listHostExtensionTools: vi.fn(async () => ({ items: [] })),
+      pollHostExtensionRequests: vi.fn(),
+      completeHostExtensionRequest: vi.fn(),
+      callHostExtensionTool: vi.fn(),
+      convertCodexContext: vi.fn(),
       listIntegrations: vi.fn(async () => ({ items: [] })),
       discoverServerTools: vi.fn(async () => ({ items: [] })),
       callMcpTool: vi.fn(),
@@ -272,6 +295,70 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
     expect(responseText).toContain('record_decision');
 
     await gateway.stop();
+  });
+});
+
+describe('Spec 2 upstream schema forwarding', () => {
+  it('keeps required params and rebases local references under the advertised params object', async () => {
+    const projectId = randomUUID();
+    const server: McpServer = {
+      id: randomUUID(),
+      name: 'schema-provider',
+      createdAt: '2026-11-04T00:00:00Z',
+      updatedAt: '2026-11-04T00:00:00Z',
+      enabled: true,
+      status: 'unknown',
+      transport: { type: 'stdio', executableId: 'unused-unit-fixture', args: [] },
+    };
+    const client = {
+      getToolCategories: async () => ({
+        projectId,
+        categories: [{ category: 'external_servers', enabled: true }],
+      }),
+      listMcpServers: async () => ({ items: [server] }),
+      discoverServerTools: async () => ({
+        items: [
+          {
+            name: 'inspect',
+            inputSchema: {
+              type: 'object',
+              properties: { config: { $ref: '#/$defs/Config' } },
+              required: ['config'],
+              $defs: { Config: { type: 'object', properties: { mode: { type: 'string' } } } },
+            },
+          },
+        ],
+      }),
+    } as unknown as DaemonClient;
+    const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+    const gateway = new DefaultMcpGateway({ client, projectId }, serverTransport);
+    await gateway.start();
+    try {
+      const response = new Promise<unknown>((resolve) => {
+        clientTransport.onmessage = (message) => {
+          if ('id' in message && message.id === 501) resolve(message);
+        };
+      });
+      await clientTransport.start();
+      await clientTransport.send({ jsonrpc: '2.0', id: 501, method: 'tools/list', params: {} });
+      const message = (await response) as {
+        result: { tools: Array<{ name: string; inputSchema: unknown }> };
+      };
+      expect(
+        message.result.tools.find((tool) => tool.name === 'schema-provider__inspect')?.inputSchema,
+      ).toMatchObject({
+        required: ['params'],
+        properties: {
+          params: {
+            required: ['config'],
+            properties: { config: { $ref: '#/properties/params/$defs/Config' } },
+            $defs: { Config: { type: 'object' } },
+          },
+        },
+      });
+    } finally {
+      await gateway.stop();
+    }
   });
 });
 

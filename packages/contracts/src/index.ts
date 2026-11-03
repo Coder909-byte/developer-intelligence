@@ -462,3 +462,108 @@ export const McpToolCallResponseSchema = z.strictObject({
   durationMs: z.number().nonnegative(),
 });
 export type McpToolCallResponse = z.infer<typeof McpToolCallResponseSchema>;
+
+// Backend Spec 2: additive compression, category and host-bridge contracts.
+export const ToolCategorySchema = z.enum([
+  'hardware_validation',
+  'context_memory',
+  'ide_extension_bridge',
+  'external_servers',
+]);
+export type ToolCategory = z.infer<typeof ToolCategorySchema>;
+export const ToolCategoryConfigSchema = z.strictObject({
+  category: ToolCategorySchema,
+  enabled: z.boolean(),
+  name: z.string(),
+  description: z.string(),
+  toolCount: z.number().int().nonnegative(),
+});
+export type ToolCategoryConfig = z.infer<typeof ToolCategoryConfigSchema>;
+export const ToolCategoryListSchema = z.strictObject({
+  projectId: IdSchema,
+  categories: z.array(ToolCategoryConfigSchema),
+});
+export type ToolCategoryList = z.infer<typeof ToolCategoryListSchema>;
+export const ToggleCategoryRequestSchema = z.strictObject({
+  projectId: IdSchema,
+  category: ToolCategorySchema,
+  enabled: z.boolean(),
+});
+export type ToggleCategoryRequest = z.infer<typeof ToggleCategoryRequestSchema>;
+export const CompressedContextResultSchema = z.strictObject({
+  projectId: IdSchema,
+  mode: z.enum(['deterministic_delta', 'ai_distillation']),
+  rawTokensEstimate: z.number().int().nonnegative(),
+  compressedTokensEstimate: z.number().int().nonnegative(),
+  savingsPercent: z.number().min(0).max(100),
+  injectedBlock: z.string(),
+  activeInvariants: z.array(z.string()),
+  openIssuesCount: z.number().int().nonnegative(),
+  generatedAt: TimestampSchema,
+});
+export type CompressedContextResult = z.infer<typeof CompressedContextResultSchema>;
+export const CompressionQuerySchema = z.strictObject({
+  mode: CompressedContextResultSchema.shape.mode.default('deterministic_delta'),
+});
+export const BridgedExtensionToolSchema = z.strictObject({
+  projectId: IdSchema,
+  hostId: IdSchema,
+  name: z.enum(['vscode_execute_command', 'vscode_list_diagnostics']),
+  description: z.string().max(1000),
+  commandIds: z.array(z.string().min(1).max(200)).max(100).default([]),
+});
+export type BridgedExtensionTool = z.infer<typeof BridgedExtensionToolSchema>;
+export const BridgedExtensionToolListSchema = z.strictObject({
+  items: z.array(BridgedExtensionToolSchema),
+});
+export const BridgeCallSchema = z.strictObject({
+  name: BridgedExtensionToolSchema.shape.name,
+  arguments: z.record(z.string(), JsonValueSchema).default({}),
+});
+export const BridgeResultSchema = z.strictObject({
+  isError: z.boolean(),
+  content: JsonValueSchema,
+});
+export const BridgeInvocationSchema = z.strictObject({
+  id: IdSchema,
+  projectId: IdSchema,
+  hostId: IdSchema,
+  name: BridgedExtensionToolSchema.shape.name,
+  arguments: z.record(z.string(), JsonValueSchema),
+  expiresAt: TimestampSchema,
+});
+export const BridgePollSchema = z.strictObject({ items: z.array(BridgeInvocationSchema) });
+
+// Explicit, local Codex -> Claude Code Markdown handoff. This is not a native session resume.
+export const CodexClaudeConvertRequestSchema = z.strictObject({ sessionId: IdSchema.optional() });
+export const NativeContextEntrySchema = z.strictObject({
+  id: z.string().min(1).max(300),
+  role: z.enum(['user', 'assistant', 'tool']),
+  occurredAt: TimestampSchema,
+  text: z.string().min(1).max(8000),
+  originalChars: z.number().int().positive(),
+  truncated: z.boolean(),
+});
+export type NativeContextEntry = z.infer<typeof NativeContextEntrySchema>;
+export const CodexClaudeHandoffSchema = z.strictObject({
+  projectId: IdSchema,
+  projectName: z.string(),
+  sessionId: IdSchema,
+  storage: z.enum(['codex_sqlite', 'codex_rollout']),
+  generatedAt: TimestampSchema,
+  filename: z.literal('codex-claude-context.md'),
+  importLine: z.literal('@./codex-claude-context.md'),
+  markdown: z.string().min(1).max(40000),
+  entries: z.array(NativeContextEntrySchema).min(1).max(24),
+  stats: z.strictObject({
+    messagesRead: z.number().int().positive(),
+    messagesIncluded: z.number().int().positive(),
+    omittedMessages: z.number().int().nonnegative(),
+    truncatedMessages: z.number().int().nonnegative(),
+    rawTokensEstimate: z.number().int().nonnegative(),
+    outputTokensEstimate: z.number().int().nonnegative(),
+    sourceWindowLimited: z.boolean(),
+  }),
+  nativeClaudeSessionVerified: z.literal(false),
+});
+export type CodexClaudeHandoff = z.infer<typeof CodexClaudeHandoffSchema>;

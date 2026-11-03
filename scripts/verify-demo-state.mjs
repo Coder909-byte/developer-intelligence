@@ -26,7 +26,14 @@ const mcp = await connectMcp(root, {
 try {
   assert.equal(mcp.initialized.serverInfo.name, 'developer-intelligence-gateway');
   const tools = await mcp.request('tools/list');
-  assert.equal(tools.tools.length, 5);
+  for (const name of [
+    'get_project_context',
+    'list_project_events',
+    'get_validation_results',
+    'record_decision',
+    'list_available_tools',
+  ])
+    assert(tools.tools.some((t) => t.name === name));
   const retrieved = await mcp.tool('get_project_context', { projectId: result.projectId });
   assert.deepEqual(
     retrieved.data.records.map((r) => r.id).sort(),
@@ -113,7 +120,7 @@ try {
     projectId: result.projectId,
     actualMcpCli: 'packages/mcp-gateway/dist/cli.js',
     protocol: mcp.initialized.protocolVersion,
-    toolCount: 5,
+    toolCount: tools.tools.length,
     matchedContextRecords: context.records.length,
     failedFindings: 1,
     correctedFindings: 0,

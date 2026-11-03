@@ -15,11 +15,13 @@ import {
 import { openDatabase, PersistenceError } from '@udi/event-store';
 import { registerPlatformRoutes, type IntegrationFactory } from './platform-routes.js';
 import { apiSuccess as success, responseMeta as meta } from './responses.js';
+import { registerCodexContextRoutes } from './codex-context.js';
 export interface AppOptions {
   databasePath: string;
   token: string;
   logger?: boolean;
   integrations?: IntegrationFactory;
+  codexHome?: string;
 }
 export function buildApp(options: AppOptions) {
   if (options.token.length < 32) throw new Error('Local token must be at least 32 characters');
@@ -229,5 +231,6 @@ export function buildApp(options: AppOptions) {
         });
   });
   registerPlatformRoutes(app, store, integrations);
+  registerCodexContextRoutes(app, store, options.codexHome ?? process.env.UDI_CODEX_HOME);
   return app;
 }

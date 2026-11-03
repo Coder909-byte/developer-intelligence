@@ -1,3 +1,4 @@
+import { startMcpExtensionBridge } from './mcp-bridge.js';
 import * as vscode from 'vscode';
 import { createClient, DaemonClientError } from '@udi/client-sdk';
 import {
@@ -728,6 +729,11 @@ export function activate(context: vscode.ExtensionContext) {
       });
   }, 5000);
   context.subscriptions.push({ dispose: () => clearInterval(completionTimer) });
+  context.subscriptions.push(
+    startMcpExtensionBridge(() =>
+      selected ? { project: selected, origin: origin(), client: client() } : undefined,
+    ),
+  );
   void refresh();
 }
 export function deactivate() {}

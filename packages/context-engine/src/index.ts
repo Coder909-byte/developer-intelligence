@@ -108,3 +108,6 @@ export function buildAgentHandoff(projectId: string, input: HandoffCreate): Agen
     provenance: input.provenance,
   };
 }
+
+export * from './compressor.js';
+export * from './claude-handoff.js';

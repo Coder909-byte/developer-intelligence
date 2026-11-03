@@ -132,3 +132,18 @@ export async function applyHostConfig(
     written: true,
   };
 }
+
+/** Extension clients use the same authenticated daemon; no additional gateway or host-file write. */
+export async function registerHostExtensionTool(
+  toolDefinition: import('@udi/contracts').BridgedExtensionTool,
+  client: import('@udi/client-sdk').DaemonClient,
+): Promise<import('@udi/contracts').BridgedExtensionTool> {
+  return client.registerHostExtensionTool(toolDefinition);
+}
+
+export class HostExtensionBridge {
+  constructor(private readonly client: import('@udi/client-sdk').DaemonClient) {}
+  registerHostExtensionTool(toolDefinition: import('@udi/contracts').BridgedExtensionTool) {
+    return registerHostExtensionTool(toolDefinition, this.client);
+  }
+}

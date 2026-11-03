@@ -1,3 +1,4 @@
+import { registerContextMcpRoutes } from './context-mcp-routes.js';
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -89,6 +90,9 @@ export function registerPlatformRoutes(
   store: PlatformDatabase,
   integrations: PlatformIntegrations,
 ) {
+  registerContextMcpRoutes(app, store, async () =>
+    integrations.aggregator ? integrations.aggregator.listIntegrations() : [],
+  );
   const prefix = API_PREFIX;
   const projectId = (params: unknown) => {
     const { id } = z.object({ id: IdSchema }).parse(params);
@@ -561,7 +565,12 @@ export function registerPlatformRoutes(
 
       return apiSuccess(
         {
-          ok: true,
+          ok: !(
+            res.result !== null &&
+            typeof res.result === 'object' &&
+            'isError' in res.result &&
+            res.result.isError === true
+          ),
           serverName: server.name,
           toolName,
           result: res.result as JsonValue,

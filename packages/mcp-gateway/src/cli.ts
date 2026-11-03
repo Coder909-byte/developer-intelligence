@@ -5,7 +5,7 @@ import { createClient } from '@udi/client-sdk';
 import { DefaultMcpGateway } from './gateway.js';
 
 async function main(): Promise<void> {
-  const baseUrl = process.env.UDI_DAEMON_URL ?? process.env.UDI_URL ?? 'http://127.0.0.1:4317';
+  let baseUrl = process.env.UDI_DAEMON_URL ?? process.env.UDI_URL ?? 'http://127.0.0.1:4317';
   let token = process.env.UDI_TOKEN;
   let projectId = process.env.UDI_PROJECT_ID;
 
@@ -19,6 +19,7 @@ async function main(): Promise<void> {
       token = args[i + 1];
       i++;
     } else if (args[i] === '--url' && args[i + 1]) {
+      baseUrl = args[i + 1]!;
       i++;
     }
   }
@@ -49,7 +50,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const client = createClient({ baseUrl, token });
+  const client = createClient({ baseUrl, token, timeoutMs: 25000 });
 
   // If no projectId was passed, query daemon for active projects
   if (!projectId) {

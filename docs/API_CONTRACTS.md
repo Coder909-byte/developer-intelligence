@@ -124,3 +124,20 @@ After execution, the daemon persists the actual job/findings, a completed activi
 Unfiltered findings remain historical for compatibility. Use listFindings(projectId,{jobId}) for the current completed job and the latest engineering.validation.completed event to recover that job after reload. A successful rerun does not rewrite the earlier failed finding.
 
 scripts/mcp-stdio.mjs is a thin executable composition of DefaultMcpGateway, not a separate gateway. It reads the existing daemon token (or explicit UDI_TOKEN), validates UDI_PROJECT_ID and project access, and uses the shared SDK over loopback. stdout is MCP JSON-RPC only. Runtime testing negotiates protocol 2025-11-25 and calls real tools via an independent child process. See RUNTIME_DEMO for commands/results and remaining UI/host limitations.
+
+## Backend Spec 2 additive surface
+
+The subsequent user-requested frontend conversion adds
+`POST /projects/:id/context-bridge/codex-to-claude` and
+`client.convertCodexContext(projectId, input?)`. See
+[CODEX_CLAUDE_CONTEXT_BRIDGE.md](CODEX_CLAUDE_CONTEXT_BRIDGE.md) for the native
+read-only source boundary and Claude Markdown export contract. It does not claim
+native Claude session resumption or live application consumption.
+
+See [BACKEND_SPEC2_HANDOFF.md](BACKEND_SPEC2_HANDOFF.md) for the exact compression,
+category-toggle and live extension-broker routes, SDK methods, provenance rules and
+manual VS Code acceptance checklist. Existing response shapes and MCP names remain
+compatible. The MCP invocation response's existing nested `data.ok` now correctly
+returns false when the upstream provider reports `isError: true`; stored execution
+outcomes also reflect that failure. Backend Spec 1's proxy, classifier and injection
+remain teammate responsibilities.
