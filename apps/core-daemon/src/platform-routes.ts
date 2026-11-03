@@ -39,7 +39,6 @@ import {
   ContextSnapshotCreateSchema,
   type ContextSnapshot,
   AnthropicChatRequestSchema,
-  type AnthropicChatRequest,
   type AnthropicChatResponse,
 } from '@udi/contracts';
 import { PersistenceError, type PlatformDatabase } from '@udi/event-store';
@@ -977,7 +976,7 @@ export function registerPlatformRoutes(
       }
     }
 
-    let replyText = '';
+    let replyText: string;
     if (/motor|pin|gpio|rover/i.test(lastUserMessage)) {
       replyText = `Based on verified project context for ${project.name}, the hardware specification defines MOTOR_EN on GPIO14 (per rover.net:28). All engineering checks are verified with 0 active discrepancies.`;
     } else if (/what.*(?:do|work|next)|status/i.test(lastUserMessage)) {

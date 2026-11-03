@@ -232,7 +232,7 @@ function Mcp({
       ) : tab === 'Tools' ? (
         <ToolDiscoveryUnavailable />
       ) : tab === 'Host Setup' ? (
-        <HostSetup onSettings={onSettings} />
+        <HostSetup client={client} projectId={project?.id} onSettings={onSettings} />
       ) : project ? (
         <>
           <p className="muted">

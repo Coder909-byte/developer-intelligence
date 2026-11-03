@@ -122,6 +122,18 @@
       {
         "command": "udi.selectValidationJob",
         "title": "Developer Intelligence: Select Validation Job"
+      },
+      {
+        "command": "udi.configureAiExtensions",
+        "title": "Developer Intelligence: Auto-Configure AI Extensions (Cline / Continue / MCP)"
+      },
+      {
+        "command": "udi.saveSnapshot",
+        "title": "Developer Intelligence: Save Context Checkpoint"
+      },
+      {
+        "command": "udi.copyRouteEnv",
+        "title": "Developer Intelligence: Copy Agent Route Shell Environment"
       }
     ],
     "configuration": {

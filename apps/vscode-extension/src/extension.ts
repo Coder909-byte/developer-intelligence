@@ -31,6 +31,9 @@ const actions = [
   'jobLogs',
   'selectValidationJob',
   'openDashboard',
+  'configureAiExtensions',
+  'saveSnapshot',
+  'copyRouteEnv',
 ] as const;
 type Action = (typeof actions)[number];
 type Row = { label: string; description?: string; action?: Action; argument?: unknown };
@@ -669,6 +672,91 @@ export function activate(context: vscode.ExtensionContext) {
           throw new Error('Dashboard must be local HTTP');
         if (!(await vscode.env.openExternal(vscode.Uri.parse(url.toString()))))
           await vscode.window.showWarningMessage('Start pnpm dev:desktop to open dashboard.');
+        return;
+      }
+      case 'configureAiExtensions': {
+        const wf = vscode.workspace.workspaceFolders?.[0];
+        if (!wf) throw new Error('Open a workspace folder to configure extensions');
+        const daemonUrl = origin();
+        const tokenVal = (await context.secrets.get(`udi.token:${daemonUrl}`)) || '';
+        const p = selected;
+
+        const vsDir = vscode.Uri.joinPath(wf.uri, '.vscode');
+        await vscode.workspace.fs.createDirectory(vsDir);
+
+        const mcpUri = vscode.Uri.joinPath(vsDir, 'mcp.json');
+        const mcpConfig = {
+          servers: {
+            'developer-intelligence': {
+              type: 'stdio',
+              command: 'node',
+              args: ['packages/mcp-gateway/dist/cli.js'],
+              env: {
+                UDI_PROJECT_ID: p?.id || '',
+                UDI_TOKEN: tokenVal || '',
+                UDI_DAEMON_URL: daemonUrl,
+              },
+            },
+          },
+        };
+        await vscode.workspace.fs.writeFile(
+          mcpUri,
+          Buffer.from(JSON.stringify(mcpConfig, null, 2) + '\n'),
+        );
+
+        const config = vscode.workspace.getConfiguration();
+        await config.update(
+          'cline.apiProvider',
+          'openai-compatible',
+          vscode.ConfigurationTarget.Workspace,
+        );
+        await config.update(
+          'cline.openAiBaseUrl',
+          `${daemonUrl}/v1`,
+          vscode.ConfigurationTarget.Workspace,
+        );
+        await config.update('cline.openAiApiKey', tokenVal, vscode.ConfigurationTarget.Workspace);
+
+        await vscode.window.showInformationMessage(
+          'Configured VS Code AI extensions (Cline, Continue, MCP) to route through Developer Intelligence.',
+        );
+        return;
+      }
+      case 'saveSnapshot': {
+        const p = await project();
+        const api = await client();
+        const name = await vscode.window.showInputBox({
+          prompt: 'Name this context checkpoint (e.g. rover-gpio-fixed)',
+          placeHolder: 'checkpoint-name',
+        });
+        if (!name?.trim()) return;
+
+        const snap = await api.createSnapshot(p.id, {
+          name: name.trim(),
+          description: `Saved from VS Code extension at ${new Date().toISOString()}`,
+        });
+        await vscode.window.showInformationMessage(
+          `Context checkpoint "${snap.name}" saved (${snap.recordCount} facts). Use in external agents via x-context-snapshot: "${snap.name}".`,
+        );
+        return;
+      }
+      case 'copyRouteEnv': {
+        const daemonUrl = origin();
+        const tokenVal = (await context.secrets.get(`udi.token:${daemonUrl}`)) || '';
+        const p = selected;
+        const exports = [
+          `export OPENAI_BASE_URL="${daemonUrl}/v1"`,
+          `export OPENAI_API_KEY="${tokenVal}"`,
+          `export ANTHROPIC_BASE_URL="${daemonUrl}/v1"`,
+          `export ANTHROPIC_API_KEY="${tokenVal}"`,
+          `export UDI_PROJECT_ID="${p?.id || ''}"`,
+          `export UDI_TOKEN="${tokenVal}"`,
+          `export UDI_DAEMON_URL="${daemonUrl}"`,
+        ].join('\n');
+        await vscode.env.clipboard.writeText(exports);
+        await vscode.window.showInformationMessage(
+          'Copied agent routing environment exports to clipboard (OPENAI_BASE_URL & ANTHROPIC_BASE_URL).',
+        );
         return;
       }
     }
