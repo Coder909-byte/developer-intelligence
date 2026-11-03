@@ -22,6 +22,7 @@ import {
   type McpServer,
 } from '@udi/contracts';
 import { PersistenceError, type PlatformDatabase } from '@udi/event-store';
+import { buildContextRecord } from '@udi/context-engine';
 import { apiSuccess, responseMeta } from './responses.js';
 
 /** Structurally compatible with Developer 2's ContextEngine; factory receives daemon-owned ports. */
@@ -268,7 +269,12 @@ export function registerPlatformRoutes(
         ...body,
         projectId: id,
       };
-      const result = await integrations.engineering.validate(valRequest);
+      const parsed = ValidationResultSchema.safeParse(
+        await integrations.engineering.validate(valRequest),
+      );
+      if (!parsed.success || parsed.data.job.projectId !== id)
+        throw new Error('Engineering provider returned an invalid or incorrectly scoped result');
+      const result = parsed.data;
       await store.validation.recordResult(result);
 
       // Record activity event
@@ -287,6 +293,23 @@ export function registerPlatformRoutes(
           findingCount: result.findings.length,
         },
       });
+
+      // Persist only actual validator observations. Context synthesis remains Developer 2's engine.
+      // Both failed and successful runs are historical facts; success must not leave an artificial open issue.
+      await store.context.append(
+        buildContextRecord(id, {
+          kind: 'fact',
+          text: `${body.kind} ${result.job.status}: ${result.findings.length} finding(s). ${result.findings.map((finding) => finding.message).join('; ') || result.job.stdoutTail || result.job.stderrTail}`,
+          provenance: {
+            sourceKind: 'observed_tool',
+            actor: 'engineering-core',
+            sourceRef: result.job.id,
+          },
+          evidence: result.findings.length
+            ? result.findings.flatMap((finding) => finding.evidence)
+            : result.job.artifacts.map((filePath) => ({ filePath })),
+        }),
+      );
 
       return reply
         .code(201)
