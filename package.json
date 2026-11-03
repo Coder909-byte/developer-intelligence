@@ -24,6 +24,7 @@
     "format:check": "prettier --check .",
     "doctor": "node scripts/doctor.mjs",
     "smoke": "pnpm build && node scripts/smoke.mjs",
+    "demo:verify": "pnpm build && node scripts/demo-e2e.mjs",
     "test:mcp": "pnpm build && node scripts/verify-mcp-interop.mjs"
   },
   "devDependencies": {

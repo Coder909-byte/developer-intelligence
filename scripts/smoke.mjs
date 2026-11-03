@@ -20,7 +20,14 @@ const baseUrl = `http://127.0.0.1:${port}`;
 let child;
 async function start() {
   child = spawn(process.execPath, ['apps/core-daemon/dist/main.js'], {
-    env: { ...process.env, UDI_TOKEN: '', UDI_DATA_DIR: directory, UDI_PORT: String(port) },
+    env: {
+      ...process.env,
+      UDI_TOKEN: '',
+      UDI_DATA_DIR: directory,
+      UDI_PORT: String(port),
+      UDI_INTEGRATIONS: 'false',
+      UDI_ENABLE_INTEGRATIONS: '0',
+    },
     stdio: 'ignore',
   });
   const deadline = Date.now() + 10000;
