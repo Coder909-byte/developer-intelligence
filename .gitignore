@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.data/
+*.sqlite*
+*.db*
+*.log
+.DS_Store
+apps/desktop/src-tauri/target/
+*.vsix

@@ -1,0 +1,44 @@
+{
+  "name": "@udi/vscode-extension",
+  "displayName": "Developer Intelligence",
+  "publisher": "developer-intelligence",
+  "description": "Local developer intelligence host integration scaffold",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/extension.cjs",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:udi.health"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "udi.health",
+        "title": "Developer Intelligence: Check Daemon Connection"
+      }
+    ],
+    "configuration": {
+      "title": "Developer Intelligence",
+      "properties": {
+        "udi.daemonUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:4317",
+          "description": "Local daemon HTTP origin."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@udi/client-sdk": "workspace:*"
+  },
+  "type": "module"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@udi/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "tauri": "tauri",
+    "dev:native": "tauri dev",
+    "build:native": "tauri build"
+  },
+  "dependencies": {
+    "@udi/client-sdk": "workspace:*",
+    "@udi/ui": "workspace:*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@tauri-apps/api": "^2.0.0"
+  },
+  "devDependencies": {
+    "vite": "8.3.5",
+    "tailwindcss": "^4.1.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "@tauri-apps/cli": "2.12.4"
+  }
+}

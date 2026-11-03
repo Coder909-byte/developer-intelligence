@@ -1,0 +1,107 @@
+import { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
+import {
+  ProjectSchema,
+  type Project,
+  type ProjectCreate,
+  type ProjectUpdate,
+  type ActivityEvent,
+} from '@udi/contracts';
+export interface EventStore {
+  append(event: ActivityEvent): Promise<void>;
+  list(projectId: string, limit?: number): Promise<ActivityEvent[]>;
+}
+export interface ProjectRepository {
+  list(): Project[];
+  get(id: string): Project | undefined;
+  create(input: ProjectCreate): Project;
+  update(id: string, input: ProjectUpdate): Project | undefined;
+  delete(id: string): boolean;
+}
+/** Daemon-owned SQLite connection. EventStore implementation belongs to Developer 2. */
+export function openDatabase(filename: string) {
+  const db = new DatabaseSync(filename);
+  try {
+    db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
+    db.exec(
+      `CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);`,
+    );
+    const version = db
+      .prepare('SELECT max(version) AS version FROM schema_migrations')
+      .get()?.version;
+    if (version !== null && version !== undefined && Number(version) > 1)
+      throw new Error('Database schema is newer than this daemon');
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      if (!version) {
+        db.exec(`
+          CREATE TABLE projects (id TEXT PRIMARY KEY, name TEXT NOT NULL, root_path TEXT NOT NULL UNIQUE, description TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+          CREATE TABLE activity_events (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE, created_at TEXT NOT NULL, body TEXT NOT NULL CHECK(json_valid(body)));
+          CREATE INDEX activity_events_project_time ON activity_events(project_id, created_at);
+        `);
+        db.prepare('INSERT INTO schema_migrations VALUES (1, ?)').run(new Date().toISOString());
+      }
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    db.close();
+    throw error;
+  }
+  function decode(
+    row: ReturnType<ReturnType<DatabaseSync['prepare']>['get']>,
+  ): Project | undefined {
+    if (!row) return undefined;
+    return ProjectSchema.parse({
+      id: row.id,
+      name: row.name,
+      rootPath: row.root_path,
+      description: row.description,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+  }
+  const projects: ProjectRepository = {
+    list: () =>
+      db
+        .prepare('SELECT * FROM projects ORDER BY created_at, id')
+        .all()
+        .map((row) => decode(row)!),
+    get: (id) => decode(db.prepare('SELECT * FROM projects WHERE id = ?').get(id)),
+    create: (input) => {
+      const timestamp = new Date().toISOString();
+      const project = ProjectSchema.parse({
+        ...input,
+        id: randomUUID(),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+      db.prepare('INSERT INTO projects VALUES (?, ?, ?, ?, ?, ?)').run(
+        project.id,
+        project.name,
+        project.rootPath,
+        project.description,
+        timestamp,
+        timestamp,
+      );
+      return project;
+    },
+    update: (id, input) => {
+      const previous = projects.get(id);
+      if (!previous) return undefined;
+      const project = ProjectSchema.parse({
+        ...previous,
+        ...input,
+        updatedAt: new Date().toISOString(),
+      });
+      db.prepare(
+        'UPDATE projects SET name = ?, root_path = ?, description = ?, updated_at = ? WHERE id = ?',
+      ).run(project.name, project.rootPath, project.description, project.updatedAt, id);
+      return project;
+    },
+    delete: (id) => Number(db.prepare('DELETE FROM projects WHERE id = ?').run(id).changes) > 0,
+  };
+  return { projects, close: () => db.close() };
+}
