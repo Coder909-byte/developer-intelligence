@@ -61,18 +61,33 @@ if (!token) {
 const project = await getProject(token);
 const projectId = project?.id || process.env.UDI_PROJECT_ID || 'rover-demo';
 const projectName = project?.name || 'Active Project';
-const gatewayCliPath = join(root, 'packages/mcp-gateway/dist/cli.js');
+const gatewayCliPath = join(root, 'packages/mcp-gateway/dist/cli.js').replace(/\\/g, '/');
 
 switch (command) {
   case 'env': {
-    // Outputs clean shell exports so caller can do: eval $(node scripts/route.mjs env)
-    console.log(`export OPENAI_BASE_URL="${daemonUrl}/v1"`);
-    console.log(`export OPENAI_API_KEY="${token}"`);
-    console.log(`export ANTHROPIC_BASE_URL="${daemonUrl}/v1"`);
-    console.log(`export ANTHROPIC_API_KEY="${token}"`);
-    console.log(`export UDI_PROJECT_ID="${projectId}"`);
-    console.log(`export UDI_TOKEN="${token}"`);
-    console.log(`export UDI_DAEMON_URL="${daemonUrl}"`);
+    const isWindows =
+      process.platform === 'win32' ||
+      process.argv.includes('--ps') ||
+      process.argv.includes('--powershell');
+    if (isWindows && !process.argv.includes('--bash')) {
+      // Windows PowerShell syntax
+      console.log(`$env:OPENAI_BASE_URL="${daemonUrl}/v1"`);
+      console.log(`$env:OPENAI_API_KEY="${token}"`);
+      console.log(`$env:ANTHROPIC_BASE_URL="${daemonUrl}/v1"`);
+      console.log(`$env:ANTHROPIC_API_KEY="${token}"`);
+      console.log(`$env:UDI_PROJECT_ID="${projectId}"`);
+      console.log(`$env:UDI_TOKEN="${token}"`);
+      console.log(`$env:UDI_DAEMON_URL="${daemonUrl}"`);
+    } else {
+      // POSIX bash/zsh syntax (macOS & Linux)
+      console.log(`export OPENAI_BASE_URL="${daemonUrl}/v1"`);
+      console.log(`export OPENAI_API_KEY="${token}"`);
+      console.log(`export ANTHROPIC_BASE_URL="${daemonUrl}/v1"`);
+      console.log(`export ANTHROPIC_API_KEY="${token}"`);
+      console.log(`export UDI_PROJECT_ID="${projectId}"`);
+      console.log(`export UDI_TOKEN="${token}"`);
+      console.log(`export UDI_DAEMON_URL="${daemonUrl}"`);
+    }
     break;
   }
 
