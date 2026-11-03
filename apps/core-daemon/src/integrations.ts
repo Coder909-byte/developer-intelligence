@@ -1,12 +1,26 @@
 import { spawn } from 'node:child_process';
-import { realpath } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { readFile, realpath } from 'node:fs/promises';
 import { relative, resolve, isAbsolute, sep } from 'node:path';
 import { PersistenceError } from '@udi/event-store';
 import type { PlatformDatabase } from '@udi/event-store';
 import { DefaultContextEngine } from '@udi/context-engine';
-import { DefaultEngineeringValidator } from '@udi/engineering-core';
+import {
+  DefaultEngineeringValidator,
+  generateCorrectionPreview,
+  applyCorrection,
+  rollbackCorrection,
+  CorrectionError,
+} from '@udi/engineering-core';
 import { LocalToolRunner } from '@udi/tool-runners';
 import type { PlatformIntegrations } from './platform-routes.js';
+
+function toPersistenceCode(
+  code: CorrectionError['code'],
+): 'NOT_FOUND' | 'CONFLICT' | 'VALIDATION_ERROR' {
+  if (code === 'UNAUTHORIZED') return 'VALIDATION_ERROR';
+  return code;
+}
 
 export function createDefaultIntegrations(
   store: Omit<PlatformDatabase, 'close'>,
@@ -135,6 +149,97 @@ export function createDefaultIntegrations(
           status: isHealthy ? ('healthy' as const) : ('unreachable' as const),
         };
         return store.mcpServers.replace(updated);
+      },
+    },
+    correction: {
+      async previewCorrection(projectId, findingId) {
+        const project = store.projects.get(projectId);
+        if (!project) throw new PersistenceError('NOT_FOUND', 'Project not found');
+        const findings = await store.validation.listFindings(projectId);
+        const finding = findings.find((f) => f.id === findingId);
+        if (!finding) throw new PersistenceError('NOT_FOUND', 'Finding not found in project');
+        try {
+          return await generateCorrectionPreview({
+            projectId,
+            workspaceRoot: project.rootPath,
+            finding,
+          });
+        } catch (err) {
+          if (err instanceof CorrectionError) {
+            throw new PersistenceError(toPersistenceCode(err.code), err.message);
+          }
+          throw err;
+        }
+      },
+      async applyCorrection(projectId, input) {
+        const project = store.projects.get(projectId);
+        if (!project) throw new PersistenceError('NOT_FOUND', 'Project not found');
+        const findings = await store.validation.listFindings(projectId);
+        const finding = findings.find((f) => f.id === input.findingId);
+        if (!finding) throw new PersistenceError('NOT_FOUND', 'Finding not found in project');
+
+        const firmwareEvidence = finding.evidence.find(
+          (ev) =>
+            ev.filePath.endsWith('.h') ||
+            ev.filePath.endsWith('.hpp') ||
+            ev.filePath.endsWith('.ino') ||
+            ev.filePath.endsWith('.c') ||
+            ev.filePath.endsWith('.cpp'),
+        );
+        if (firmwareEvidence) {
+          const targetPath = resolve(project.rootPath, firmwareEvidence.filePath);
+          try {
+            const raw = await readFile(targetPath, 'utf-8');
+            const currentHash = createHash('sha256').update(raw, 'utf-8').digest('hex');
+            if (currentHash !== input.expectedOriginalHash) {
+              throw new PersistenceError(
+                'CONFLICT',
+                'File has been modified since preview was generated (stale preview rejected)',
+              );
+            }
+          } catch (err) {
+            if (err instanceof PersistenceError) throw err;
+          }
+        }
+
+        try {
+          const basePreview = await generateCorrectionPreview({
+            projectId,
+            workspaceRoot: project.rootPath,
+            finding,
+          });
+          const preview = { ...basePreview, id: input.previewId };
+          return await applyCorrection({
+            projectId,
+            workspaceRoot: project.rootPath,
+            preview,
+            userApproved: input.userApproved,
+            validator,
+          });
+        } catch (err) {
+          if (err instanceof CorrectionError) {
+            throw new PersistenceError(toPersistenceCode(err.code), err.message);
+          }
+          throw err;
+        }
+      },
+      async rollbackCorrection(projectId, input) {
+        const project = store.projects.get(projectId);
+        if (!project) throw new PersistenceError('NOT_FOUND', 'Project not found');
+        try {
+          return await rollbackCorrection({
+            projectId,
+            workspaceRoot: project.rootPath,
+            targetFile: input.targetFile,
+            backupPath: input.backupPath,
+            validator,
+          });
+        } catch (err) {
+          if (err instanceof CorrectionError) {
+            throw new PersistenceError(toPersistenceCode(err.code), err.message);
+          }
+          throw err;
+        }
       },
     },
   };
