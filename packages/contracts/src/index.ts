@@ -360,5 +360,6 @@ export const CorrectionRollbackResultSchema = z.strictObject({
   targetFile: z.string().min(1),
   restoredAt: TimestampSchema,
   revalidationJob: JobSchema,
+  revalidationFindings: z.array(ValidationFindingSchema).optional(),
 });
 export type CorrectionRollbackResult = z.infer<typeof CorrectionRollbackResultSchema>;

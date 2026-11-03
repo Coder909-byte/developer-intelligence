@@ -380,10 +380,18 @@ export async function rollbackCorrection(options: {
 
   // Revalidate post-rollback
   const netlistFile = artifactPaths?.find((p) => p.endsWith('.net')) ?? 'rover.net';
+  const revalPaths = [netlistFile, targetFile];
+  if (
+    artifactPaths?.some((p) => p.includes('map.json') || p.includes('engineering-map')) ||
+    (await stat(resolve(workspaceRoot, 'engineering-map.json')).catch(() => null))
+  ) {
+    revalPaths.push('engineering-map.json');
+  }
+
   const revalResult = await validator.validate({
     projectId,
     kind: 'pin_consistency',
-    artifactPaths: [netlistFile, targetFile],
+    artifactPaths: revalPaths,
     requestedBy: 'safe-correction-rollback',
   });
 
@@ -392,6 +400,7 @@ export async function rollbackCorrection(options: {
     targetFile,
     restoredAt: new Date().toISOString(),
     revalidationJob: revalResult.job,
+    revalidationFindings: revalResult.findings,
   };
 
   return CorrectionRollbackResultSchema.parse(result);

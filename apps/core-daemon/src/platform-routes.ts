@@ -438,6 +438,29 @@ export function registerPlatformRoutes(
 
     if (integrations.correction?.rollbackCorrection) {
       const result = await integrations.correction.rollbackCorrection(id, body);
+      const revalFindings = result.revalidationFindings ?? [];
+
+      // Persist the rollback revalidation job and findings in SQLite
+      await store.validation.recordResult({
+        job: result.revalidationJob,
+        findings: revalFindings,
+      });
+
+      // Persist observation context record
+      await store.context.append(
+        buildContextRecord(id, {
+          kind: 'fact',
+          text: `Rolled back correction on ${result.targetFile} from ${body.backupPath}. Revalidation status: ${result.revalidationJob.status} (${revalFindings.length} findings).`,
+          provenance: {
+            sourceKind: 'observed_tool',
+            actor: 'safe-correction-engine',
+            sourceRef: result.revalidationJob.id,
+          },
+          evidence: revalFindings.length
+            ? revalFindings.flatMap((finding) => finding.evidence)
+            : result.revalidationJob.artifacts.map((filePath) => ({ filePath })),
+        }),
+      );
 
       // Record activity event
       await store.events.append({
@@ -452,6 +475,7 @@ export function registerPlatformRoutes(
         payload: {
           targetFile: result.targetFile,
           status: result.revalidationJob.status,
+          remainingFindings: revalFindings.length,
         },
       });
 
