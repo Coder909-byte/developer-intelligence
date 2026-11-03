@@ -28,7 +28,7 @@ export function PixelRoom({ room }: { room: Room }) {
           <path d="M36 15h24v4h5v24h-5v5H36v-5h-5V19h5z" fill="#111d2a" />
           <path d="M38 18h20v4h4v18h-4v4H38v-4h-4V22h4z" fill="#927653" />
           <path d="M41 22h14v4h4v10h-4v4H41v-4h-4V26h4z" fill="#d9b777" />
-          <path d="M44 26h8v10h-8z" fill="#fff0ba" />
+          <path d="M44 26h8v10h-8z" className="pixel-light-reactor" fill="#fff0ba" />
           <path d="M17 19h8v26h-8zM71 19h8v26h-8z" fill="#172536" />
           <path d="M18 22h5v3h-5zM18 29h5v3h-5zM72 22h5v3h-5zM72 29h5v3h-5z" fill="#6e8b97" />
           <path d="M25 31h6M65 31h6" stroke="#a78f64" strokeWidth="2" />
@@ -56,7 +56,11 @@ export function PixelRoom({ room }: { room: Room }) {
           <path d="M19 20h2v2h-2zM19 28h2v2h-2zM69 20h2v2h-2zM69 36h2v2h-2z" fill="#9dc9c1" />
           <path d="M38 19h20v3h4v16h-4v3H38v-3h-4V22h4z" fill="#0e1b2b" />
           <path d="M39 22h18v14H39z" fill="#41616e" />
-          <path d="M41 24h4v3h-4zM45 27h5v3h-5zM50 30h5v3h-5z" fill="#a1d6be" />
+          <path
+            d="M41 24h4v3h-4zM45 27h5v3h-5zM50 30h5v3h-5z"
+            className="pixel-light-console"
+            fill="#a1d6be"
+          />
           <path d="M45 41h6v4h7v3H38v-3h7z" fill="#8797a2" />
         </>
       )}
@@ -91,7 +95,11 @@ export function PixelRoom({ room }: { room: Room }) {
           <path d="M21 20h12v2H21zM41 20h14v2H41zM63 20h12v2H63z" fill="#7ba5b1" />
           <path d="M18 35h60v10H18z" fill="#77898b" />
           <path d="M22 37h13v5H22zM40 37h16v5H40zM61 37h13v5H61z" fill="#16313e" />
-          <path d="M24 38h8v2h-8zM42 38h11v2H42zM63 38h8v2h-8z" fill="#a1d6be" />
+          <path
+            d="M24 38h8v2h-8zM42 38h11v2H42zM63 38h8v2h-8z"
+            className="pixel-light-console"
+            fill="#a1d6be"
+          />
           <path d="M42 46h12v7H42z" fill="#5d8287" />
         </>
       )}

@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@udi/ui/tokens.css';
+@import './game-font.css';
 @source "../../../packages/ui/src";
 :root {
   color-scheme: dark;
@@ -1181,49 +1182,565 @@ summary {
     transform: none;
   }
 }
-/* Quiet retro treatment extends to the functional shell, without pixelating data. */
+/* Local bitmap type and directional lighting unify all functional workspaces. */
+.retro-shell {
+  --surface: #142032;
+  --elevated: #1c2d42;
+  --border: #3c526c;
+  --muted: #a2b4ca;
+  --text: #e5ebef;
+  --game-font: 'UDI Pixel', Consolas, monospace;
+  background: #0b1422;
+  font-family: 'Cascadia Code', Consolas, 'Segoe UI', monospace;
+  font-size: 13px;
+}
+.retro-shell .workspace {
+  background:
+    radial-gradient(ellipse at 90% 0, #233e602b, transparent 60%),
+    radial-gradient(ellipse at 10% 80%, #32574c12, transparent 50%);
+}
 .retro-shell .sidebar {
-  background: #101a29;
-  border-right: 2px solid #304158;
+  background: linear-gradient(90deg, #111e30, #16273a);
+  border-right: 2px solid #48617b;
+  box-shadow:
+    5px 0 0 #060d18,
+    10px 0 28px #0005,
+    inset -1px 0 0 #92b4cf26;
+  z-index: 3;
+}
+.retro-shell .brand {
+  font-family: var(--game-font);
+  font-size: 9px;
+  line-height: 1.8;
+  font-weight: 400;
+  color: #dbe9db;
+  text-shadow: 2px 2px #060e1a;
+}
+.retro-shell .brand span:not(.brand-mark) {
+  color: #91afbf;
+  font-weight: 400;
 }
 .retro-shell .brand-mark {
-  border: 2px solid #607e87;
+  flex-shrink: 0;
+  border: 2px solid #a1d1c3;
+  border-right-color: #3f686b;
+  border-bottom-color: #3f686b;
   border-radius: 0;
-  background: #192d3c;
-  box-shadow: 3px 3px 0 #080f1a;
-  font-family: Consolas, monospace;
+  background: #24434b;
+  box-shadow:
+    3px 4px 0 #080f1a,
+    0 0 20px #8dd8bc15,
+    inset 2px 2px 0 #ffffff12;
+  font-family: var(--game-font);
+  font-size: 16px;
+  font-weight: 400;
+  text-shadow: 2px 2px #0d242b;
 }
 .retro-shell .topbar {
-  background: #101927;
-  border-bottom: 1px solid #304158;
+  background: #132135;
+  border-bottom: 2px solid #425d76;
+  box-shadow:
+    0 4px 0 #07101b,
+    0 8px 24px #0003,
+    inset 0 -1px 0 #a2d5e124;
   font:
-    12px Consolas,
+    11px Consolas,
     monospace;
+}
+.retro-shell .project-picker {
+  font-family: var(--game-font);
+  font-size: 8px;
+  line-height: 1.7;
+  letter-spacing: 0.6px;
+  color: #a9c4d0;
 }
 .retro-shell .nav-item {
+  font-family: var(--game-font);
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.8;
+  letter-spacing: 0;
+  border: 2px solid transparent;
   border-radius: 0;
-  font:
-    12px Consolas,
-    monospace;
+  padding: 12px 10px;
+  margin: 5px 0;
+  color: #a7b9cc;
+  text-shadow: 1px 2px #07101d;
+  transition:
+    background 0.12s steps(2),
+    box-shadow 0.12s steps(2);
+}
+.retro-shell .nav-item:hover {
+  color: #f0e8ce;
+  border-color: #4e677d;
+  background: #243950;
+  box-shadow:
+    3px 3px 0 #08111d,
+    inset 0 1px #d8e8ff20;
 }
 .retro-shell .nav-item.active {
-  box-shadow: inset 3px 0 0 #a4d4b4;
-  background: #20363c;
+  color: #b7e4cd;
+  border-color: #648d90;
+  border-bottom-color: #34575f;
+  background: #27474e;
+  box-shadow:
+    3px 4px 0 #08111d,
+    inset 3px 0 0 #c3e2be,
+    inset 0 2px 0 #c0f1da17,
+    0 0 20px #8dd8bc08;
+}
+.retro-shell .nav-symbol {
+  filter: drop-shadow(0 0 4px #8dd8bc28);
 }
 .retro-shell .page-heading h1 {
-  font-family: Consolas, monospace;
-  font-weight: 600;
-  letter-spacing: -1.5px;
+  font-family: var(--game-font);
+  font-size: 25px;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: 1px;
+  color: #e6efd4;
+  text-shadow:
+    3px 3px 0 #030a13,
+    0 0 22px #b4dfb51c;
 }
-.retro-shell .project-picker select {
+.retro-shell .eyebrow {
+  font-family: var(--game-font);
+  font-size: 8px;
+  line-height: 1.8;
+  letter-spacing: 1px;
+  color: #a8c3d6;
+}
+.retro-shell .card {
+  position: relative;
+  border: 2px solid #4e637b;
+  border-top-color: #7e94a7;
+  border-left-color: #657e95;
   border-radius: 0;
-  background: #121e2d;
+  background: #142134;
+  box-shadow:
+    5px 6px 0 #050c17,
+    0 14px 30px #0004,
+    inset 0 0 0 2px #20344a;
+}
+.retro-shell .card-heading {
+  border-bottom: 2px solid #3b536c;
+  background: #1b2e43;
+  box-shadow:
+    inset 0 2px 0 #d0e4ff0a,
+    0 2px 0 #081526;
+}
+.retro-shell .card-heading h2 {
+  font-family: var(--game-font);
+  font-size: 11px;
+  line-height: 1.7;
+  font-weight: 400;
+  color: #d4e6db;
+  text-shadow: 2px 2px #0a1423;
+}
+.retro-shell .card-heading h2::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 9px;
+  margin-bottom: 2px;
+  background: #91b9c0;
+  box-shadow:
+    0 0 8px #91b9c02b,
+    2px 2px 0 #0a1423;
 }
 .retro-shell .button {
+  font-family: var(--game-font);
+  font-size: 9px;
+  line-height: 1.8;
+  font-weight: 400;
+  border: 2px solid #72889c;
+  border-right-color: #304258;
+  border-bottom-color: #304258;
   border-radius: 0;
-  box-shadow: 2px 2px 0 #050a11;
+  padding: 10px 12px;
+  color: #d5e3e9;
+  background: #2b4057;
+  text-shadow: 1px 2px #122033;
+  box-shadow:
+    3px 4px 0 #050b14,
+    inset 1px 1px 0 #cee4ff18;
+  transition:
+    transform 0.1s steps(2),
+    box-shadow 0.1s steps(2),
+    background 0.1s;
+}
+.retro-shell .button:hover:not(:disabled) {
+  background: #3a566d;
+  border-top-color: #b0c7d8;
+  box-shadow:
+    3px 4px 0 #050b14,
+    0 0 15px #a2c7d514,
+    inset 1px 1px 0 #d8f2ff20;
+}
+.retro-shell .button:active:not(:disabled) {
+  transform: translate(2px, 3px);
+  box-shadow:
+    1px 1px 0 #050b14,
+    inset 2px 2px 0 #0a16232b;
+}
+.retro-shell .button.primary {
+  color: #112c2d;
+  background: #9bcdb6;
+  border-color: #d4edce;
+  border-right-color: #4e8075;
+  border-bottom-color: #4e8075;
+  text-shadow: 0 1px #e6f4d754;
+  box-shadow:
+    3px 4px 0 #050b14,
+    0 0 24px #8dd8bc15,
+    inset 1px 1px 0 #eafff044;
+}
+.retro-shell .button.primary:hover:not(:disabled) {
+  background: #b4dfc3;
+  box-shadow:
+    3px 4px 0 #050b14,
+    0 0 28px #8dd8bc2b;
+}
+.retro-shell .button.quiet {
+  background: #1b2a3e;
+  border-color: #455a70;
+  color: #bdcad9;
+}
+.retro-shell .button:disabled {
+  box-shadow: 1px 2px 0 #060c16;
+  text-shadow: none;
 }
 .retro-shell .badge {
+  font-family: var(--game-font);
+  font-size: 8px;
+  line-height: 1.8;
+  font-weight: 400;
+  white-space: normal;
+  overflow-wrap: anywhere;
   border-radius: 0;
+  background: #152033;
+  border: 1px solid #536a81;
+  box-shadow: 2px 2px 0 #07101b;
+  color: #c0cfdf;
+}
+.retro-shell .badge.good {
+  color: #b8dfbd;
+  border-color: #719b83;
+  background: #223c35;
+  box-shadow:
+    2px 2px 0 #07101b,
+    inset 0 1px 0 #d4ffdd15;
+}
+.retro-shell .badge.warning {
+  color: #f1cf92;
+  border-color: #9a7f52;
+  background: #383128;
+}
+.retro-shell .badge.error {
+  color: #ffacaa;
+  border-color: #a16a6a;
+  background: #3b2935;
+}
+.retro-shell .field > span {
+  font-family: var(--game-font);
+  font-size: 9px;
+  line-height: 1.7;
+  font-weight: 400;
+  color: #c7d8df;
+  text-shadow: 1px 2px #06101b;
+}
+.retro-shell :is(input, select, textarea) {
   font-family: Consolas, monospace;
+  border: 2px solid #354b63;
+  border-bottom-color: #627d91;
+  border-right-color: #627d91;
+  border-radius: 0;
+  background: #0c1727;
+  color: #e7edf3;
+  box-shadow: inset 3px 3px 0 #050d17;
+}
+.retro-shell :is(input, select, textarea):focus-visible {
+  outline: 2px solid #a5d7bf;
+  outline-offset: 3px;
+  box-shadow:
+    inset 3px 3px 0 #050d17,
+    0 0 18px #8dd8bc17;
+}
+.retro-shell .project-picker select {
+  font:
+    11px/1.5 Consolas,
+    monospace;
+}
+.retro-shell :is(.empty-state h3, dialog h2) {
+  font-family: var(--game-font);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.8;
+  color: #e3e9d3;
+  text-shadow: 2px 2px #07101d;
+}
+.retro-shell .empty-state {
+  border: 1px dashed #4a6079;
+  margin: 16px;
+  background: #0e1a2b;
+  box-shadow: inset 2px 2px 0 #07101b;
+}
+.retro-shell .notice {
+  border: 2px solid #8e774f;
+  border-radius: 0;
+  background: #302d27;
+  color: #e2cea9;
+  box-shadow:
+    4px 4px 0 #050c16,
+    inset 0 2px #ffdc9c0d;
+}
+.retro-shell .metric {
+  font-family: var(--game-font);
+  font-size: 28px;
+  color: #c6e1ca;
+  text-shadow:
+    3px 3px #06111c,
+    0 0 20px #8dd8bc21;
+}
+.retro-shell .finding-row {
+  border: 2px solid #485f79;
+  border-radius: 0;
+  background: #101e30;
+  box-shadow:
+    3px 3px 0 #07101b,
+    inset 0 1px #a9c7eb14;
+}
+.retro-shell .finding-row:hover {
+  border-color: #9abcc8;
+  background: #203449;
+  box-shadow:
+    3px 3px 0 #07101b,
+    0 0 16px #91bec310;
+}
+.retro-shell table {
+  background: #101d2f;
+}
+.retro-shell th {
+  font-family: var(--game-font);
+  font-size: 9px;
+  line-height: 1.8;
+  color: #bdd4d7;
+  background: #1d3147;
+}
+.retro-shell td {
+  border-color: #344b65;
+}
+.retro-shell pre {
+  padding: 16px;
+  background: #081321;
+  border: 2px solid #2c425b;
+  box-shadow: inset 3px 3px 0 #040b14;
+  color: #c5d9df;
+}
+.retro-shell code,
+.retro-shell pre {
+  text-shadow: none;
+}
+.retro-shell dialog {
+  border: 3px solid #73899e;
+  border-bottom-color: #394d65;
+  border-right-color: #394d65;
+  border-radius: 0;
+  background: #142134;
+  box-shadow:
+    8px 10px 0 #030a16,
+    0 0 55px #8daece20;
+}
+.retro-shell dialog::backdrop {
+  background: #030b18cf;
+  backdrop-filter: blur(2px);
+}
+.retro-shell .status-dot {
+  border-radius: 0;
+  box-shadow: 0 0 8px currentColor;
+}
+.retro-shell .sidebar-footer {
+  border-top: 1px dashed #425a74;
+  padding-top: 18px;
+  color: #bfd3dc;
+  font:
+    10px/1.7 Consolas,
+    monospace;
+}
+.retro-shell .workspace-footer {
+  border-top: 2px solid #304960;
+  color: #9bb4cc;
+  background: #0d1929;
+  box-shadow: inset 0 2px #abcde810;
+}
+/* Warm compartment lights and cool hull rim lighting remain decorative. */
+.retro-shell .ship-workspace {
+  border: 2px solid #7a96ac;
+  border-right-color: #394f6a;
+  border-bottom-color: #394f6a;
+  box-shadow:
+    6px 7px 0 #030a14,
+    0 20px 50px #0006,
+    0 0 45px #7eacb90a,
+    inset 0 0 0 3px #263f56;
+}
+.retro-shell .ship-heading {
+  background: radial-gradient(ellipse at 30% 0, #6d9bac1a, transparent 80%);
+}
+.retro-shell .pixel-heading {
+  filter: drop-shadow(2px 3px 0 #071320) drop-shadow(0 0 6px #b6dfb924);
+}
+.retro-shell .ship-subtitle {
+  color: #c0cfde;
+  text-shadow: 1px 2px #07111e;
+}
+.retro-shell .ship-engine {
+  font-family: var(--game-font);
+  font-size: 8px;
+  line-height: 1.8;
+  box-shadow:
+    3px 3px 0 #060e1a,
+    inset 1px 1px #a5c2dc17;
+}
+.retro-shell .ship-engine-connected > span {
+  box-shadow:
+    0 0 0 2px #304b45,
+    0 0 10px #a4d4b46b;
+}
+.retro-shell .ship-chart {
+  box-shadow:
+    inset 0 10px 32px #030a1655,
+    inset 0 -10px 32px #030a1655;
+}
+.retro-shell .ship-hull {
+  filter: drop-shadow(0 0 10px #8db1c242);
+  background: #8aa9ba;
+}
+.retro-shell .ship-hull::after {
+  box-shadow: inset 0 0 24px #070d1a;
+}
+.retro-shell .ship-room {
+  box-shadow:
+    5px 6px 0 #050d19,
+    8px 10px 12px #02071266,
+    inset 2px 2px #a6c9ed14,
+    inset -2px -2px #020a1544;
+}
+.retro-shell .ship-room::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 3px;
+  top: -3px;
+  left: 12px;
+  background: var(--room-tint);
+  box-shadow: 0 0 8px var(--room-tint);
+  pointer-events: none;
+}
+.retro-shell .ship-room strong {
+  font-family: var(--game-font);
+  font-size: 10px;
+  line-height: 1.8;
+  font-weight: 400;
+  color: #e3e9d3;
+  text-shadow: 2px 2px #050e1d;
+}
+.retro-shell .ship-room-description {
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #b4c6d7;
+}
+.retro-shell .ship-room:hover,
+.retro-shell .ship-room:focus-visible {
+  border-color: var(--room-tint);
+  box-shadow:
+    5px 9px 0 #050d19,
+    0 0 20px color-mix(in srgb, var(--room-tint) 18%, transparent),
+    inset 0 0 24px color-mix(in srgb, var(--room-tint) 8%, transparent);
+}
+.retro-shell .pixel-room-scene {
+  height: 104px;
+  filter: drop-shadow(3px 5px 0 #050d1a) drop-shadow(0 0 9px #678b9c21);
+}
+.retro-shell .ship-room-engineering .pixel-room-scene,
+.retro-shell .ship-room-bridge .pixel-room-scene {
+  height: 180px;
+}
+.retro-shell .ship-room-engineering {
+  background: radial-gradient(ellipse at 50% 40%, #c7955121, transparent 60%), #192638;
+}
+.retro-shell .ship-room-bridge {
+  background: radial-gradient(ellipse at 50% 40%, #8dd8bc1c, transparent 60%), #19343c;
+}
+.retro-shell .pixel-light-reactor {
+  filter: drop-shadow(0 0 3px #ffdb88);
+}
+.retro-shell .pixel-light-console {
+  filter: drop-shadow(0 0 2px #a1d6be8c);
+}
+.retro-shell .ship-prompt {
+  font-family: var(--game-font);
+  font-size: 8px;
+  line-height: 1.8;
+  color: #eadcb7;
+  text-shadow: 2px 2px #050d17;
+}
+.retro-shell .ship-prompt > span {
+  text-shadow: 0 0 8px #a5d7bf6b;
+}
+@media (max-width: 900px) {
+  .retro-shell .ship-room .pixel-room-scene {
+    height: 126px;
+  }
+  .retro-shell .ship-room {
+    min-height: 270px;
+  }
+  .retro-shell .page-heading h1 {
+    font-size: 20px;
+  }
+}
+@media (max-width: 540px) {
+  .retro-shell .nav-item {
+    font-size: 8px;
+  }
+  .retro-shell .ship-room strong {
+    font-size: 9px;
+  }
+  .retro-shell .ship-room-description {
+    font-size: 11px;
+  }
+  .retro-shell .ship-engine {
+    white-space: normal;
+  }
+  .retro-shell .page-heading h1 {
+    font-size: 18px;
+    overflow-wrap: anywhere;
+  }
+  .retro-shell .button {
+    font-size: 8px;
+  }
+  .retro-shell .card-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .retro-shell :is(.button, .nav-item, .ship-room) {
+    transition: none;
+  }
+  .retro-shell .button:active:not(:disabled) {
+    transform: none;
+  }
+}
+@media (forced-colors: active) {
+  .retro-shell :is(.ship-room, .card, .button, .nav-item, .badge) {
+    box-shadow: none;
+    border-color: ButtonText;
+  }
+  .retro-shell .pixel-heading {
+    color: CanvasText;
+    filter: none;
+  }
 }
