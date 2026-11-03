@@ -590,3 +590,29 @@ export const CompressedContextResultSchema = z.strictObject({
   generatedAt: TimestampSchema,
 });
 export type CompressedContextResult = z.infer<typeof CompressedContextResultSchema>;
+
+// Named Context Saves (Session Checkpoints / Snapshots for Cross-Harness Injection)
+export const ContextSnapshotSchema = z.strictObject({
+  id: IdSchema,
+  projectId: IdSchema,
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(2000).default(''),
+  createdAt: TimestampSchema,
+  recordCount: z.number().int().nonnegative(),
+  activeInvariants: z.array(z.string()),
+  injectedPromptBlock: z.string(),
+  metadata: z.record(z.string(), JsonValueSchema).optional(),
+});
+export type ContextSnapshot = z.infer<typeof ContextSnapshotSchema>;
+
+export const ContextSnapshotCreateSchema = z.strictObject({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(2000).optional().default(''),
+  metadata: z.record(z.string(), JsonValueSchema).optional(),
+});
+export type ContextSnapshotCreate = z.infer<typeof ContextSnapshotCreateSchema>;
+
+export const ContextSnapshotListSchema = z.strictObject({
+  items: z.array(ContextSnapshotSchema),
+});
+export type ContextSnapshotList = z.infer<typeof ContextSnapshotListSchema>;

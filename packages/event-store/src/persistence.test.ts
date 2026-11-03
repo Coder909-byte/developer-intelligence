@@ -265,7 +265,7 @@ describe('forward-only migrations', () => {
             .prepare('SELECT version FROM schema_migrations ORDER BY version')
             .all()
             .map((r) => r.version),
-        ).toEqual([1, 2, 3]);
+        ).toEqual([1, 2, 3, 4]);
         expect(
           migrated.prepare('SELECT applied_at FROM schema_migrations WHERE version=1').get()
             ?.applied_at,
@@ -277,7 +277,7 @@ describe('forward-only migrations', () => {
       await rm(directory, { recursive: true, force: true });
     }
   });
-  it.each([[1, 2, 3, 4], [2]])(
+  it.each([[1, 2, 3, 4, 5], [2]])(
     'refuses newer or noncontiguous migration history %j without altering it',
     async (...versions) => {
       const directory = await mkdtemp(join(tmpdir(), 'udi-newer-'));

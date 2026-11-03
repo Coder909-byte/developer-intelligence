@@ -31,6 +31,12 @@ import {
   ChatCompletionResponseSchema,
   CompressionMetricsSchema,
   LayaClassificationListSchema,
+  ContextSnapshotSchema,
+  ContextSnapshotCreateSchema,
+  ContextSnapshotListSchema,
+  type ContextSnapshot,
+  type ContextSnapshotCreate,
+  type ContextSnapshotList,
   type ChatCompletionRequest,
   type ChatCompletionResponse,
   type CompressionMetrics,
@@ -398,6 +404,21 @@ export function createClient(options: ClientOptions = {}) {
         `/projects/${IdSchema.parse(projectId)}/classifier-stream${query({ limit })}`,
         LayaClassificationListSchema,
       ),
+    createSnapshot: (projectId: string, input: ContextSnapshotCreate) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/snapshots`,
+        ContextSnapshotSchema,
+        ContextSnapshotCreateSchema.parse(input),
+      ),
+    listSnapshots: (projectId: string) =>
+      request('GET', `/projects/${IdSchema.parse(projectId)}/snapshots`, ContextSnapshotListSchema),
+    getSnapshot: (projectId: string, nameOrId: string) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/snapshots/${encodeURIComponent(nameOrId)}`,
+        ContextSnapshotSchema,
+      ),
   };
 }
 export type DaemonClient = ReturnType<typeof createClient>;
@@ -411,4 +432,7 @@ export type {
   ChatCompletionResponse,
   CompressionMetrics,
   LayaClassificationResult,
+  ContextSnapshot,
+  ContextSnapshotCreate,
+  ContextSnapshotList,
 };

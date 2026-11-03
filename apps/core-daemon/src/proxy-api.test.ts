@@ -96,6 +96,33 @@ describe('Daemon OpenAI Proxy & Context Injection Endpoints', () => {
       const userItem = stream.items.find((i) => i.sourceType === 'user_message');
       expect(userItem).toBeDefined();
       expect(userItem?.projectId).toBe(project.id);
+
+      // 8. Test Named Snapshot Creation and Cross-Harness Injection
+      const snapshot = await client.createSnapshot(project.id, {
+        name: 'rover-checkpoint-motor-fixed',
+        description: 'Verified hardware pinout mapping for rover',
+      });
+      expect(snapshot.id).toBeDefined();
+      expect(snapshot.name).toBe('rover-checkpoint-motor-fixed');
+      expect(snapshot.activeInvariants.length).toBeGreaterThanOrEqual(1);
+      expect(snapshot.injectedPromptBlock).toContain('rover-checkpoint-motor-fixed');
+
+      const listedSnapshots = await client.listSnapshots(project.id);
+      expect(listedSnapshots.items).toHaveLength(1);
+      expect(listedSnapshots.items[0]?.name).toBe('rover-checkpoint-motor-fixed');
+
+      // Call proxy with x-context-snapshot header
+      const snapResponse = await client.chatCompletion(
+        {
+          model: 'gpt-4o',
+          messages: [{ role: 'user', content: 'What was saved in the checkpoint?' }],
+        },
+        {
+          'x-project-id': project.id,
+          'x-context-snapshot': 'rover-checkpoint-motor-fixed',
+        },
+      );
+      expect(snapResponse.choices[0]?.message.content).toBeDefined();
     } finally {
       await cleanup();
     }

@@ -103,7 +103,7 @@ export function evaluateRuleClassifier(
     /(?:validation (?:passed|failed|completed)|finding\(s\)|revalidation|tests? passed|failed suites?|error:|failed|succeeded|exitCode:\s*[01]|regression|assertionerror)/i,
   );
   if (outcomeMatch) {
-    let fact = '';
+    let fact: string;
     const errorLine = scrubbed.match(/(?:error|failed|assertionerror)[^\n]{10,180}/i);
     const passLine = scrubbed.match(
       /(?:\d+ passed|\d+ test files? passed|all tests passed|validation succeeded)[^\n]*/i,

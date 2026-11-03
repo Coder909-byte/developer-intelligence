@@ -65,6 +65,21 @@ export const migrations = [
     );
   `,
   },
+  {
+    version: 4,
+    sql: `
+    CREATE TABLE context_snapshots (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      body TEXT NOT NULL CHECK(json_valid(body)),
+      UNIQUE(project_id, name)
+    );
+    CREATE INDEX context_snapshots_project_name ON context_snapshots(project_id, name);
+    CREATE INDEX context_snapshots_project_time ON context_snapshots(project_id, created_at, id);
+  `,
+  },
 ] as const;
 
 export function migrate(db: DatabaseSync) {

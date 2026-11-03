@@ -36,6 +36,8 @@ import {
   type ChatCompletionResponse,
   type LayaClassificationResult,
   type CompressionMetrics,
+  ContextSnapshotCreateSchema,
+  type ContextSnapshot,
 } from '@udi/contracts';
 import { PersistenceError, type PlatformDatabase } from '@udi/event-store';
 import { buildContextRecord } from '@udi/context-engine';
@@ -665,29 +667,41 @@ export function registerPlatformRoutes(
     const findings = await store.validation.listFindings(targetProjectId);
     const openFindings = findings.filter((f) => f.status === 'open');
 
-    const hardwareFacts = records
-      .filter((r) => r.kind === 'fact' || r.text.includes('GPIO') || r.text.includes('pin'))
-      .map((r) => r.text);
-    const decisions = records.filter((r) => r.kind === 'decision').map((r) => r.text);
+    const requestedSnapshot = headers['x-context-snapshot'] ?? query.snapshot;
+    let injectedContextBlock = '';
 
-    const factLines = hardwareFacts.length
-      ? hardwareFacts.map((f) => `• [Hardware Invariant] ${f}`)
-      : ['• [Hardware Invariant] No custom pin overrides registered.'];
+    if (requestedSnapshot) {
+      const snap = await store.snapshots.get(targetProjectId, requestedSnapshot);
+      if (snap) {
+        injectedContextBlock = snap.injectedPromptBlock;
+      }
+    }
 
-    const decisionLines = decisions.length
-      ? decisions.map((d) => `• [Decision] ${d}`)
-      : ['• [Decision] Standard engineering guidelines in effect.'];
+    if (!injectedContextBlock) {
+      const hardwareFacts = records
+        .filter((r) => r.kind === 'fact' || r.text.includes('GPIO') || r.text.includes('pin'))
+        .map((r) => r.text);
+      const decisions = records.filter((r) => r.kind === 'decision').map((r) => r.text);
 
-    const statusLine = openFindings.length
-      ? `• [Status] ${openFindings.length} active issue(s): ${openFindings.map((f) => f.message).join('; ')}`
-      : '• [Status] Engineering validation verified: 0 active findings.';
+      const factLines = hardwareFacts.length
+        ? hardwareFacts.map((f) => `• [Hardware Invariant] ${f}`)
+        : ['• [Hardware Invariant] No custom pin overrides registered.'];
 
-    const injectedContextBlock = [
-      `[PROJECT INTELLIGENCE: ${project.name} (Compressed Ground Truth)]`,
-      ...factLines,
-      ...decisionLines,
-      statusLine,
-    ].join('\n');
+      const decisionLines = decisions.length
+        ? decisions.map((d) => `• [Decision] ${d}`)
+        : ['• [Decision] Standard engineering guidelines in effect.'];
+
+      const statusLine = openFindings.length
+        ? `• [Status] ${openFindings.length} active issue(s): ${openFindings.map((f) => f.message).join('; ')}`
+        : '• [Status] Engineering validation verified: 0 active findings.';
+
+      injectedContextBlock = [
+        `[PROJECT INTELLIGENCE: ${project.name} (Compressed Ground Truth)]`,
+        ...factLines,
+        ...decisionLines,
+        statusLine,
+      ].join('\n');
+    }
 
     const rawHistoryText = body.messages.map((m) => `${m.role}: ${m.content ?? ''}`).join('\n');
     const rawTokensEstimate = Math.max(10, Math.round(rawHistoryText.length / 4));
@@ -866,5 +880,76 @@ export function registerPlatformRoutes(
     const limit = query.limit ? parseInt(query.limit, 10) : 50;
     const items = await store.classification.list(id, limit);
     return apiSuccess({ items }, request.id);
+  });
+
+  // Named Context Saves (Session Checkpoints / Snapshots)
+  app.post(`${prefix}/projects/:id/snapshots`, async (request, reply) => {
+    const id = projectId(request.params);
+    const body = ContextSnapshotCreateSchema.parse(request.body);
+    const project = store.projects.get(id);
+    if (!project) throw new PersistenceError('NOT_FOUND', 'Project not found');
+
+    const records = await store.context.listRecords(id);
+    const findings = await store.validation.listFindings(id);
+    const openFindings = findings.filter((f) => f.status === 'open');
+
+    const hardwareFacts = records
+      .filter((r) => r.kind === 'fact' || r.text.includes('GPIO') || r.text.includes('pin'))
+      .map((r) => r.text);
+    const decisions = records.filter((r) => r.kind === 'decision').map((r) => r.text);
+
+    const factLines = hardwareFacts.length
+      ? hardwareFacts.map((f) => `• [Hardware Invariant] ${f}`)
+      : ['• [Hardware Invariant] No custom pin overrides registered.'];
+
+    const decisionLines = decisions.length
+      ? decisions.map((d) => `• [Decision] ${d}`)
+      : ['• [Decision] Standard engineering guidelines in effect.'];
+
+    const statusLine = openFindings.length
+      ? `• [Status] ${openFindings.length} active issue(s): ${openFindings.map((f) => f.message).join('; ')}`
+      : '• [Status] Engineering validation verified: 0 active findings.';
+
+    const promptBlock = [
+      `[PROJECT INTELLIGENCE: ${project.name} | SNAPSHOT: "${body.name}"]`,
+      ...factLines,
+      ...decisionLines,
+      statusLine,
+    ].join('\n');
+
+    const snapshot: ContextSnapshot = {
+      id: randomUUID(),
+      projectId: id,
+      name: body.name,
+      description: body.description ?? '',
+      createdAt: new Date().toISOString(),
+      recordCount: records.length,
+      activeInvariants: hardwareFacts,
+      injectedPromptBlock: promptBlock,
+      metadata: body.metadata,
+    };
+
+    const created = await store.snapshots.create(snapshot);
+    return reply.code(201).send(apiSuccess(created, request.id));
+  });
+
+  app.get(`${prefix}/projects/:id/snapshots`, async (request) => {
+    const id = projectId(request.params);
+    const items = await store.snapshots.list(id);
+    return apiSuccess({ items }, request.id);
+  });
+
+  app.get(`${prefix}/projects/:id/snapshots/:nameOrId`, async (request, reply) => {
+    const id = projectId(request.params);
+    const { nameOrId } = request.params as { nameOrId: string };
+    const snapshot = await store.snapshots.get(id, nameOrId);
+    if (!snapshot) {
+      return reply.code(404).send({
+        ok: false,
+        error: { code: 'NOT_FOUND', message: `Snapshot "${nameOrId}" not found` },
+        meta: responseMeta(request.id),
+      });
+    }
+    return apiSuccess(snapshot, request.id);
   });
 }

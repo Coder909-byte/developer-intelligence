@@ -25,6 +25,8 @@ import {
   type LayaClassificationResult,
   CompressionMetricsSchema,
   type CompressionMetrics,
+  ContextSnapshotSchema,
+  type ContextSnapshot,
 } from '@udi/contracts';
 
 export class PersistenceError extends Error {
@@ -70,6 +72,12 @@ export interface PlatformRepositories {
     get(projectId: string): Promise<CompressionMetrics | undefined>;
     record(metrics: CompressionMetrics): Promise<void>;
   };
+  snapshots: {
+    create(snapshot: ContextSnapshot): Promise<ContextSnapshot>;
+    list(projectId: string): Promise<ContextSnapshot[]>;
+    get(projectId: string, nameOrId: string): Promise<ContextSnapshot | undefined>;
+    delete(projectId: string, nameOrId: string): Promise<boolean>;
+  };
 }
 
 /** Called only by openDatabase. This module contains persistence, never tool execution or synthesis. */
@@ -98,6 +106,7 @@ export function createPlatformRepositories(db: DatabaseSync): PlatformRepositori
     | 'validation_jobs'
     | 'engineering_findings'
     | 'classification_results'
+    | 'context_snapshots'
     | 'mcp_servers';
   const decodeJson = (body: unknown): unknown => {
     try {
@@ -351,5 +360,52 @@ export function createPlatformRepositories(db: DatabaseSync): PlatformRepositori
     },
   };
 
-  return { events, context, handoffs, mcpServers, validation, classification, metrics };
+  const snapshots: PlatformRepositories['snapshots'] = {
+    async create(input) {
+      const parsed = ContextSnapshotSchema.parse(input);
+      requireProject(parsed.projectId);
+      if (
+        db
+          .prepare('SELECT 1 FROM context_snapshots WHERE project_id = ? AND (id = ? OR name = ?)')
+          .get(parsed.projectId, parsed.id, parsed.name)
+      ) {
+        throw new PersistenceError(
+          'CONFLICT',
+          `Snapshot with name "${parsed.name}" already exists`,
+        );
+      }
+      db.prepare(
+        'INSERT INTO context_snapshots (id, project_id, name, created_at, body) VALUES (?, ?, ?, ?, ?)',
+      ).run(parsed.id, parsed.projectId, parsed.name, parsed.createdAt, JSON.stringify(parsed));
+      return parsed;
+    },
+    async list(projectId) {
+      requireProject(projectId);
+      return db
+        .prepare(
+          'SELECT body FROM context_snapshots WHERE project_id = ? ORDER BY julianday(created_at) DESC, id DESC',
+        )
+        .all(projectId)
+        .map((row) => validateStored(ContextSnapshotSchema, decodeJson(row.body)));
+    },
+    async get(projectId, nameOrId) {
+      requireProject(projectId);
+      const row = db
+        .prepare('SELECT body FROM context_snapshots WHERE project_id = ? AND (id = ? OR name = ?)')
+        .get(projectId, nameOrId, nameOrId);
+      return row ? validateStored(ContextSnapshotSchema, decodeJson(row.body)) : undefined;
+    },
+    async delete(projectId, nameOrId) {
+      requireProject(projectId);
+      return (
+        Number(
+          db
+            .prepare('DELETE FROM context_snapshots WHERE project_id = ? AND (id = ? OR name = ?)')
+            .run(projectId, nameOrId, nameOrId).changes,
+        ) > 0
+      );
+    },
+  };
+
+  return { events, context, handoffs, mcpServers, validation, classification, metrics, snapshots };
 }
