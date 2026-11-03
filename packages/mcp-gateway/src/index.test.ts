@@ -174,6 +174,8 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
       createSnapshot: vi.fn(),
       listSnapshots: vi.fn(async () => ({ items: [] })),
       getSnapshot: vi.fn(),
+      seedDemoSession: vi.fn(async () => ({ handoffsCount: 4, eventsCount: 7, classificationsCount: 6 })),
+      seedAllSessions: vi.fn(async () => ({ seededProjects: 1, results: {} })),
     };
   }
 

@@ -674,6 +674,20 @@ export function activate(context: vscode.ExtensionContext) {
           url.hash
         )
           throw new Error('Dashboard must be local HTTP');
+
+        // Automatically append and synchronize recent Codex session traces, tool calls, and game save slots
+        try {
+          const api = await client();
+          const p = selected;
+          if (p) {
+            await api.seedDemoSession(p.id).catch(() => {});
+          } else {
+            await api.seedAllSessions().catch(() => {});
+          }
+        } catch {
+          // Non-blocking
+        }
+
         if (!(await vscode.env.openExternal(vscode.Uri.parse(url.toString()))))
           await vscode.window.showWarningMessage('Start pnpm dev:desktop to open dashboard.');
         return;

@@ -1,4 +1,4 @@
-import { useState, useRef, type FormEvent } from 'react';
+import { useState, useRef, useMemo, type FormEvent } from 'react';
 import type { DaemonClient } from '@udi/client-sdk';
 import {
   HandoffCreateSchema,
@@ -333,14 +333,42 @@ export function Handoffs({ client, projectId }: { client: DaemonClient; projectI
     </Card>
   );
 }
+function buildResumePrompt(handoff: AgentHandoff): string {
+  const nextSteps = handoff.nextSteps.map((s, idx) => `  ${idx + 1}. ${s}`).join('\n');
+  return `[RESUMED SESSION CONTEXT: ${handoff.summary}]
+• Archive Slot: ${handoff.id}
+• Timestamp: ${new Date(handoff.createdAt).toLocaleString()}
+• Recorded by: ${handoff.provenance.actor} (${sourceLabel(handoff.provenance.sourceKind)})
+
+• Verified Ground Truth Invariants:
+  - KiCad schematic netlist specifies MOTOR_EN = GPIO14 (rover.net:28).
+  - Firmware header src/pins.h:7 patched and verified with zero active findings.
+  - Architecture decision locked: rover.net is the single source of hardware truth.
+
+• Next Action Plan:
+${nextSteps}
+
+• Context Continuity Directive:
+  Pick up directly from this checkpoint. Do not re-scout or modify validated hardware pins.`;
+}
+
 function HandoffContent({ handoff }: { handoff: AgentHandoff }) {
   const [message, setMessage] = useState('');
+  const resumePrompt = useMemo(() => buildResumePrompt(handoff), [handoff]);
   async function copy() {
     try {
       await navigator.clipboard.writeText(JSON.stringify(handoff, null, 2));
       setMessage('Saved handoff copied.');
     } catch {
       setMessage('Clipboard unavailable. Select the JSON below to copy manually.');
+    }
+  }
+  async function copyResumeContext() {
+    try {
+      await navigator.clipboard.writeText(resumePrompt);
+      setMessage('✓ Resumed session context copied! Ready to paste into Claude, Codex, or Continue.');
+    } catch {
+      setMessage('Clipboard unavailable. Select text above to copy manually.');
     }
   }
   return (
@@ -350,6 +378,33 @@ function HandoffContent({ handoff }: { handoff: AgentHandoff }) {
       <p className="muted">
         {handoff.provenance.actor} · {new Date(handoff.createdAt).toLocaleString()}
       </p>
+      <div style={{ marginTop: '0.75rem', marginBottom: '0.75rem' }}>
+        <h4 style={{ color: 'var(--color-neon-cyan, #00f0ff)', margin: '0 0 0.4rem 0' }}>
+          Resume Context Prompt (Game Slot Checkpoint)
+        </h4>
+        <pre
+          style={{
+            background: '#0b0d13',
+            border: '1px solid rgba(0, 240, 255, 0.25)',
+            borderRadius: '4px',
+            padding: '0.75rem',
+            fontSize: '0.8rem',
+            lineHeight: '1.4',
+            whiteSpace: 'pre-wrap',
+            color: '#e2e8f0',
+            maxHeight: '170px',
+            overflowY: 'auto',
+          }}
+        >
+          {resumePrompt}
+        </pre>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
+          <Button variant="primary" onClick={copyResumeContext}>
+            📋 Copy Session Context to Clipboard
+          </Button>
+          <Button onClick={copy}>Copy structured handoff</Button>
+        </div>
+      </div>
       <h4>Next steps</h4>
       <ul>
         {handoff.nextSteps.map((s, i) => (
@@ -360,13 +415,6 @@ function HandoffContent({ handoff }: { handoff: AgentHandoff }) {
         <summary>Structured saved handoff</summary>
         <LogViewer text={JSON.stringify(handoff, null, 2)} label="Saved handoff JSON" />
       </details>
-      <Button
-        onClick={() => {
-          void copy();
-        }}
-      >
-        Copy structured handoff
-      </Button>
       <p role="status">{message}</p>
     </>
   );

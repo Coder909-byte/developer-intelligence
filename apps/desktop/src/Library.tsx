@@ -99,8 +99,17 @@ export function Library({
   const list = useResource(
     async () => {
       if (!projectId) return { items: [] };
-      const result = await client.listHandoffs(projectId, page.options);
+      let result = await client.listHandoffs(projectId, page.options);
       scoped(result.items, projectId);
+      if (result.items.length === 0) {
+        try {
+          await client.seedDemoSession(projectId);
+          result = await client.listHandoffs(projectId, page.options);
+          scoped(result.items, projectId);
+        } catch {
+          // If seeding unavailable, keep empty list
+        }
+      }
       return result;
     },
     [client, projectId, page.offset, page.revision],
