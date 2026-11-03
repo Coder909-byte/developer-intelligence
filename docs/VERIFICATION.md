@@ -40,3 +40,13 @@ Storage and additive contracts are committed separately from routes/SDK/integrat
 - Startup, HTTP assertions and shutdown have deadlines so failed integration checks do not wait indefinitely. Temporary data is removed; no daemon or demo data is left running in the real workspace.
 - No entity schemas, shared SDK signatures, endpoint behavior, database migration, frontend or intelligence algorithm implementation changed. Necessary updates are the stronger smoke test, current integration documentation and deterministic demo gates.
 - Doctor still reports missing code, cargo/rustc, platformio, kicad-cli and iverilog on this machine. Actual VS Code activation, native packaging, real engineering comparison and second-host MCP retrieval remain NOT RUN/BLOCKED, not inferred from persistence success.
+
+## Real merged intelligence runtime — 3 November 2026
+
+Synchronized feat/core-platform to merged main 2e52ced, preserving the initially clean workspace. Inspected actual DefaultEngineeringValidator, DefaultContextEngine, DefaultMcpGateway and daemon composition before testing. The baseline HTTP probe genuinely detected GPIO14/GPIO26 at rover.net:28 and src/pins.h:7 and passed the corrected fixture, but returned empty context. The daemon now bridges verified validator output into persisted observed facts; algorithms/gateway/frontend files remain unchanged.
+
+Final gate passed on macOS Node 24.14.1 / pnpm 11.10.0: install --frozen-lockfile, typecheck, lint, 126 tests in 16 files, build, node scripts/smoke.mjs, node scripts/demo-e2e.mjs, format:check. The full test suite needed loopback access and canonical temporary paths for macOS symlink aliases; no frontend test source was edited.
+
+The real-process test proves authenticated rover registration → actual mismatch/corrected comparison → persisted job/findings/events and observed context → actual MCP stdio initialization/tool requests → saved/retrieved handoff → independent SQLite reads → daemon and MCP process restart with the same records/provenance. It also exercises agent_summary writes through the real MCP tool. No mocked validator results or in-memory MCP transport is used by this test.
+
+See RUNTIME_DEMO for captured IDs, exact commands, fixture evidence, retained-data reproduction, unmerged frontend job-scoping/disabled-control limitations and host/toolchain prerequisites. Backend/MCP current-job reads correctly exclude historical errors when jobId is supplied; unfiltered findings remain history. A real commercial agent/GUI Extension Host session and native Tauri packaging are not claimed.

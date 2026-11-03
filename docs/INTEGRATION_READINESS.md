@@ -1,5 +1,7 @@
 # End-to-end integration readiness
 
+Current runtime follow-up: main 2e52ced includes the intelligence engine and initial frontend. The backend → real rover validator → observed context → real stdio MCP path has now passed on the Mac, including SQLite restart and handoffs. See [runtime demo](RUNTIME_DEMO.md) for exact commands/results and remaining frontend/host limitations. The snapshot below is the earlier pre-merge audit, retained as history.
+
 Audit baseline: merged main `cb848d5` (PR #2), 3 November 2026. The clean local feat/core-platform branch was fast-forwarded to origin/main. No teammate branch was merged; local main was not changed.
 
 Read-only remote review: feat/frontend `d1ce340` contains the desktop and native extension milestone, based on bootstrap. feat/intelligence-engine still points to `9c233ba` in the fetched remote; this does not describe Developer 2's unpublished local work. Recheck refs before integration. The original technical specification's illustrative `/v1` paths and non-UUID IDs are superseded by API_CONTRACTS and the ADRs.
