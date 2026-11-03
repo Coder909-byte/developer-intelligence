@@ -1,6 +1,18 @@
 import { z } from 'zod';
 import {
   API_PREFIX,
+  ToolCategoryListSchema,
+  ToggleCategoryRequestSchema,
+  CompressedContextResultSchema,
+  CompressionQuerySchema,
+  BridgedExtensionToolSchema,
+  BridgedExtensionToolListSchema,
+  BridgeCallSchema,
+  BridgeResultSchema,
+  BridgePollSchema,
+  type BridgedExtensionTool,
+  type ToggleCategoryRequest,
+  type JsonValue,
   ActivityEventSchema,
   EventCreateSchema,
   EventListSchema,
@@ -325,6 +337,72 @@ export function createClient(options: ClientOptions = {}) {
         `/projects/${IdSchema.parse(projectId)}/corrections/rollback`,
         CorrectionRollbackResultSchema,
         CorrectionRollbackRequestSchema.parse(input),
+      ),
+    getToolCategories: (projectId: string) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/tool-categories`,
+        ToolCategoryListSchema,
+      ),
+    toggleToolCategory: (input: ToggleCategoryRequest) =>
+      request(
+        'PUT',
+        `/projects/${IdSchema.parse(input.projectId)}/tool-categories`,
+        ToggleCategoryRequestSchema,
+        ToggleCategoryRequestSchema.parse(input),
+      ),
+    getCompressedContext: (
+      projectId: string,
+      mode: 'deterministic_delta' | 'ai_distillation' = 'deterministic_delta',
+    ) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/compressed-context${query(CompressionQuerySchema.parse({ mode }))}`,
+        CompressedContextResultSchema,
+      ),
+    registerHostExtensionTool: (tool: BridgedExtensionTool) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(tool.projectId)}/extension-tools`,
+        BridgedExtensionToolSchema,
+        BridgedExtensionToolSchema.parse(tool),
+      ),
+    listHostExtensionTools: (projectId: string) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/extension-tools`,
+        BridgedExtensionToolListSchema,
+      ),
+    pollHostExtensionRequests: (projectId: string, hostId: string) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/extension-hosts/${IdSchema.parse(hostId)}/requests`,
+        BridgePollSchema,
+      ),
+    completeHostExtensionRequest: (
+      projectId: string,
+      hostId: string,
+      callId: string,
+      result: { isError: boolean; content: JsonValue },
+    ) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/extension-hosts/${IdSchema.parse(hostId)}/results/${IdSchema.parse(callId)}`,
+        DeleteResultSchema,
+        BridgeResultSchema.parse(result),
+      ),
+    callHostExtensionTool: (
+      projectId: string,
+      input: {
+        name: 'vscode_execute_command' | 'vscode_list_diagnostics';
+        arguments?: Record<string, JsonValue>;
+      },
+    ) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/extension-tools/call`,
+        BridgeResultSchema,
+        BridgeCallSchema.parse(input),
       ),
     listIntegrations: () => request('GET', '/integrations', IntegrationListSchema),
     discoverServerTools: (serverId: string) =>

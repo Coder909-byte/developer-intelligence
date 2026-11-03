@@ -273,6 +273,13 @@ export function createDefaultIntegrations(
         const executionId = randomUUID();
         try {
           const { result, durationMs } = await routeToolCall(server, toolName, args);
+          const outcome =
+            result !== null &&
+            typeof result === 'object' &&
+            'isError' in result &&
+            result.isError === true
+              ? 'failed'
+              : 'succeeded';
 
           if (options?.projectId) {
             // Record event
@@ -290,8 +297,8 @@ export function createDefaultIntegrations(
                 serverName: server.name,
                 toolName,
                 durationMs,
-                outcome: 'succeeded',
-                summary: `Successfully executed tool ${toolName} on ${server.name}`,
+                outcome,
+                summary: `Executed tool ${toolName} on ${server.name}: ${outcome}`,
               },
             });
 
@@ -302,7 +309,7 @@ export function createDefaultIntegrations(
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               kind: 'fact',
-              text: `Discovered MCP tool executed: ${server.name} -> ${toolName}. Outcome: succeeded (${durationMs}ms).`,
+              text: `Discovered MCP tool executed: ${server.name} -> ${toolName}. Outcome: ${outcome} (${durationMs}ms).`,
               provenance: {
                 sourceKind: 'observed_tool',
                 actor: options.agentId ?? 'mcp-aggregator',

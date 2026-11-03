@@ -1,9 +1,16 @@
-import { McpServer as SdkMcpServer } from '@modelcontextprotocol/server';
+import {
+  McpServer as SdkMcpServer,
+  type RegisteredTool,
+  type Tool,
+  type CallToolResult,
+  type ServerContext,
+} from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import type { DaemonClient } from '@udi/client-sdk';
 import type { McpServer as RegisteredMcpServer, DiscoveredTool } from '@udi/contracts';
 import { z } from 'zod';
-import { discoverServerTools, routeToolCall } from './aggregator.js';
+import type { ToolCategory, JsonValue } from '@udi/contracts';
+import { TOOL_CATEGORIES, getFilteredTools } from './categories.js';
 
 export type McpServerTransport = Parameters<SdkMcpServer['connect']>[0];
 
@@ -42,11 +49,19 @@ export class DefaultMcpGateway implements McpGateway {
     });
 
     this.registerGatewayTools();
+    this.registerSpec2Tools();
+    this.server.server.setRequestHandler('tools/list', async () => {
+      await this.refreshExternalTools();
+      const active = await this.activeCategories(this.defaultProjectId);
+      return {
+        tools: getFilteredTools(active, [...this.definitions.values()]).map((t) => t.definition),
+      };
+    });
   }
 
   private registerGatewayTools(): void {
     // 1. get_project_context
-    this.server.registerTool(
+    this.registerTool(
       'get_project_context',
       {
         description:
@@ -93,7 +108,7 @@ export class DefaultMcpGateway implements McpGateway {
     );
 
     // 2. list_project_events
-    this.server.registerTool(
+    this.registerTool(
       'list_project_events',
       {
         description:
@@ -135,7 +150,7 @@ export class DefaultMcpGateway implements McpGateway {
     );
 
     // 3. get_validation_results
-    this.server.registerTool(
+    this.registerTool(
       'get_validation_results',
       {
         description:
@@ -188,7 +203,7 @@ export class DefaultMcpGateway implements McpGateway {
     );
 
     // 4. record_decision
-    this.server.registerTool(
+    this.registerTool(
       'record_decision',
       {
         description:
@@ -233,7 +248,7 @@ export class DefaultMcpGateway implements McpGateway {
     );
 
     // 5. list_available_tools
-    this.server.registerTool(
+    this.registerTool(
       'list_available_tools',
       {
         description: 'Lists all available MCP gateway tools and daemon capabilities.',
@@ -242,7 +257,6 @@ export class DefaultMcpGateway implements McpGateway {
         },
       },
       async ({ projectId }) => {
-        void projectId;
         try {
           const health = await this.client.health();
           let serverList: unknown[] = [];
@@ -254,13 +268,10 @@ export class DefaultMcpGateway implements McpGateway {
           }
 
           const capabilities = health.capabilities;
-          const tools = [
-            'get_project_context',
-            'list_project_events',
-            'get_validation_results',
-            'record_decision',
-            'list_available_tools',
-          ];
+          const tools = getFilteredTools(
+            await this.activeCategories(projectId ?? this.defaultProjectId),
+            [...this.definitions.values()],
+          ).map((t) => t.name);
 
           return {
             content: [
@@ -300,91 +311,244 @@ export class DefaultMcpGateway implements McpGateway {
   }
 
   async aggregateExternalServer(server: RegisteredMcpServer): Promise<DiscoveredTool[]> {
-    const discovered = await discoverServerTools(server);
+    const { items: discovered } = await this.client.discoverServerTools(server.id);
     for (const tool of discovered) {
-      const namespaced = `${server.name}__${tool.name}`;
+      const prefix = server.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const base = `${prefix}__${tool.name}`;
+      const namespaced = this.definitions.has(base)
+        ? `${prefix}_${server.id.slice(0, 8)}__${tool.name}`
+        : base;
       this.aggregatedTools.set(namespaced, tool);
-
-      this.server.registerTool(
+      this.registerTool(
         namespaced,
         {
-          description: `[Aggregated from ${server.name}] ${tool.description || tool.name}`,
+          description: `[${server.name}] ${tool.description || tool.name}`,
           inputSchema: {
-            params: z.record(z.string(), z.any()).optional(),
-            projectId: z.string().uuid().optional(),
+            params: z.record(z.string(), z.unknown()).optional(),
+            projectId: z.uuid().optional(),
             agentId: z.string().optional(),
           },
         },
         async ({ params, projectId, agentId }) => {
-          const targetProjectId = projectId ?? this.defaultProjectId;
-          const targetArgs = params ?? {};
-          const startTime = Date.now();
           try {
-            const { result, durationMs } = await routeToolCall(server, tool.name, targetArgs);
-
-            // Record execution activity in daemon
-            await this.client
-              .createEvent(targetProjectId, {
-                type: 'mcp.tool.executed',
-                actor: agentId ?? 'mcp-gateway-router',
-                sourceKind: 'observed_tool',
-                payload: {
-                  serverName: server.name,
-                  toolName: tool.name,
-                  durationMs,
-                  outcome: 'succeeded',
-                  summary: `Executed ${tool.name} on ${server.name}`,
-                },
-              })
-              .catch(() => {});
-
-            // Record context memory fact
-            await this.client
-              .createContextRecord(targetProjectId, {
-                kind: 'fact',
-                text: `Aggregated MCP tool executed: ${server.name} -> ${tool.name}. Outcome: succeeded (${durationMs}ms).`,
-                provenance: {
-                  sourceKind: 'observed_tool',
-                  actor: agentId ?? 'mcp-gateway-router',
-                },
-                evidence: [],
-              })
-              .catch(() => {});
-
+            const response = await this.client.callMcpTool(server.id, tool.name, {
+              projectId: projectId ?? this.defaultProjectId,
+              ...(agentId ? { agentId } : {}),
+              arguments: (params ?? {}) as Record<string, JsonValue>,
+            });
+            const raw = response.result;
+            return raw !== null &&
+              typeof raw === 'object' &&
+              !Array.isArray(raw) &&
+              Array.isArray(raw.content)
+              ? (raw as unknown as CallToolResult)
+              : { content: [{ type: 'text', text: JSON.stringify(raw) }] };
+          } catch {
             return {
+              isError: true,
               content: [
                 {
                   type: 'text',
-                  text: typeof result === 'string' ? result : JSON.stringify(result, null, 2),
+                  text: 'External MCP execution failed; inspect project activity. No automatic retry.',
                 },
               ],
-            };
-          } catch (err) {
-            const durationMs = Date.now() - startTime;
-            const msg = err instanceof Error ? err.message : String(err);
-            await this.client
-              .createEvent(targetProjectId, {
-                type: 'mcp.tool.executed',
-                actor: agentId ?? 'mcp-gateway-router',
-                sourceKind: 'observed_tool',
-                payload: {
-                  serverName: server.name,
-                  toolName: tool.name,
-                  durationMs,
-                  outcome: 'failed',
-                  error: msg,
-                },
-              })
-              .catch(() => {});
-
-            return {
-              content: [{ type: 'text', text: `Tool execution failed: ${msg}` }],
             };
           }
         },
       );
     }
     return discovered;
+  }
+
+  private readonly definitions = new Map<
+    string,
+    { name: string; category: ToolCategory; definition: Tool; handle: RegisteredTool }
+  >();
+  private readonly serverFingerprints = new Map<string, string>();
+  private refreshing: Promise<void> | undefined;
+
+  private async activeCategories(projectId: string): Promise<Set<ToolCategory>> {
+    const result = await this.client.getToolCategories(projectId);
+    return new Set(result.categories.filter((c) => c.enabled).map((c) => c.category));
+  }
+  private registerTool<S extends z.ZodRawShape>(
+    name: string,
+    config: { description: string; inputSchema: S },
+    callback: (
+      args: z.infer<z.ZodObject<S>>,
+      context: ServerContext,
+    ) => CallToolResult | Promise<CallToolResult>,
+  ) {
+    const category = TOOL_CATEGORIES[name] ?? 'external_servers';
+    const handle = this.server.registerTool(
+      name,
+      { ...config, inputSchema: z.object(config.inputSchema) },
+      async (args, context) => {
+        const supplied = (args as Record<string, unknown>).projectId;
+        const projectId = typeof supplied === 'string' ? supplied : this.defaultProjectId;
+        try {
+          if (!(await this.activeCategories(projectId)).has(category))
+            return {
+              isError: true,
+              content: [
+                {
+                  type: 'text',
+                  text: `Tool '${name}' is in category '${category}', which is currently toggled OFF in Mission Control.`,
+                },
+              ],
+            };
+          return await callback(z.object(config.inputSchema).parse(args), context);
+        } catch {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: 'Tool unavailable: cannot verify project category state or complete operation.',
+              },
+            ],
+          };
+        }
+      },
+    );
+    this.definitions.set(name, {
+      name,
+      category,
+      handle,
+      definition: {
+        name,
+        description: config.description,
+        inputSchema: z.toJSONSchema(z.object(config.inputSchema), {
+          unrepresentable: 'any',
+        }) as Tool['inputSchema'],
+      },
+    });
+    return handle;
+  }
+  async refreshExternalTools(): Promise<void> {
+    if (this.refreshing) return this.refreshing;
+    this.refreshing = (async () => {
+      if (!(await this.activeCategories(this.defaultProjectId)).has('external_servers')) return;
+      const servers: RegisteredMcpServer[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const page = (await this.client.listMcpServers({ limit: 500, offset })).items;
+        servers.push(...page);
+        if (page.length < 500) break;
+      }
+      for (const [id] of this.serverFingerprints) {
+        const server = servers.find((s) => s.id === id && s.enabled);
+        const fingerprint = server && JSON.stringify([server.name, server.transport]);
+        if (!server || fingerprint !== this.serverFingerprints.get(id)) {
+          for (const [name, tool] of this.aggregatedTools)
+            if (tool.serverId === id) {
+              this.definitions.get(name)?.handle.remove();
+              this.definitions.delete(name);
+              this.aggregatedTools.delete(name);
+            }
+          this.serverFingerprints.delete(id);
+        }
+      }
+      for (const server of servers.filter((s) => s.enabled && s.transport.type === 'stdio')) {
+        if (this.serverFingerprints.has(server.id)) continue;
+        // Never recursively launch another copy of our own gateway.
+        if (
+          server.transport.type === 'stdio' &&
+          server.transport.args.some((a) =>
+            /(?:mcp-gateway[/\\]dist[/\\]cli\.js|mcp-stdio\.mjs)$/.test(a),
+          )
+        )
+          continue;
+        try {
+          await this.aggregateExternalServer(server);
+          this.serverFingerprints.set(server.id, JSON.stringify([server.name, server.transport]));
+        } catch {
+          /* An unreachable external server never removes working core tools. */
+        }
+      }
+    })();
+    try {
+      await this.refreshing;
+    } finally {
+      this.refreshing = undefined;
+    }
+  }
+  private registerSpec2Tools() {
+    this.registerTool(
+      'get_compressed_context',
+      {
+        description:
+          'Spec 2 verified deterministic delta or classified AI rollup; token estimates and provenance retained.',
+        inputSchema: {
+          projectId: z.uuid().optional(),
+          mode: z.enum(['deterministic_delta', 'ai_distillation']).default('deterministic_delta'),
+        },
+      },
+      async ({ projectId, mode }) => ({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(
+              await this.client.getCompressedContext(projectId ?? this.defaultProjectId, mode),
+            ),
+          },
+        ],
+      }),
+    );
+    this.registerTool(
+      'run_engineering_validation',
+      {
+        description: 'Run scoped engineering validation only after explicit caller approval.',
+        inputSchema: {
+          projectId: z.uuid().optional(),
+          kind: z.enum(['pin_consistency', 'platformio_build', 'rtl_simulation']),
+          artifactPaths: z.array(z.string()).min(1),
+          approved: z.boolean(),
+        },
+      },
+      async ({ projectId, kind, artifactPaths, approved }) => {
+        if (!approved)
+          return {
+            isError: true,
+            content: [
+              { type: 'text', text: 'Explicit approval is required before engineering execution' },
+            ],
+          };
+        const job = await this.client.requestValidation(projectId ?? this.defaultProjectId, {
+          kind,
+          artifactPaths,
+          requestedBy: 'mcp-gateway',
+        });
+        return { content: [{ type: 'text', text: JSON.stringify(job) }] };
+      },
+    );
+    for (const name of ['vscode_execute_command', 'vscode_list_diagnostics'] as const)
+      this.registerTool(
+        name,
+        {
+          description: `Relay ${name} to the live registered VS Code extension. Commands require native user approval.`,
+          inputSchema: {
+            projectId: z.uuid().optional(),
+            commandId: z.string().optional(),
+            args: z.array(z.unknown()).optional(),
+          },
+        },
+        async ({ projectId, commandId, args }) => {
+          const result = await this.client.callHostExtensionTool(
+            projectId ?? this.defaultProjectId,
+            {
+              name,
+              arguments: {
+                ...(commandId ? { commandId } : {}),
+                ...(args ? { args: args as JsonValue[] } : {}),
+              },
+            },
+          );
+          return {
+            isError: result.isError,
+            content: [{ type: 'text', text: JSON.stringify(result.content) }],
+          };
+        },
+      );
   }
 
   async start(): Promise<void> {
