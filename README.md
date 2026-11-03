@@ -2,6 +2,8 @@
 
 UPSIDE DOWN.EXE · PS-01 — Beyond the App. Local-first VS Code enhancement, shared agent context, and engineering validation. The backend persists project events, context records, handoffs, MCP inventory and validation results. The actual VS Code Development Host and an installed VSIX have passed the rover validation/context/handoff workflow on the demo Mac. See [final runtime guide](docs/FINAL_RUNTIME.md) for exact launch commands, results and remaining limits.
 
+Aggregator-first integration: [current readiness and demo](docs/AGGREGATOR_READINESS.md), [D2/D3 contract proposal](docs/AGGREGATOR_CONTRACT.md), and [acceptance gates](docs/AGGREGATOR_ACCEPTANCE.md). External MCP discovery/routing/history are not yet implemented in this baseline. The new readiness scripts explicitly report BLOCKED rather than counting standalone fixture or inventory success as aggregation.
+
 ## Start
 
 Use Node **24.14.1** (`nvm use`) and pnpm **11.10.0**. Install the package manager with `npm install --global pnpm@11.10.0` if needed.

@@ -1,5 +1,7 @@
 # Shared contracts — v1
 
+Aggregator coordination: [AGGREGATOR_CONTRACT](AGGREGATOR_CONTRACT.md) distinguishes existing inventory/memory methods from proposed discovery/routing/history/host methods. Its proposals are not implemented APIs and do not change this frozen surface.
+
 Source of truth: `packages/contracts/src/index.ts`. All entities use UUID IDs; timestamps are ISO 8601 UTC strings. Objects reject unknown fields except explicitly extensible JSON payloads. HTTP prefix **`/api/v1`** supersedes `/v1` in the original spec. `schemaVersion: 1` versions persisted event/context records independently.
 
 Success:

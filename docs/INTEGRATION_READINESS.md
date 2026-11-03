@@ -1,5 +1,7 @@
 # End-to-end integration readiness
 
+Aggregator follow-up: [AGGREGATOR_READINESS](AGGREGATOR_READINESS.md) reviews merged main `24475d4`, distinguishes working engineering/memory from missing external MCP aggregation, and links the D2/D3 contract, acceptance preparation and host-format blockers. It supersedes the old audit below for current aggregator decisions.
+
 Current runtime follow-up: feat/final-runtime includes approved main 5c2a68d (correction, reliability and frontend follow-ups). The actual Mac Extension Development Host AND installed VSIX completed native source diagnostics, corrected-job clearing, context and handoffs. The real browser and separate MCP CLI retrieved the same project state; daemon restart preserved it. See [final runtime](FINAL_RUNTIME.md) for reproduction and remaining correction/agent-host limits. The snapshot below is the earlier pre-merge audit, retained as history, not the current merged implementation status.
 
 Audit baseline: merged main `cb848d5` (PR #2), 3 November 2026. The clean local feat/core-platform branch was fast-forwarded to origin/main. No teammate branch was merged; local main was not changed.

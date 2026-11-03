@@ -1,5 +1,7 @@
 # Developer 2 handoff — intelligence engine
 
+Current aggregator assignment: read [AGGREGATOR_CONTRACT](AGGREGATOR_CONTRACT.md) and [AGGREGATOR_ACCEPTANCE](AGGREGATOR_ACCEPTANCE.md). Main `24475d4` already contains the engineering/MCP-memory runtime; the bootstrap instructions below are historical. External discovery/routing/history and host adapter format/safety are the current integration gaps.
+
 ## Branch and ownership
 
 After bootstrap reaches origin/main:
