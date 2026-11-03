@@ -11,13 +11,15 @@ import {
   ProjectCreateSchema,
   ProjectUpdateSchema,
   type ApiError,
-  type ApiSuccess,
 } from '@udi/contracts';
-import { openDatabase } from '@udi/event-store';
+import { openDatabase, PersistenceError } from '@udi/event-store';
+import { registerPlatformRoutes, type IntegrationFactory } from './platform-routes.js';
+import { apiSuccess as success, responseMeta as meta } from './responses.js';
 export interface AppOptions {
   databasePath: string;
   token: string;
   logger?: boolean;
+  integrations?: IntegrationFactory;
 }
 export function buildApp(options: AppOptions) {
   if (options.token.length < 32) throw new Error('Local token must be at least 32 characters');
@@ -31,16 +33,6 @@ export function buildApp(options: AppOptions) {
   });
   app.addHook('onClose', async () => {
     store.close();
-  });
-  const meta = (requestId: string) => ({
-    apiVersion: API_VERSION,
-    requestId,
-    timestamp: new Date().toISOString(),
-  });
-  const success = <T>(data: T, requestId: string): ApiSuccess<T> => ({
-    ok: true,
-    data,
-    meta: meta(requestId),
   });
   const fail = (code: ApiError['code'], message: string) => ({ code, message });
   const allowedOrigins = new Set([
@@ -71,7 +63,7 @@ export function buildApp(options: AppOptions) {
     }
     if (request.method === 'OPTIONS')
       return reply
-        .header('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS')
+        .header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
         .header('Access-Control-Allow-Headers', 'Authorization, Content-Type')
         .code(204)
         .send();
@@ -107,7 +99,10 @@ export function buildApp(options: AppOptions) {
     const info = parsedError.success ? parsedError.data : {};
     let status = 500;
     let apiError = fail('INTERNAL_ERROR', 'An internal error occurred');
-    if (error instanceof z.ZodError) {
+    if (error instanceof PersistenceError) {
+      status = { NOT_FOUND: 404, CONFLICT: 409, VALIDATION_ERROR: 400 }[error.code];
+      apiError = fail(error.code, error.message);
+    } else if (error instanceof z.ZodError) {
       status = 400;
       apiError = fail(
         'VALIDATION_ERROR',
@@ -166,7 +161,12 @@ export function buildApp(options: AppOptions) {
         version: '0.1.0',
         apiVersion: API_VERSION,
         database: 'ready',
-        capabilities: { projects: true, context: false, mcp: false, engineering: false },
+        capabilities: {
+          projects: true,
+          context: Boolean(integrations.context),
+          mcp: false,
+          engineering: false,
+        },
       }),
       request.id,
     ),
@@ -216,31 +216,7 @@ export function buildApp(options: AppOptions) {
           meta: meta(request.id),
         });
   });
-  for (const [path, owner] of [
-    ['/projects/:id/context', 'context-engine'],
-    ['/mcp/servers', 'mcp-gateway'],
-    ['/engineering/findings', 'engineering-core'],
-  ] as const) {
-    app.get(`${API_PREFIX}${path}`, async (request, reply) => {
-      if (path.includes(':id')) {
-        const id = idFrom(request.params);
-        if (!store.projects.get(id))
-          return reply.code(404).send({
-            ok: false,
-            error: fail('NOT_FOUND', 'Project not found'),
-            meta: meta(request.id),
-          });
-      }
-      if (path === '/engineering/findings') z.object({ projectId: IdSchema }).parse(request.query);
-      return reply.code(501).send({
-        ok: false,
-        error: fail(
-          'NOT_IMPLEMENTED',
-          `${owner} is not implemented in this bootstrap; Developer 2 owns this module`,
-        ),
-        meta: meta(request.id),
-      });
-    });
-  }
+  const integrations = options.integrations?.(store) ?? {};
+  registerPlatformRoutes(app, store, integrations);
   return app;
 }

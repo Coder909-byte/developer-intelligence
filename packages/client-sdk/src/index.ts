@@ -1,6 +1,34 @@
 import { z } from 'zod';
 import {
   API_PREFIX,
+  ActivityEventSchema,
+  EventCreateSchema,
+  EventListSchema,
+  EventQuerySchema,
+  ContextRecordSchema,
+  ContextRecordCreateSchema,
+  ContextRecordListSchema,
+  AgentHandoffSchema,
+  HandoffCreateSchema,
+  HandoffListSchema,
+  McpServerSchema,
+  McpServerCreateSchema,
+  McpServerUpdateSchema,
+  ValidationResultSchema,
+  ValidationRequestBodySchema,
+  JobSchema,
+  PageQuerySchema,
+  FindingQuerySchema,
+  type EventCreate,
+  type ContextRecordCreate,
+  type HandoffCreate,
+  type McpServerCreate,
+  type McpServerUpdate,
+  type PersistedValidationResult,
+  type PageOptions,
+  type EventListOptions,
+  type FindingListOptions,
+  type ValidationRequestBody,
   successSchema,
   ErrorResponseSchema,
   ProjectSchema,
@@ -130,6 +158,12 @@ export function createClient(options: ClientOptions = {}) {
       clearTimeout(timer);
     }
   }
+  function query(values: Record<string, unknown>) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(values))
+      if (value !== undefined) params.set(key, String(value));
+    return `?${params.toString()}`;
+  }
   return {
     health: () => request('GET', '/health', HealthSchema),
     listProjects: () => request('GET', '/projects', ProjectListSchema),
@@ -145,14 +179,112 @@ export function createClient(options: ClientOptions = {}) {
       ),
     deleteProject: (id: string) =>
       request('DELETE', `/projects/${IdSchema.parse(id)}`, DeleteResultSchema),
-    getContext: (id: string) =>
-      request('GET', `/projects/${IdSchema.parse(id)}/context`, ProjectMemorySchema),
-    listMcpServers: () => request('GET', '/mcp/servers', McpServerListSchema),
-    listFindings: (projectId: string) =>
+    getContext: (id: string, maxItems?: number) =>
       request(
         'GET',
-        `/engineering/findings?projectId=${IdSchema.parse(projectId)}`,
+        `/projects/${IdSchema.parse(id)}/context${query({ maxItems: PageQuerySchema.shape.limit.parse(maxItems) })}`,
+        ProjectMemorySchema,
+      ),
+    listEvents: (projectId: string, options: EventListOptions = {}) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/events${query(EventQuerySchema.parse(options))}`,
+        EventListSchema,
+      ),
+    getEvent: (projectId: string, eventId: string) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/events/${IdSchema.parse(eventId)}`,
+        ActivityEventSchema,
+      ),
+    createEvent: (projectId: string, input: EventCreate) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/events`,
+        ActivityEventSchema,
+        EventCreateSchema.parse(input),
+      ),
+    listContextRecords: (projectId: string, options: PageOptions = {}) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/context/records${query(PageQuerySchema.parse(options))}`,
+        ContextRecordListSchema,
+      ),
+    getContextRecord: (projectId: string, recordId: string) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/context/records/${IdSchema.parse(recordId)}`,
+        ContextRecordSchema,
+      ),
+    createContextRecord: (projectId: string, input: ContextRecordCreate) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/context/records`,
+        ContextRecordSchema,
+        ContextRecordCreateSchema.parse(input),
+      ),
+    listHandoffs: (projectId: string, options: PageOptions = {}) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/handoffs${query(PageQuerySchema.parse(options))}`,
+        HandoffListSchema,
+      ),
+    getHandoff: (projectId: string, handoffId: string) =>
+      request(
+        'GET',
+        `/projects/${IdSchema.parse(projectId)}/handoffs/${IdSchema.parse(handoffId)}`,
+        AgentHandoffSchema,
+      ),
+    createHandoff: (projectId: string, input: HandoffCreate) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/handoffs`,
+        AgentHandoffSchema,
+        HandoffCreateSchema.parse(input),
+      ),
+    listMcpServers: (options: PageOptions = {}) =>
+      request('GET', `/mcp/servers${query(PageQuerySchema.parse(options))}`, McpServerListSchema),
+    getMcpServer: (id: string) =>
+      request('GET', `/mcp/servers/${IdSchema.parse(id)}`, McpServerSchema),
+    createMcpServer: (input: McpServerCreate) =>
+      request('POST', '/mcp/servers', McpServerSchema, McpServerCreateSchema.parse(input)),
+    replaceMcpServer: (id: string, input: McpServerUpdate) =>
+      request(
+        'PUT',
+        `/mcp/servers/${IdSchema.parse(id)}`,
+        McpServerSchema,
+        McpServerUpdateSchema.parse(input),
+      ),
+    deleteMcpServer: (id: string) =>
+      request('DELETE', `/mcp/servers/${IdSchema.parse(id)}`, DeleteResultSchema),
+    checkMcpServerHealth: (id: string) =>
+      request('POST', `/mcp/servers/${IdSchema.parse(id)}/health-check`, McpServerSchema),
+    listFindings: (projectId: string, options: FindingListOptions = {}) =>
+      request(
+        'GET',
+        `/engineering/findings${query({ projectId: IdSchema.parse(projectId), ...FindingQuerySchema.parse(options) })}`,
         FindingListSchema,
+      ),
+    getJob: (projectId: string, jobId: string) =>
+      request(
+        'GET',
+        `/jobs/${IdSchema.parse(jobId)}${query({ projectId: IdSchema.parse(projectId) })}`,
+        JobSchema,
+      ),
+    recordValidationResult: (projectId: string, input: PersistedValidationResult) => {
+      const id = IdSchema.parse(projectId);
+      const result = ValidationResultSchema.refine(
+        (result) => result.job.projectId === id,
+        'Validation result must belong to the route project',
+      ).parse(input);
+      return request('POST', `/projects/${id}/validation-results`, ValidationResultSchema, result);
+    },
+    requestValidation: (projectId: string, input: ValidationRequestBody) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/validation-jobs`,
+        JobSchema,
+        ValidationRequestBodySchema.parse(input),
       ),
   };
 }
