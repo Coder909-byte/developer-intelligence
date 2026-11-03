@@ -125,6 +125,7 @@ describe('frontend safe correction over actual daemon HTTP', () => {
         '#define MOTOR_EN GPIO14',
       );
       expect(await readFile(join(r.workspace, 'src/pins.h.bak'), 'utf8')).toBe(before);
+      const extraValidation = vi.spyOn(r.client, 'requestValidation');
       await ui.click('Undo Correction');
       expect(ui.jobs).toHaveLength(1);
       await ui.approve();
@@ -132,6 +133,8 @@ describe('frontend safe correction over actual daemon HTTP', () => {
       await ui.settled(() => expect(ui.jobs).toHaveLength(2));
       expect(await readFile(join(r.workspace, 'src/pins.h'), 'utf8')).toBe(before);
       expect(ui.jobs[1]?.status).toBe('failed');
+      expect(extraValidation).not.toHaveBeenCalled();
+      expect((await r.client.getJob(r.project.id, ui.jobs[1]!.id)).id).toBe(ui.jobs[1]!.id);
       expect(
         (await r.client.listFindings(r.project.id, { jobId: ui.jobs[1]!.id })).items.length,
       ).toBeGreaterThan(0);

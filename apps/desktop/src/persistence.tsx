@@ -112,7 +112,7 @@ export function StoredEvents({ client, projectId }: { client: DaemonClient; proj
                     <div>
                       <h3>{event.type}</h3>
                       <small>
-                        {sourceLabel(event.sourceKind)} · {event.actor}
+                        {sourceLabel(event.sourceKind)} · Recorded actor: {event.actor}
                       </small>
                       {event.sourceRef && <code>{event.sourceRef}</code>}
                       <details>
