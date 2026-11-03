@@ -4,7 +4,7 @@ import type { AgentHandoff } from '@udi/contracts';
 import { Badge, Button, EmptyState, Field, sourceLabel } from '@udi/ui';
 import { PixelRoom } from './PixelRoom.js';
 import { Result, useResource } from './data.js';
-import { CreateHandoff, HandoffDetail, PageControls, scoped, usePage } from './persistence.js';
+import { CreateHandoff, HandoffDetail, scoped, usePage } from './persistence.js';
 
 // Visual variation only. Session content always comes from persisted handoffs.
 function bookStyle(id: string): CSSProperties {
@@ -22,9 +22,11 @@ function bookStyle(id: string): CSSProperties {
 export function SessionBookshelf({
   books,
   onSelect,
+  navigation,
 }: {
   books: AgentHandoff[];
   onSelect: (id: string) => void;
+  navigation?: { previous: () => void; next: () => void; canPrevious: boolean; canNext: boolean };
 }) {
   const booksPerShelf = 18;
   const shelfCount = Math.max(3, Math.ceil(books.length / booksPerShelf));
@@ -69,10 +71,14 @@ export function SessionBookshelf({
           </div>
         </div>
       ))}
-      <div className="bookcase-base" aria-hidden="true">
-        <span />
-        <span />
-      </div>
+      <nav className="bookcase-base" aria-label="Shelf navigation">
+        <button type="button" disabled={!navigation?.canPrevious} onClick={navigation?.previous}>
+          <span aria-hidden="true">←</span> Previous shelf
+        </button>
+        <button type="button" disabled={!navigation?.canNext} onClick={navigation?.next}>
+          Next shelf <span aria-hidden="true">→</span>
+        </button>
+      </nav>
     </div>
   );
 }
@@ -169,11 +175,24 @@ export function Library({
           }
         </Result>
       )}
-      <SessionBookshelf books={books} onSelect={setSelected} />
+      <SessionBookshelf
+        books={books}
+        onSelect={setSelected}
+        navigation={{
+          previous: page.previous,
+          next: page.next,
+          canPrevious: Boolean(projectId) && page.offset > 0 && list.state.status !== 'loading',
+          canNext:
+            Boolean(projectId) &&
+            list.state.status === 'ready' &&
+            items.length === page.options.limit &&
+            page.offset < 1000000,
+        }}
+      />
       {projectId && list.state.status === 'ready' && (
         <div className="library-shelf-footer">
           <small>{items.length} saved handoffs loaded · Project-scoped archive</small>
-          <PageControls page={page} count={items.length} />
+          <small>Archive page {page.offset / page.options.limit + 1} · Oldest first</small>
         </div>
       )}
       {selected && projectId && (

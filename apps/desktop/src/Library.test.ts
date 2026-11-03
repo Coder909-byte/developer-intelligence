@@ -81,7 +81,38 @@ it('keeps physical shelves visible without a project and never reads unscoped se
   expect(host.querySelectorAll('.wooden-shelf')).toHaveLength(3);
   expect(host.querySelector('.session-book')).toBeNull();
   expect(listHandoffs).not.toHaveBeenCalled();
+  expect(
+    [...host.querySelectorAll<HTMLButtonElement>('.bookcase-base button')].every(
+      (button) => button.disabled,
+    ),
+  ).toBe(true);
   expect(host.textContent).toContain('Select a project to load its saved sessions');
+});
+it('uses the two bottom panels to page saved sessions and allows returning after a failed next read', async () => {
+  const firstPage = Array.from({ length: 50 }, (_, index) => ({
+    ...handoff,
+    id: `page-one-${index}`,
+  }));
+  listHandoffs
+    .mockResolvedValueOnce({ items: firstPage })
+    .mockRejectedValueOnce(new DaemonClientError('CONNECTION_ERROR', 'offline'))
+    .mockResolvedValueOnce({ items: firstPage });
+  await render();
+  const previous = () =>
+    host.querySelector<HTMLButtonElement>('.bookcase-base button:first-child')!;
+  const next = () => host.querySelector<HTMLButtonElement>('.bookcase-base button:last-child')!;
+  expect(previous().textContent).toContain('Previous shelf');
+  expect(next().textContent).toContain('Next shelf');
+  expect(previous().disabled).toBe(true);
+  expect(next().disabled).toBe(false);
+  await act(async () => next().click());
+  expect(listHandoffs).toHaveBeenLastCalledWith(projectId, { limit: 50, offset: 50 });
+  expect(host.textContent).toContain('Daemon disconnected');
+  expect(next().disabled).toBe(true);
+  expect(previous().disabled).toBe(false);
+  await act(async () => previous().click());
+  expect(listHandoffs).toHaveBeenLastCalledWith(projectId, { limit: 50, offset: 0 });
+  expect(host.querySelectorAll('.session-book')).toHaveLength(50);
 });
 it('gives real session spines stable dimensions and distributes them across shelves', async () => {
   const books = Array.from({ length: 25 }, (_, index) => ({
