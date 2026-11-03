@@ -128,6 +128,34 @@ describe('Daemon OpenAI Proxy & Context Injection Endpoints', () => {
     }
   });
 
+  it('handles Claude Code Anthropic Messages API format and x-api-key authentication', async () => {
+    const { client, workspaceDir, cleanup } = await setup();
+    try {
+      const project = await client.createProject({
+        name: 'Rover Claude Test',
+        rootPath: workspaceDir,
+      });
+
+      const response = await client.anthropicMessage(
+        {
+          model: 'claude-3-5-sonnet-20241022',
+          messages: [{ role: 'user', content: 'What is the motor configuration?' }],
+        },
+        {
+          'x-project-id': project.id,
+        },
+      );
+
+      expect(response.id).toMatch(/^msg_/);
+      expect(response.type).toBe('message');
+      expect(response.role).toBe('assistant');
+      expect(response.content[0]?.text).toBeDefined();
+      expect(response.usage.input_tokens).toBeGreaterThan(0);
+    } finally {
+      await cleanup();
+    }
+  });
+
   it('rejects unauthenticated proxy requests with 401', async () => {
     const { baseUrl, cleanup } = await setup();
     try {

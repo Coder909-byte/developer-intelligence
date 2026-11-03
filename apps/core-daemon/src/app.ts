@@ -64,13 +64,27 @@ export function buildApp(options: AppOptions) {
     if (request.method === 'OPTIONS')
       return reply
         .header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-        .header('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+        .header(
+          'Access-Control-Allow-Headers',
+          'Authorization, Content-Type, x-api-key, api-key, anthropic-version, x-project-id, x-context-snapshot',
+        )
         .code(204)
         .send();
     if (request.method === 'GET' && request.url.split('?')[0] === `${API_PREFIX}/health`) return;
-    const supplied = Buffer.from(request.headers.authorization ?? '');
-    const expected = Buffer.from(`Bearer ${options.token}`);
-    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected))
+
+    const authHeader = request.headers.authorization ?? '';
+    const xApiKey = (request.headers['x-api-key'] ?? request.headers['api-key'] ?? '') as string;
+    const suppliedAuth = Buffer.from(authHeader);
+    const expectedAuth = Buffer.from(`Bearer ${options.token}`);
+    const suppliedKey = Buffer.from(xApiKey);
+    const expectedKey = Buffer.from(options.token);
+
+    const isBearerValid =
+      suppliedAuth.length === expectedAuth.length && timingSafeEqual(suppliedAuth, expectedAuth);
+    const isApiKeyValid =
+      suppliedKey.length === expectedKey.length && timingSafeEqual(suppliedKey, expectedKey);
+
+    if (!isBearerValid && !isApiKeyValid)
       return reply.code(401).send({
         ok: false,
         error: fail('UNAUTHORIZED', 'A valid local daemon token is required'),

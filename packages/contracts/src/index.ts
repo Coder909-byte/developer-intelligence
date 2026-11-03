@@ -616,3 +616,56 @@ export const ContextSnapshotListSchema = z.strictObject({
   items: z.array(ContextSnapshotSchema),
 });
 export type ContextSnapshotList = z.infer<typeof ContextSnapshotListSchema>;
+
+// Anthropic Messages API Schemas (for Claude Code CLI & Claude VS Code Extension)
+export const AnthropicMessageContentItemSchema = z.union([
+  z.string(),
+  z.strictObject({
+    type: z.literal('text'),
+    text: z.string(),
+  }),
+  z.record(z.string(), JsonValueSchema),
+]);
+
+export const AnthropicMessageSchema = z.strictObject({
+  role: z.enum(['user', 'assistant']),
+  content: z.union([z.string(), z.array(AnthropicMessageContentItemSchema)]),
+});
+export type AnthropicMessage = z.infer<typeof AnthropicMessageSchema>;
+
+export const AnthropicChatRequestSchema = z.object({
+  model: z.string().default('claude-3-5-sonnet-20241022'),
+  messages: z.array(AnthropicMessageSchema),
+  max_tokens: z.number().int().positive().optional().default(1024),
+  system: z.string().optional(),
+  stream: z.boolean().optional().default(false),
+  temperature: z.number().optional(),
+  projectId: IdSchema.optional(),
+});
+export type AnthropicChatRequest = z.infer<typeof AnthropicChatRequestSchema>;
+
+export const AnthropicChatResponseSchema = z.strictObject({
+  id: z.string(),
+  type: z.literal('message'),
+  role: z.literal('assistant'),
+  content: z.array(
+    z.strictObject({
+      type: z.literal('text'),
+      text: z.string(),
+    }),
+  ),
+  model: z.string(),
+  stop_reason: z.string().nullable().default('end_turn'),
+  usage: z.strictObject({
+    input_tokens: z.number().int().nonnegative(),
+    output_tokens: z.number().int().nonnegative(),
+  }),
+  injectedContext: z
+    .strictObject({
+      tokensSaved: z.number().int().nonnegative(),
+      compressionRatio: z.number().min(0).max(1),
+      preservedFactsCount: z.number().int().nonnegative(),
+    })
+    .optional(),
+});
+export type AnthropicChatResponse = z.infer<typeof AnthropicChatResponseSchema>;

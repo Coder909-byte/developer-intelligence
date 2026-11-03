@@ -79,7 +79,7 @@ switch (command) {
   case 'vscode': {
     console.log('--- Configuring VS Code Extensions for Universal Developer Intelligence ---');
 
-    // 1. Configure .vscode/mcp.json for native VS Code MCP & Claude Code
+    // 1. Configure .vscode/mcp.json for native VS Code MCP
     const mcpPath = join(root, '.vscode/mcp.json');
     await safeWriteJson(mcpPath, (existing) => {
       const servers = existing.servers || existing.mcpServers || {};
@@ -97,7 +97,25 @@ switch (command) {
     });
     console.log(`✓ Updated ${mcpPath} (Backup saved as .bak)`);
 
-    // 2. Configure .vscode/settings.json for Cline, Continue & Roo Code
+    // 2. Configure .mcp.json in workspace root for Claude Code CLI & Cursor
+    const rootMcpPath = join(root, '.mcp.json');
+    await safeWriteJson(rootMcpPath, (existing) => {
+      const mcpServers = existing.mcpServers || {};
+      mcpServers['developer-intelligence'] = {
+        type: 'stdio',
+        command: 'node',
+        args: [gatewayCliPath],
+        env: {
+          UDI_PROJECT_ID: projectId,
+          UDI_TOKEN: token,
+          UDI_DAEMON_URL: daemonUrl,
+        },
+      };
+      return { ...existing, mcpServers };
+    });
+    console.log(`✓ Updated ${rootMcpPath} (Configured for Claude Code & Cursor)`);
+
+    // 3. Configure .vscode/settings.json for Cline, Continue & Roo Code
     const settingsPath = join(root, '.vscode/settings.json');
     await safeWriteJson(settingsPath, (existing) => {
       return {
@@ -173,9 +191,11 @@ switch (command) {
   }
 
   case 'test': {
-    console.log('--- Testing Live Route to Core Daemon Proxy ---');
-    const startTime = Date.now();
-    const res = await fetch(`${daemonUrl}/v1/chat/completions`, {
+    console.log('--- Testing Live Routes to Core Daemon Proxy ---');
+
+    // 1. Test OpenAI / Codex Route
+    const startOpenAi = Date.now();
+    const resOpenAi = await fetch(`${daemonUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -184,19 +204,41 @@ switch (command) {
       },
       body: JSON.stringify({
         model: 'default',
-        messages: [{ role: 'user', content: 'Route diagnostic check: verify ground truth.' }],
+        messages: [{ role: 'user', content: 'Codex check: verify ground truth.' }],
       }),
     });
-    const duration = Date.now() - startTime;
-    if (res.ok) {
-      const data = await res.json();
-      console.log(`✓ Route Active! Proxy latency: ${duration}ms (HTTP 200)`);
-      console.log(
-        `  Injected Context: ${data.injectedContext?.preservedFactsCount || 0} facts verified`,
-      );
+    const durOpenAi = Date.now() - startOpenAi;
+    if (resOpenAi.ok) {
+      const data = await resOpenAi.json();
+      console.log(`✓ [Codex / OpenAI Route] Active! (${durOpenAi}ms, HTTP 200)`);
       console.log(`  Response: "${data.choices[0]?.message?.content}"`);
     } else {
-      console.error(`Route test failed with HTTP ${res.status}`);
+      console.error(`✗ [Codex / OpenAI Route] Failed: HTTP ${resOpenAi.status}`);
+    }
+
+    // 2. Test Anthropic / Claude Code Route
+    const startClaude = Date.now();
+    const resClaude = await fetch(`${daemonUrl}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': token,
+        'anthropic-version': '2023-06-01',
+        'x-project-id': projectId,
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 256,
+        messages: [{ role: 'user', content: 'Claude Code check: verify ground truth.' }],
+      }),
+    });
+    const durClaude = Date.now() - startClaude;
+    if (resClaude.ok) {
+      const data = await resClaude.json();
+      console.log(`✓ [Claude Code / Anthropic Route] Active! (${durClaude}ms, HTTP 200)`);
+      console.log(`  Response: "${data.content[0]?.text}"`);
+    } else {
+      console.error(`✗ [Claude Code / Anthropic Route] Failed: HTTP ${resClaude.status}`);
     }
     break;
   }

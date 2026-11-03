@@ -37,6 +37,10 @@ import {
   type ContextSnapshot,
   type ContextSnapshotCreate,
   type ContextSnapshotList,
+  AnthropicChatRequestSchema,
+  AnthropicChatResponseSchema,
+  type AnthropicChatRequest,
+  type AnthropicChatResponse,
   type ChatCompletionRequest,
   type ChatCompletionResponse,
   type CompressionMetrics,
@@ -392,6 +396,37 @@ export function createClient(options: ClientOptions = {}) {
       }
       return ChatCompletionResponseSchema.parse(await res.json());
     },
+    anthropicMessage: async (
+      input: z.input<typeof AnthropicChatRequestSchema>,
+      customHeaders: Record<string, string> = {},
+    ): Promise<AnthropicChatResponse> => {
+      const parsed = AnthropicChatRequestSchema.parse(input);
+      const token = typeof options.token === 'function' ? options.token() : options.token;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['x-api-key'] = token;
+        headers.Authorization = `Bearer ${token}`;
+      }
+      Object.assign(headers, customHeaders);
+      const res = await fetcher(`${url.origin}${API_PREFIX}/messages`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(parsed),
+      });
+      if (!res.ok) {
+        let errMessage = `HTTP ${res.status}`;
+        try {
+          const errJson = (await res.json()) as { error?: { message?: string } };
+          errMessage = errJson.error?.message || errMessage;
+        } catch {
+          /* ignore non-json error responses */
+        }
+        throw new DaemonClientError('INTERNAL_ERROR', errMessage, res.status);
+      }
+      return AnthropicChatResponseSchema.parse(await res.json());
+    },
     getCompressionMetrics: (projectId: string) =>
       request(
         'GET',
@@ -435,4 +470,6 @@ export type {
   ContextSnapshot,
   ContextSnapshotCreate,
   ContextSnapshotList,
+  AnthropicChatRequest,
+  AnthropicChatResponse,
 };
