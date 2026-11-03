@@ -26,6 +26,11 @@ const quote = (text: string) => clean(text).replace(/[\r\n]/g, ' ');
 function checkScope(input: CompressionInput) {
   IdSchema.parse(input.projectId);
   if (
+    input.sessionTurns !== undefined &&
+    (!Number.isSafeInteger(input.sessionTurns) || input.sessionTurns < 0)
+  )
+    throw new Error('Session turn count must be a nonnegative safe integer');
+  if (
     [
       ...input.records,
       ...input.findings,
@@ -44,7 +49,7 @@ function result(
 ): CompressedContextResult {
   const raw =
     input.records.map((r) => r.text).join('\n') +
-    JSON.stringify(input.findings) +
+    (input.findings.length ? JSON.stringify(input.findings) : '') +
     (input.events ?? []).map((e) => JSON.stringify(e.payload)).join('\n');
   const rawTokensEstimate = estimateTokens(raw);
   const compressedTokensEstimate = estimateTokens(block);
@@ -98,28 +103,44 @@ export function buildDeterministicDelta(input: CompressionInput): CompressedCont
         r.provenance.sourceKind === 'user_entered' || r.provenance.sourceKind === 'observed_tool',
     )
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
-  const latestBindings = new Map<string, { binding: string; provenance: string }>();
+  const findingJobs = new Set(input.findings.map((finding) => finding.jobId));
+  const latestBindings = new Map<string, { binding: string; detail: string }>();
+  const components = new Map<string, string>();
   for (const r of authoritative.filter((r) => r.kind === 'fact')) {
     // Extract explicit bindings only; arbitrary scrollback and conversational text are omitted.
     // Historical validator facts are represented by the current job/findings above.
-    if (r.provenance.sourceRef && input.findings.some((f) => f.jobId === r.provenance.sourceRef))
-      continue;
-    const matches = clean(r.text).matchAll(
-      /\b([A-Za-z_]\w*)\s*(?:=|->|is mapped to|mapped to)\s*(GPIO\d+)\b/g,
-    );
+    if (r.provenance.sourceRef && findingJobs.has(r.provenance.sourceRef)) continue;
+    // Most scrollback has no hardware tokens; avoid normalizing/scanning the whole log.
+    // ANSI-bearing text takes the full path so formatting cannot hide a valid binding.
+    if (!r.text.includes('GPIO') && !r.text.includes('pin') && !r.text.includes('\u001b')) continue;
+    const text = clean(r.text);
+    const designations = [...new Set(text.match(/\b[A-Z]+\d+\s+pin\s+\d+\b/g) ?? [])];
+    const evidence = r.evidence.map((e) => `${e.filePath}${e.line ? `:${e.line}` : ''}`).join(', ');
+    const sourceDetail = `[${r.provenance.sourceKind}:${r.provenance.actor}]${evidence ? ` (${evidence})` : ''}`;
+    const detail = [designations.length ? `(${designations.join(', ')})` : '', sourceDetail]
+      .filter(Boolean)
+      .join(' ');
+    const matches = [
+      ...text.matchAll(/\b([A-Za-z_]\w*)\s*(?:=|->|is mapped to|mapped to)\s*(GPIO\d+)\b/g),
+    ];
     for (const m of matches) {
       latestBindings.set(m[1]!, {
         binding: `${m[1]}=${m[2]}`,
-        provenance: `${r.provenance.sourceKind}:${r.provenance.actor}`,
+        detail,
       });
     }
+    if (!matches.length)
+      for (const component of designations)
+        components.set(component, `- [HW] ${component} ${sourceDetail}`);
   }
-  for (const [signal, { binding, provenance }] of latestBindings) {
+  const findingSignals = new Set([...invariants].map((binding) => binding.split('=')[0]));
+  for (const [signal, { binding, detail }] of latestBindings) {
     // Current validator evidence overrides historical narrative bindings for the same signal.
-    if ([...invariants].some((existing) => existing.startsWith(`${signal}=`))) continue;
-    hardware.push(`- [HW] ${binding} [${provenance}]`);
+    if (findingSignals.has(signal)) continue;
+    hardware.push(`- [HW] ${binding} ${detail}`);
     invariants.add(binding);
   }
+  hardware.push(...components.values());
   const decisions = [
     ...new Set(
       authoritative
@@ -129,7 +150,12 @@ export function buildDeterministicDelta(input: CompressionInput): CompressedCont
         ),
     ),
   ];
-  const issues = open.map((f) => `- [ISSUE] ${quote(f.message)}`);
+  const issues = open.map((f) => {
+    const evidence = f.evidence.map((e) => `${e.filePath}${e.line ? `:${e.line}` : ''}`).join(', ');
+    const hasHardwareEvidence =
+      typeof object(f.expected).signal === 'string' && typeof object(f.expected).pin === 'string';
+    return `- [ISSUE] ${quote(f.message)}${!hasHardwareEvidence && evidence ? ` (${evidence})` : ''}`;
+  });
   let status = open.length
     ? `${open.length} open finding(s).`
     : input.latestJob?.status === 'succeeded'
@@ -148,8 +174,14 @@ export function buildDeterministicDelta(input: CompressionInput): CompressedCont
 }
 export function buildDistilledRollup(input: CompressionInput): CompressedContextResult {
   checkScope(input);
+  const originalTime = (e: ActivityEvent) => {
+    const timestamp = object(e.payload).timestamp;
+    return typeof timestamp === 'string' && Number.isFinite(Date.parse(timestamp))
+      ? Date.parse(timestamp)
+      : Date.parse(e.createdAt);
+  };
   const events = [...(input.events ?? [])].sort(
-    (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+    (a, b) => originalTime(a) - originalTime(b) || a.id.localeCompare(b.id),
   );
   const turns =
     input.sessionTurns ??
@@ -162,10 +194,16 @@ export function buildDistilledRollup(input: CompressionInput): CompressedContext
     const p = object(e.payload);
     if (
       typeof p.signalScore !== 'number' ||
+      !Number.isFinite(p.signalScore) ||
       p.signalScore < 0.7 ||
-      p.decision === 'discard' ||
+      p.signalScore > 1 ||
+      p.decision !== 'preserve' ||
       typeof p.distilledFact !== 'string' ||
-      p.category === 'EPHEMERAL_NOISE'
+      !clean(p.distilledFact) ||
+      !['HARDWARE_SPEC', 'ARCHITECTURAL_DECISION', 'VALIDATED_OUTCOME'].includes(
+        String(p.category),
+      ) ||
+      (p.projectId !== undefined && p.projectId !== input.projectId)
     )
       continue;
     // Trust the original activity provenance, not classifier-supplied assertions of truth.
@@ -179,7 +217,7 @@ export function buildDistilledRollup(input: CompressionInput): CompressedContext
       actor: e.actor,
       ...(e.sourceRef ? { sourceRef: e.sourceRef } : {}),
     };
-    const line = `- [${provenance.sourceKind}:${provenance.actor}] ${quote(p.distilledFact)}`;
+    const line = `- [${provenance.sourceKind}:${provenance.actor}] ${quote(p.distilledFact)}${provenance.sourceRef ? ` (source: ${quote(provenance.sourceRef)})` : ''}`;
     if (
       p.category === 'HARDWARE_SPEC' &&
       ['observed_tool', 'user_entered'].includes(provenance.sourceKind)
@@ -193,14 +231,16 @@ export function buildDistilledRollup(input: CompressionInput): CompressedContext
       'AI rollup requires high-signal classified events from Backend Spec 1',
     );
   const deterministic = buildDeterministicDelta(input);
+  const stateLines = deterministic.injectedBlock.split('\n');
   const block = [
     '## What was completed',
     ...new Set(completed),
     '## Current verified ground truth',
     ...new Set(truth),
-    ...deterministic.injectedBlock.split('\n').filter((line) => line.startsWith('- [HW]')),
+    ...stateLines.filter((line) => line.startsWith('- [HW]')),
     '## What is blocked / next steps',
     ...new Set(next),
+    ...stateLines.filter((line) => /^- \[(DECISION|ISSUE|STATUS)\]/.test(line)),
   ].join('\n');
   return result(
     input,

@@ -76,6 +76,11 @@ annotations. The test supplied no invented annotations and no model output.
 
 ## Remaining requirements for actual cross-storage context transfer
 
+These are findings from the separately requested native-storage experiment, not
+additional deliverables in `SPEC_BACKEND_CONTEXT_MCP_BRIDGE.md`. Spec 2 defines an
+extension-command MCP bridge. Its latest completion matrix is in
+[SPEC2_ACCEPTANCE.md](SPEC2_ACCEPTANCE.md).
+
 1. Product source adapters must read supported native formats and map their
    workspace/session identity, original chronology, message roles, attachments and
    tool-result semantics. The current Spec 2 bridge registers/exposes extension

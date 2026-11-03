@@ -14,6 +14,22 @@ import { TOOL_CATEGORIES, getFilteredTools } from './categories.js';
 
 export type McpServerTransport = Parameters<SdkMcpServer['connect']>[0];
 
+// Local references in an upstream root schema must still resolve when nested under params.
+function paramsSchema(schema: JsonValue): JsonValue {
+  if (Array.isArray(schema)) return schema.map(paramsSchema);
+  if (!schema || typeof schema !== 'object' || typeof schema.$id === 'string') return schema;
+  return Object.fromEntries(
+    Object.entries(schema).map(([key, value]) => [
+      key,
+      (key === '$ref' || key === '$dynamicRef') &&
+      typeof value === 'string' &&
+      (value === '#' || value.startsWith('#/'))
+        ? `#/properties/params${value.slice(1)}`
+        : paramsSchema(value),
+    ]),
+  );
+}
+
 export interface GatewayOptions {
   client: DaemonClient;
   projectId: string;
@@ -53,8 +69,48 @@ export class DefaultMcpGateway implements McpGateway {
     this.server.server.setRequestHandler('tools/list', async () => {
       await this.refreshExternalTools();
       const active = await this.activeCategories(this.defaultProjectId);
+      const definitions = getFilteredTools(active, [...this.definitions.values()]).map(
+        (t) => t.definition,
+      );
+      let hosts: Awaited<ReturnType<DaemonClient['listHostExtensionTools']>>['items'] = [];
+      if (active.has('ide_extension_bridge')) {
+        try {
+          hosts = (await this.client.listHostExtensionTools(this.defaultProjectId)).items;
+        } catch {
+          /* Offline bridge metadata must not hide working tools in other categories. */
+        }
+      }
       return {
-        tools: getFilteredTools(active, [...this.definitions.values()]).map((t) => t.definition),
+        tools: definitions.map((definition) => {
+          if (!['vscode_execute_command', 'vscode_list_diagnostics'].includes(definition.name))
+            return definition;
+          const matches = hosts.filter((host) => host.name === definition.name);
+          const availability =
+            matches.length === 1
+              ? 'Live extension host registered.'
+              : matches.length
+                ? 'Multiple extension hosts: execution unavailable until one is selected.'
+                : 'No live extension host registered: execution unavailable.';
+          if (
+            definition.name !== 'vscode_execute_command' ||
+            matches.length !== 1 ||
+            !matches[0]!.commandIds.length
+          )
+            return { ...definition, description: `${definition.description} ${availability}` };
+          const commandIds = [...new Set(matches[0]!.commandIds)].sort();
+          return {
+            ...definition,
+            description: `${definition.description} ${availability} Available commands: ${commandIds.join(', ')}.`,
+            inputSchema: {
+              ...definition.inputSchema,
+              properties: {
+                ...definition.inputSchema.properties,
+                commandId: { type: 'string', enum: commandIds },
+              },
+              required: [...new Set([...(definition.inputSchema.required ?? []), 'commandId'])],
+            },
+          };
+        }),
       };
     });
   }
@@ -356,6 +412,24 @@ export class DefaultMcpGateway implements McpGateway {
           }
         },
       );
+      // Preserve the real upstream schema instead of making agents guess the params shape.
+      if (
+        tool.inputSchema &&
+        typeof tool.inputSchema === 'object' &&
+        !Array.isArray(tool.inputSchema)
+      ) {
+        const definition = this.definitions.get(namespaced)!.definition;
+        definition.inputSchema = {
+          ...definition.inputSchema,
+          properties: {
+            ...definition.inputSchema.properties,
+            params: paramsSchema(tool.inputSchema),
+          },
+          ...(Array.isArray(tool.inputSchema.required) && tool.inputSchema.required.length
+            ? { required: ['params'] }
+            : {}),
+        } as Tool['inputSchema'];
+      }
     }
     return discovered;
   }

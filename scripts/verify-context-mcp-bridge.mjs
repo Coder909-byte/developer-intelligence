@@ -57,6 +57,10 @@ try {
     await client.toggleToolCategory({ projectId: project.id, category, enabled: false });
     names = (await mcp.request('tools/list')).tools.map((t) => t.name);
     assert(!names.includes(hidden));
+    if (category === 'hardware_validation') {
+      assert(!names.includes('run_engineering_validation'));
+      assert(!names.includes('get_validation_results'));
+    }
     const blocked = await mcp.request('tools/call', {
       name: hidden,
       arguments:
@@ -66,7 +70,12 @@ try {
     assert(blocked.content[0].text.includes('toggled OFF'));
     assert((await client.getToolCategories(control.id)).categories.every((c) => c.enabled));
     await client.toggleToolCategory({ projectId: project.id, category, enabled: true });
-    assert((await mcp.request('tools/list')).tools.some((t) => t.name === hidden));
+    const enabledNames = (await mcp.request('tools/list')).tools.map((t) => t.name);
+    assert(enabledNames.includes(hidden));
+    if (category === 'hardware_validation') {
+      assert(enabledNames.includes('run_engineering_validation'));
+      assert(enabledNames.includes('get_validation_results'));
+    }
   }
   const routed = await mcp.tool('spec2-fixture__fixture_sum', {
     params: { a: 14, b: 26, nonce: 'demo-bridge' },

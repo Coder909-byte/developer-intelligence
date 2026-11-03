@@ -190,6 +190,31 @@ def main():
                   "agent claim excluded from authoritative decisions")
             check(compressed["injectedBlock"] == http("GET", path + "/compressed-context")["injectedBlock"],
                   "deterministic context block")
+            benchmark_input = {"projectId": project_id, "projectName": project["name"],
+                "records": http("GET", path + "/context/records")["items"],
+                "findings": http("GET", f"/engineering/findings?projectId={project_id}")["items"],
+                "latestJob": job}
+            benchmark_code = """
+import { buildDeterministicDelta } from './packages/context-engine/dist/index.js';
+let raw = ''; for await (const part of process.stdin) raw += part;
+const input = JSON.parse(raw);
+for (let i = 0; i < 30; i++) buildDeterministicDelta(input);
+const samples = [];
+for (let i = 0; i < 200; i++) {
+  const start = performance.now(); buildDeterministicDelta(input);
+  samples.push(performance.now() - start);
+}
+samples.sort((a, b) => a - b);
+console.log(JSON.stringify({samples: samples.length, medianMs: samples[100], p95Ms: samples[190],
+  maxMs: samples.at(-1), scope: 'pure deterministic compressor; HTTP/SQLite excluded'}));
+"""
+            benchmark = json.loads(subprocess.run(
+                [NODE, "--input-type=module", "-e", benchmark_code], cwd=ROOT,
+                input=json.dumps(benchmark_input), text=True, capture_output=True,
+                timeout=5, check=True,
+            ).stdout)
+            check(benchmark["medianMs"] < 1 and benchmark["p95Ms"] < 1,
+                  f'deterministic latency target: median={benchmark["medianMs"]:.4f}ms, p95={benchmark["p95Ms"]:.4f}ms (<1ms)')
             http("GET", path + "/compressed-context?mode=bogus", expected=400)
             check(http("GET", path + "/compressed-context?mode=ai_distillation")["mode"] ==
                   "deterministic_delta", "short sessions use deterministic mode")
@@ -216,6 +241,18 @@ def main():
             check(rollup["mode"] == "ai_distillation" and "LOW_SIGNAL_OMIT" not in rollup["injectedBlock"]
                   and "[agent_summary:classifier-input-fixture]" in rollup["injectedBlock"],
                   "classified-input rollup filters scores and preserves provenance")
+            check("Patch firmware only" in rollup["injectedBlock"] and "MOTOR_EN" in rollup["injectedBlock"]
+                  and "1 open finding" in rollup["injectedBlock"],
+                  "AI-mode handoff retains authoritative decisions and current findings")
+            for payload in [
+                {"signalScore": 1.1, "decision": "preserve", "category": "HARDWARE_SPEC", "distilledFact": "INVALID_SCORE_OMIT"},
+                {"signalScore": .95, "category": "HARDWARE_SPEC", "distilledFact": "NO_PRESERVE_DECISION_OMIT"},
+            ]:
+                http("POST", path + "/events", {"type": "context.classified", "actor": "classifier-input-fixture",
+                    "sourceKind": "observed_tool", "payload": payload})
+            filtered = http("GET", path + "/compressed-context?mode=ai_distillation")["injectedBlock"]
+            check("INVALID_SCORE_OMIT" not in filtered and "NO_PRESERVE_DECISION_OMIT" not in filtered,
+                  "invalid and unpreserved classifier annotations cannot become ground truth")
 
             http("POST", "/mcp/servers", {"name": "python-spec2", "enabled": True,
                  "transport": {"type": "stdio", "executableId": NODE,
@@ -224,6 +261,11 @@ def main():
             mcp = Mcp(env)
             names = mcp.names()
             check("python-spec2__fixture_sum" in names, "real external discovery")
+            sum_schema = next(tool["inputSchema"] for tool in mcp.request("tools/list")["tools"]
+                              if tool["name"] == "python-spec2__fixture_sum")
+            check(sum_schema["properties"]["params"]["properties"]["a"]["type"] == "integer"
+                  and "nonce" in sum_schema["properties"]["params"]["required"],
+                  "external tool discovery preserves actual upstream parameter schema")
             for category, hidden in {
                 "hardware_validation": "get_validation_results",
                 "context_memory": "get_project_context",
@@ -263,6 +305,18 @@ def main():
                 "projectId": project_id, "hostId": host_id, "name": "vscode_list_diagnostics",
                 "description": "Python protocol provider, NOT native VS Code", "commandIds": [],
             })
+            http("POST", path + "/extension-tools", {
+                "projectId": project_id, "hostId": host_id, "name": "vscode_execute_command",
+                "description": "Python protocol provider, NOT native VS Code", "commandIds": ["test.readonly"],
+            })
+            command = next(tool for tool in mcp.request("tools/list")["tools"]
+                           if tool["name"] == "vscode_execute_command")
+            check(command["inputSchema"]["properties"]["commandId"]["enum"] == ["test.readonly"]
+                  and "test.readonly" in command["description"],
+                  "live extension command registration is discoverable over MCP")
+            http("POST", path + "/extension-tools/call", {
+                "name": "vscode_execute_command", "arguments": {"commandId": "not.registered"},
+            }, expected=400)
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 response = pool.submit(mcp.tool, "vscode_list_diagnostics")
                 pending = []
@@ -310,6 +364,7 @@ def main():
                   "seconds": round(time.monotonic() - started, 2),
                   "compression": {key: compressed[key] for key in (
                       "rawTokensEstimate", "compressedTokensEstimate", "savingsPercent")},
+                  "latency": benchmark,
                   "nativeVsCode": "NOT TESTED: manual verification requested by user",
                   "classifier": "classified fixture inputs only; teammate integration required"}, indent=2))
         finally:

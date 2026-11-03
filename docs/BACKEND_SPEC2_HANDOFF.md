@@ -1,5 +1,9 @@
 # Backend Spec 2: compressor and categorical MCP bridge
 
+See [SPEC2_ACCEPTANCE.md](SPEC2_ACCEPTANCE.md) for the latest requirement matrix,
+follow-up fixes, measured latency and remaining external verification gaps. Counts
+below describe the earlier milestone runs unless explicitly updated there.
+
 This implementation follows `SPEC_BACKEND_CONTEXT_MCP_BRIDGE.md`. Backend Spec 1
 (OpenAI-compatible proxy, interception, Laya classification and automatic injection)
 belongs to the teammate. This branch supplies its compression interfaces; it does

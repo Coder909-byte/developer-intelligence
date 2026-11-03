@@ -119,6 +119,52 @@ describe('Spec 2 dual-mode context compression', () => {
     ).toThrow('scope');
     expect(estimateTokens('')).toBe(0);
     expect(estimateTokens('12345')).toBe(2);
+    expect(
+      buildDeterministicDelta({ projectId, records: [], findings: [] }).rawTokensEstimate,
+    ).toBe(0);
+    expect(() =>
+      buildDeterministicDelta({ projectId, records: [], findings: [], sessionTurns: -1 }),
+    ).toThrow('turn count');
+  });
+  it('preserves component and source evidence from authoritative facts without requiring an open mismatch', () => {
+    const hardware = {
+      ...record('MOTOR_EN is mapped to GPIO14, U2 pin 12'),
+      evidence: [{ filePath: 'rover.net', line: 28 }],
+    };
+    const component = {
+      ...record('\u001b[32mJ1\u001b[0m \u001b[32mpi\u001b[0mn 3'),
+      evidence: [{ filePath: 'connectors.net', line: 4 }],
+    };
+    const result = buildDeterministicDelta({
+      projectId,
+      records: [hardware, component],
+      findings: [],
+    });
+    expect(result.activeInvariants).toEqual(['MOTOR_EN=GPIO14']);
+    for (const text of [
+      'U2 pin 12',
+      'J1 pin 3',
+      'rover.net:28',
+      'connectors.net:4',
+      '[observed_tool:test]',
+    ])
+      expect(result.injectedBlock).toContain(text);
+  });
+  it('retains evidence for open non-pin findings', () => {
+    const result = buildDeterministicDelta({
+      projectId,
+      records: [],
+      findings: [
+        {
+          ...finding,
+          expected: null,
+          observed: null,
+          message: 'Build failed',
+          evidence: [{ filePath: 'src/main.cpp', line: 9 }],
+        },
+      ],
+    });
+    expect(result.injectedBlock).toContain('Build failed (src/main.cpp:9)');
   });
   it('rolls up classified events chronologically above ten turns, preserving original provenance and excluding noise', () => {
     const event = (
@@ -164,5 +210,111 @@ describe('Spec 2 dual-mode context compression', () => {
     expect(() =>
       buildDistilledRollup({ projectId, records: [], findings: [], sessionTurns: 11 }),
     ).toThrow(CompressionUnavailableError);
+  });
+  it('keeps authoritative decisions and current open issues in AI-mode handoffs', () => {
+    const event: ActivityEvent = {
+      id: randomUUID(),
+      projectId,
+      type: 'context.classified',
+      actor: 'engineering-core',
+      sourceKind: 'observed_tool',
+      sourceRef: jobId,
+      createdAt: now,
+      schemaVersion: 1,
+      payload: {
+        category: 'VALIDATED_OUTCOME',
+        distilledFact: 'Validation completed with a mismatch',
+        signalScore: 0.7,
+        decision: 'preserve',
+        sourceType: 'tool_output',
+      },
+    };
+    const result = buildDistilledRollup({
+      projectId,
+      sessionTurns: 11,
+      events: [event],
+      records: [
+        record('Keep schematic unchanged', 'decision', 'user_entered'),
+        record('UNVERIFIED_SAFE', 'decision', 'agent_summary'),
+      ],
+      findings: [finding],
+    });
+    for (const text of [
+      'Keep schematic unchanged',
+      'MOTOR_EN mismatch',
+      '1 open finding',
+      `source: ${jobId}`,
+    ])
+      expect(result.injectedBlock).toContain(text);
+    expect(result.injectedBlock).not.toContain('UNVERIFIED_SAFE');
+  });
+  it('orders classified facts by original timestamps rather than import arrival', () => {
+    const event = (text: string, timestamp: string): ActivityEvent => ({
+      id: randomUUID(),
+      projectId,
+      type: 'context.classified',
+      actor: 'opencode',
+      sourceKind: 'agent_summary',
+      createdAt: now,
+      schemaVersion: 1,
+      payload: {
+        timestamp,
+        category: 'ARCHITECTURAL_DECISION',
+        signalScore: 0.9,
+        decision: 'preserve',
+        distilledFact: text,
+      },
+    });
+    const result = buildDistilledRollup({
+      projectId,
+      records: [],
+      findings: [],
+      sessionTurns: 11,
+      events: [
+        event('Later decision', '2026-11-03T12:00:00Z'),
+        event('Earlier decision', '2026-11-03T11:00:00Z'),
+      ],
+    });
+    expect(result.injectedBlock.indexOf('Earlier decision')).toBeLessThan(
+      result.injectedBlock.indexOf('Later decision'),
+    );
+  });
+  it('rejects invalid, unpreserved, empty or cross-project classifier annotations', () => {
+    const payloads = [
+      { signalScore: Number.NaN },
+      { signalScore: 1.1 },
+      { decision: undefined },
+      { category: 'INVENTED_CATEGORY' },
+      { distilledFact: '  ' },
+      { projectId: randomUUID() },
+    ];
+    for (const override of payloads) {
+      const payload = {
+        signalScore: 0.95,
+        decision: 'preserve',
+        category: 'HARDWARE_SPEC',
+        distilledFact: 'MOTOR_EN=GPIO14',
+        ...override,
+      };
+      const event: ActivityEvent = {
+        id: randomUUID(),
+        projectId,
+        type: 'context.classified',
+        actor: 'engineering-core',
+        sourceKind: 'observed_tool',
+        createdAt: now,
+        schemaVersion: 1,
+        payload: JSON.parse(JSON.stringify(payload)),
+      };
+      expect(() =>
+        buildDistilledRollup({
+          projectId,
+          records: [],
+          findings: [],
+          sessionTurns: 11,
+          events: [event],
+        }),
+      ).toThrow(CompressionUnavailableError);
+    }
   });
 });
