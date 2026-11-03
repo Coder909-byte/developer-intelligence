@@ -221,3 +221,8 @@ The teammate still needs to wire the actual classifier output/session count into
 these ports and inject the returned block in the proxy. The frontend teammate needs
 to connect category controls and the compression inspector to these validated SDK
 methods. Neither that UI nor automatic injection has been fabricated here.
+
+The follow-up [actual native-storage experiment](SPEC2_NATIVE_STORAGE_VERIFICATION.md)
+used real Codex SQLite rows and Claude Code JSONL history. It verifies shared-memory
+transport after test-only normalization, and documents why native session conversion
+and semantic handoff are still incomplete.
