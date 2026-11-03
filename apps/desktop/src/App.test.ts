@@ -30,7 +30,7 @@ vi.mock('@udi/client-sdk', async (original) => ({
 }));
 import { DaemonClientError } from '@udi/client-sdk';
 import { App, Findings, McpList } from './App.js';
-import { CreateHandoff, StoredEvents, RegistryControls } from './persistence.js';
+import { CreateHandoff, StoredEvents, StoredRecords, RegistryControls } from './persistence.js';
 import { ValidationRun } from './ValidationRun.js';
 import type { DaemonClient } from '@udi/client-sdk';
 const client = api as unknown as DaemonClient;
@@ -315,11 +315,11 @@ describe('desktop user journeys', () => {
     await render();
     expect(host.querySelector('nav[aria-label="Ship compartments"]')).not.toBeNull();
     expect(host.querySelector('#ship-title')?.textContent).toBe('Mission control');
-    expect(host.querySelectorAll('.pixel-room-scene[aria-hidden="true"]')).toHaveLength(8);
+    expect(host.querySelectorAll('.pixel-room-scene[aria-hidden="true"]')).toHaveLength(6);
     await act(async () =>
-      host.querySelector<HTMLButtonElement>('button[aria-label="Open Engineering bay"]')!.focus(),
+      host.querySelector<HTMLButtonElement>('button[aria-label="Open Crew quarters"]')!.focus(),
     );
-    expect(host.querySelector('.ship-prompt')?.textContent).toContain('Enter Engineering bay');
+    expect(host.querySelector('.ship-prompt')?.textContent).toContain('Enter Crew quarters');
     expect(host.textContent).toContain('Engine connected');
     expect(host.querySelector('.ship-motion-on')).not.toBeNull();
     await click('Pause motion');
@@ -330,8 +330,6 @@ describe('desktop user journeys', () => {
     for (const [room, screen] of [
       ['Crew quarters', 'Agent Workspace'],
       ['Communications', 'MCP Hub'],
-      ['Engineering bay', 'Engineering'],
-      ['Device bay', 'Devices'],
       ['Control room', 'Settings'],
     ]) {
       await click(`Open ${room}`);
@@ -458,8 +456,7 @@ describe('desktop user journeys', () => {
     api.listHandoffs.mockRejectedValue(new DaemonClientError('CONNECTION_ERROR', 'offline'));
     await render();
     await select();
-    await click('Agent Workspace');
-    await click('Agent Handoffs');
+    await click('Library');
     expect(host.querySelector('.topbar')?.textContent).toContain('Disconnected');
     api.listHandoffs.mockResolvedValue({ items: [] });
     await click('Retry');
@@ -601,14 +598,8 @@ describe('desktop user journeys', () => {
             })),
           }),
     );
-    await render();
-    await select();
-    await click('Agent Workspace');
-    const input = host.querySelector<HTMLSelectElement>('select[aria-label="Active project"]')!;
-    await act(async () => {
-      input.value = second.id;
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    await render(createElement(StoredRecords, { client, projectId: id }));
+    await render(createElement(StoredRecords, { client, projectId: second.id }));
     expect(host.textContent).toContain('Second project context');
     await act(async () => resolveFirst({ items: memory.records }));
     expect(host.textContent).not.toContain('Review motor mapping');
@@ -649,21 +640,34 @@ describe('desktop user journeys', () => {
     expect(host.textContent).toContain('Kept in memory');
     expect(localStorage.length).toBe(0);
   });
-  it('renders context provenance and distinct unavailable states without fake results', async () => {
+  it('keeps Context Bridge and removes the legacy tabbed block from Agent Workspace', async () => {
     await render();
     await select();
     await click('Agent Workspace');
+    expect(host.textContent).toContain('Context Bridge');
+    for (const label of [
+      'Connected Agents',
+      'Project Memory',
+      'Context Timeline',
+      'Agent Handoffs',
+    ]) {
+      expect(
+        [...host.querySelectorAll('button')].some((button) => button.textContent === label),
+      ).toBe(false);
+    }
+    expect(host.querySelector('[aria-label="Project memory"]')).toBeNull();
+  });
+  it('preserves provenance and unavailable states in the shared stored-record components', async () => {
+    await render(createElement(StoredRecords, { client, projectId: id }));
     expect(host.textContent).toContain('Review motor mapping');
     expect(host.textContent).toContain('User entered');
-    await click('Context Timeline');
+    await render(createElement(StoredEvents, { client, projectId: id }));
     expect(host.textContent).toContain('firmware.updated');
     expect(host.textContent).toContain('Imported');
-    await click('Project Memory');
+    await render(createElement(StoredRecords, { client, projectId: id }));
     api.listContextRecords.mockRejectedValue(new DaemonClientError('NOT_IMPLEMENTED', 'not ready'));
     await click('Retrieve latest context');
     expect(host.textContent).toContain('Not available from this daemon');
-    await click('Agent Handoffs');
-    expect(host.textContent).toContain('No stored handoffs');
   });
   it('renders empty MCP inventory and enables supported registration', async () => {
     await render();

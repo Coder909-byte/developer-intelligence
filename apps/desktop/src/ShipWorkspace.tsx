@@ -5,19 +5,11 @@ import type { screens } from './App.js';
 type Destination = (typeof screens)[number];
 const rooms = [
   {
-    id: 'engineering',
-    name: 'Engineering bay',
-    destination: 'Engineering',
-    icon: 'engineering',
-    number: '01',
-    description: 'Specialist validation, evidence & safe corrections',
-  },
-  {
     id: 'agents',
     name: 'Crew quarters',
     destination: 'Agent Workspace',
     icon: 'agents',
-    number: '02',
+    number: '01',
     description: 'Project memory & agent handoffs',
   },
   {
@@ -25,7 +17,7 @@ const rooms = [
     name: 'Communications',
     destination: 'MCP Hub',
     icon: 'mcp',
-    number: '03',
+    number: '02',
     description: 'MCP inventory, tools & host setup',
   },
   {
@@ -37,19 +29,11 @@ const rooms = [
     description: 'Daemon connection & preferences',
   },
   {
-    id: 'devices',
-    name: 'Device bay',
-    destination: 'Devices',
-    icon: 'devices',
-    number: '05',
-    description: 'Telemetry service unavailable',
-  },
-  {
     id: 'bridge',
     name: 'Bridge',
     destination: 'Overview',
     icon: 'overview',
-    number: '06',
+    number: '05',
     description: 'Project overview & recorded activity',
   },
   {
@@ -57,7 +41,7 @@ const rooms = [
     name: 'Library',
     destination: 'Library',
     icon: 'agents',
-    number: '07',
+    number: '03',
     description: 'Librarian & saved session information',
   },
   {
@@ -65,7 +49,7 @@ const rooms = [
     name: 'Context Inspector',
     destination: 'Context Inspector',
     icon: 'engineering',
-    number: '08',
+    number: '06',
     description:
       'Context analyst with a magnifying glass · Raw activity, classifications & compressed context',
   },
@@ -205,11 +189,7 @@ export function ShipWorkspace({
               <span className="room-art-depth">
                 <PixelRoom
                   room={room.id}
-                  door={
-                    ['settings', 'devices', 'bridge', 'inspector'].includes(room.id)
-                      ? 'top'
-                      : 'bottom'
-                  }
+                  door={['settings', 'bridge', 'inspector'].includes(room.id) ? 'top' : 'bottom'}
                 />
               </span>
               <strong className="room-floor-sign">

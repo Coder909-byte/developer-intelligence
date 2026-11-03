@@ -23,9 +23,7 @@ import { SafeCorrection, supportsCorrection } from './SafeCorrection.js';
 import { ValidationRun } from './ValidationRun.js';
 import { useResource, Result, ConnectionReporter } from './data.js';
 import {
-  StoredRecords,
   StoredEvents,
-  Handoffs,
   StoredJob,
   RegistryControls,
   PageControls,
@@ -60,7 +58,6 @@ function Unavailable({ title, reason }: { title: string; reason: string }) {
   );
 }
 function Context({ client, project }: { client: DaemonClient; project: Project }) {
-  const [tab, setTab] = useState('Project Memory');
   return (
     <>
       <Card title="Shared agent intelligence">
@@ -72,25 +69,6 @@ function Context({ client, project }: { client: DaemonClient; project: Project }
         <Badge>Project-scoped memory</Badge>
       </Card>
       <ContextBridge client={client} project={project} />
-      <Tabs
-        tabs={['Connected Agents', 'Project Memory', 'Context Timeline', 'Agent Handoffs']}
-        selected={tab}
-        onSelect={setTab}
-      />
-      {tab === 'Connected Agents' ? (
-        <Card title="Connected agents">
-          <Unavailable
-            title="Agent discovery unavailable"
-            reason="Agent IDs in handoffs are external UUIDs. The daemon does not expose live agent registrations."
-          />
-        </Card>
-      ) : tab === 'Agent Handoffs' ? (
-        <Handoffs client={client} projectId={project.id} />
-      ) : tab === 'Context Timeline' ? (
-        <StoredEvents client={client} projectId={project.id} />
-      ) : (
-        <StoredRecords client={client} projectId={project.id} />
-      )}
     </>
   );
 }

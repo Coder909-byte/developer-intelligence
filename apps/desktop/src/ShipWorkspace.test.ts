@@ -48,9 +48,11 @@ async function render(onNavigate = (_screen: string) => {}) {
   );
 }
 describe('decorative crew and cursor effects', () => {
-  it('keeps eight decorative crews independently scoped to their room and allows motion to be paused', async () => {
+  it('keeps six decorative crews independently scoped to their room and allows motion to be paused', async () => {
     await render();
-    expect(host.querySelectorAll('.ship-room .pixel-roam')).toHaveLength(8);
+    expect(host.querySelectorAll('.ship-room .pixel-roam')).toHaveLength(6);
+    expect(host.querySelector('[aria-label="Open Engineering bay"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Open Device bay"]')).toBeNull();
     const toggle = host.querySelector<HTMLButtonElement>('.ship-motion-toggle')!;
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
     await act(async () => toggle.click());
