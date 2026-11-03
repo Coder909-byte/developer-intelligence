@@ -142,6 +142,48 @@ afterEach(async () => {
   host.remove();
 });
 describe('desktop user journeys', () => {
+  it('keeps history separate and removes old failures when another validation job is selected', async () => {
+    const newer = 'b785354e-2e71-4b89-94ac-55a5d7c154d8';
+    api.getJob.mockImplementation(async (_projectId: string, jobId: string) => ({
+      id: jobId,
+      projectId: id,
+      status: jobId === id ? 'failed' : 'succeeded',
+      startedAt: project.createdAt,
+      completedAt: project.createdAt,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      exitCode: jobId === id ? 1 : 0,
+      stdoutTail: '',
+      stderrTail: '',
+      artifacts: [],
+    }));
+    api.listFindings.mockImplementation(
+      async (_projectId: string, options: { jobId?: string }) => ({
+        items: options.jobId === newer ? [] : [finding],
+      }),
+    );
+    await render();
+    await select();
+    expect(host.textContent).toContain('No validation job selected');
+    expect(host.textContent).not.toContain('GPIO mismatch');
+    await click('Engineering');
+    expect(host.textContent).not.toContain('GPIO mismatch');
+    await fill('Validation job UUID', id);
+    await click('Select validation job');
+    expect(host.textContent).toContain('GPIO mismatch');
+    expect(api.listFindings).toHaveBeenLastCalledWith(id, { limit: 50, offset: 0, jobId: id });
+    await fill('Validation job UUID', newer);
+    await click('Select validation job');
+    expect(host.textContent).not.toContain('GPIO mismatch');
+    expect(host.textContent).toContain('No recorded findings');
+    expect(api.listFindings).toHaveBeenLastCalledWith(id, { limit: 50, offset: 0, jobId: newer });
+    await click('History');
+    expect(host.textContent).toContain('GPIO mismatch');
+    expect(host.textContent).toContain('Historical records across jobs');
+    await click('Overview');
+    expect(host.textContent).not.toContain('GPIO mismatch');
+    expect(host.textContent).toContain(newer);
+  });
   it('updates global connection state when a project request fails and recovers on retry', async () => {
     api.listHandoffs.mockRejectedValue(new DaemonClientError('CONNECTION_ERROR', 'offline'));
     await render();
@@ -306,7 +348,7 @@ describe('desktop user journeys', () => {
     expect(host.textContent).toContain('Choose your active project');
     await select();
     expect(host.textContent).toContain('Firmware project');
-    expect(api.listFindings).toHaveBeenCalledWith(id, { limit: 100, offset: 0 });
+    expect(api.listFindings).not.toHaveBeenCalled();
     for (const screen of [
       'Engineering',
       'MCP Hub',

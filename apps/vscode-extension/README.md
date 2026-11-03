@@ -26,3 +26,9 @@ udi.openDashboard.
 Daemon/dashboard origins are machine/user configuration, not workspace-controlled token destinations. The extension does not launch another daemon or read private agent conversations. No full desktop UI is embedded.
 
 Tests execute actual bundled activation/commands against a mocked VS Code API, including cancelled/approved writes and diagnostic mapping. A separate QA run exercised compiled context/event/handoff commands against the actual daemon over HTTP and verified persistence after restart. Actual Extension Host execution and VSIX packaging remain separate gates. See `../desktop/FRONTEND_HANDOFF.md` for complete integration details.
+
+## Validation job selection
+
+Run **Developer Intelligence: Select Validation Job** (`udi.selectValidationJob`) and enter a recorded job UUID. The extension verifies that job against the active project and scopes findings using the SDK's jobId filter. Diagnostics clear before a job switch and only verified selected-job findings are published. No selected job means no current diagnostics; use the desktop History tab for older results. This intentionally avoids treating an old failure as the latest validation result.
+
+There is no agreed backend current/latest-job pointer yet, so the extension does not guess from finding timestamps. A successful job with no findings must still be selected explicitly; it cannot be discovered by looking only at old error records. Runtime QA verified one-to-zero diagnostic clearing over actual daemon HTTP using clearly imported failed/cancelled test snapshots and a mocked VS Code host. This is not an actual Extension Host or validator execution claim.

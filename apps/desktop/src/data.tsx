@@ -9,7 +9,11 @@ import {
 import { Skeleton, EmptyState, Button } from '@udi/ui';
 import { Resource } from './resource.js';
 export const ConnectionReporter = createContext<(reachable: boolean) => void>(() => {});
-export function useResource<T>(loader: () => Promise<T>, dependencies: readonly unknown[]) {
+export function useResource<T>(
+  loader: () => Promise<T>,
+  dependencies: readonly unknown[],
+  observeConnection = true,
+) {
   const report = useContext(ConnectionReporter);
   // The caller supplies the identity of the SDK/project; new identities get isolated resource instances.
   const resource = useMemo(() => new Resource<T>(), dependencies);
@@ -23,13 +27,14 @@ export function useResource<T>(loader: () => Promise<T>, dependencies: readonly 
     return () => resource.cancel();
   }, [resource]);
   useEffect(() => {
+    if (!observeConnection) return;
     if (state.status === 'ready') report(true);
     else if (
       state.status === 'error' &&
       (state.code === 'CONNECTION_ERROR' || state.code === 'TIMEOUT')
     )
       report(false);
-  }, [state, report]);
+  }, [state, report, observeConnection]);
   return {
     state,
     retry: () => {

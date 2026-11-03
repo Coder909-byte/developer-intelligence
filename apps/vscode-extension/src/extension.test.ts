@@ -17,11 +17,22 @@ const source = buildSync({
   external: ['vscode'],
   write: false,
 }).outputFiles[0]!.text;
-function host(fail = false, project?: Project, findings: ValidationFinding[] = []) {
+function host(
+  fail = false,
+  project?: Project,
+  findings: ValidationFinding[] = [],
+  initialJobId: string | null = findings[0]?.jobId ?? null,
+) {
   const callbacks = new Map<string, (arg?: unknown) => Promise<void>>();
   const dispose = vi.fn();
   const disposable = { dispose };
-  const diagnosticSet = vi.fn();
+  const diagnosticEntries = new Map<string, unknown[]>();
+  const diagnosticSet = vi.fn((uri: { fsPath: string }, items: unknown[]) => {
+    diagnosticEntries.set(uri.fsPath, items);
+  });
+  const diagnosticClear = vi.fn(() => diagnosticEntries.clear());
+  const state = new Map<string, unknown>();
+  if (project && initialJobId) state.set(`udi.validationJob:${project.id}`, initialJobId);
   let provider: { getChildren: () => { label: string }[] } | undefined;
   const info = vi.fn();
   const error = vi.fn();
@@ -38,7 +49,7 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
     },
     StatusBarAlignment: { Left: 1 },
     languages: {
-      createDiagnosticCollection: () => ({ clear: vi.fn(), set: diagnosticSet, dispose }),
+      createDiagnosticCollection: () => ({ clear: diagnosticClear, set: diagnosticSet, dispose }),
     },
     Range: class {
       constructor(
@@ -112,8 +123,30 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
           capabilities: { projects: true, context: false, mcp: false, engineering: false },
         }
       : input.includes('/engineering/findings')
-        ? { items: findings }
+        ? {
+            items: findings.filter(
+              (f) =>
+                !new URL(input).searchParams.get('jobId') ||
+                f.jobId === new URL(input).searchParams.get('jobId'),
+            ),
+          }
         : { items: project ? [project] : [] };
+    if (input.includes('/jobs/') && project) {
+      const jobId = new URL(input).pathname.split('/').at(-1)!;
+      data = {
+        id: jobId,
+        projectId: project.id,
+        status: jobId === findings[0]?.jobId ? 'failed' : 'succeeded',
+        startedAt: project.createdAt,
+        completedAt: project.createdAt,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        exitCode: jobId === findings[0]?.jobId ? 1 : 0,
+        stdoutTail: '',
+        stderrTail: '',
+        artifacts: [],
+      };
+    }
     if (input.includes('/context/records')) data = { items: record ? [record] : [] };
     else if (input.includes('/context?') && project)
       data = {
@@ -165,7 +198,13 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
   const context = {
     subscriptions,
     secrets,
-    workspaceState: { get: () => undefined, update: vi.fn() },
+    workspaceState: {
+      get: (key: string) => state.get(key),
+      update: vi.fn(async (key: string, value: unknown) => {
+        if (value === undefined) state.delete(key);
+        else state.set(key, value);
+      }),
+    },
   };
   (module.exports.activate as (c: unknown) => void)(context);
   return {
@@ -177,6 +216,8 @@ function host(fail = false, project?: Project, findings: ValidationFinding[] = [
     subscriptions,
     fetch,
     diagnosticSet,
+    diagnosticEntries,
+    diagnosticClear,
     ui: vscode.window,
     record,
     getRows: () => provider?.getChildren(),
@@ -267,6 +308,19 @@ describe('extension activation in mocked VS Code host', () => {
         }),
       ]);
       expect(h.getRows()?.some((r) => r.label === 'GPIO mismatch')).toBe(true);
+      expect(h.diagnosticEntries.size).toBe(1);
+      const newer = 'b785354e-2e71-4b89-94ac-55a5d7c154d8';
+      h.ui.showInputBox.mockResolvedValueOnce(newer);
+      await h.callbacks.get('udi.selectValidationJob')!();
+      expect(h.diagnosticEntries.size).toBe(0);
+      expect(
+        h.fetch.mock.calls.some(
+          ([url]) =>
+            url.includes('/engineering/findings') &&
+            new URL(url).searchParams.get('jobId') === newer,
+        ),
+      ).toBe(true);
+      expect(h.error).not.toHaveBeenCalled();
     } finally {
       for (const d of h.subscriptions) d.dispose();
       await rm(directory, { recursive: true, force: true });
@@ -286,6 +340,28 @@ describe('extension activation in mocked VS Code host', () => {
     expect(h.fetch.mock.calls.some(([url]) => url.endsWith('/api/v1/health'))).toBe(true);
     expect(h.secrets.store).not.toHaveBeenCalled();
     for (const d of h.subscriptions) d.dispose();
+  });
+  it('does not publish historical errors when no validation job has been selected', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'udi-no-current-'));
+    const id = '61d626eb-26fa-4bae-bbe7-64dc03fb921b';
+    const createdAt = '2026-11-03T13:00:00Z';
+    const finding = { id, jobId: id, projectId: id } as ValidationFinding;
+    const h = host(
+      false,
+      { id, name: 'Rover', rootPath: directory, description: '', createdAt, updatedAt: createdAt },
+      [finding],
+      null,
+    );
+    try {
+      await vi.waitFor(() => expect(h.getRows()?.some((r) => r.label === 'Rover')).toBe(true));
+      expect(h.diagnosticEntries.size).toBe(0);
+      expect(h.fetch.mock.calls.some(([url]) => url.includes('/engineering/findings'))).toBe(false);
+      await h.callbacks.get('udi.findings')!();
+      expect(h.warning).toHaveBeenCalled();
+    } finally {
+      for (const d of h.subscriptions) d.dispose();
+      await rm(directory, { recursive: true, force: true });
+    }
   });
   it('shows disconnected state and keeps retry/token commands available', async () => {
     const h = host(true);

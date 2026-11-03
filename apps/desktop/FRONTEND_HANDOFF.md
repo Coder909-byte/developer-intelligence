@@ -48,3 +48,18 @@ Run `pnpm dev:daemon` and `pnpm dev:desktop` in separate terminals from the root
 Remaining backend gates: validation execution and MCP health checks still return 501; toolchain/artifact detection, patch preview/approval/apply/rollback, tool/permission discovery and host config application, device monitoring and live agent inventory remain unimplemented. Persistence is available; the UI no longer incorrectly marks it unavailable.
 
 Remaining frontend/runtime gates: actual VS Code Extension Host execution, native Tauri packaging (Cargo absent), VSIX packaging and OS-backed persistent desktop credentials. The Windows sandbox restricts pnpm workspace symlinks; local checks use ignored copied shared build outputs, with standard installation covered by GitHub CI on the prior milestone and to be rechecked on this update.
+
+## Validation-job scoping follow-up
+
+Synced safely with merged main `423d5f8` after confirming a clean working tree. PR #1 was already merged externally; Developer 3 did not merge it. Further changes require a follow-up review diff.
+
+The API has `getJob(projectId, jobId)` and findings filtering by jobId, but no frozen current/latest job pointer. Desktop and VS Code therefore require explicit selection of a recorded job UUID rather than inferring current health from historical failures. Desktop selection is session-scoped per project; native selection is stored per workspace/project and revalidated on refresh.
+
+- Overview does not show historical finding counts as current health. It shows no job selected until a job is chosen.
+- Engineering defaults to Selected job. It verifies job identity/project, then requests findings with that exact jobId and rejects mixed-job responses. History is a separate, explicitly labeled view with job IDs on each finding.
+- Job changes clear old displayed results while reads are pending. Failed job selection leaves no active selection. Empty findings do not establish a pass, and persisted job status is not proof of live tool execution.
+- VS Code adds udi.selectValidationJob, clears diagnostics before switching/refreshing and publishes only non-resolved findings from the verified selected job. With no selected job it does not read historical findings into diagnostics.
+
+Verification: root typecheck, lint, 82 tests (32 frontend) and portable builds passed. Unit regression covers an old failing job followed by a newer successful fixture with no findings; this is test data, not a live validation claim. Runtime QA used explicitly imported failed/cancelled snapshots in the isolated QA database; no successful validation result was fabricated. The real browser separated history from the selected job, and actual compiled native commands over real daemon HTTP reduced diagnostics from one to zero when the selected job changed (mocked VS Code host).
+
+Still needed from the project lead: an agreed completed-job event convention or a frozen current/latest-job API for automatic tracking after future execution. Until then users must select the job ID explicitly. Execution/health checks remain 501, and actual Extension Host/native packaging gates remain as documented above.

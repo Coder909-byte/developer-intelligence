@@ -18,6 +18,7 @@ import {
   NavigationIcon,
 } from '@udi/ui';
 import { describeError } from './resource.js';
+import { JobPicker, readJobFindings } from './validation.js';
 import { useResource, Result, ConnectionReporter } from './data.js';
 import {
   StoredRecords,
@@ -187,7 +188,7 @@ export function Findings({ items, client }: { items: ValidationFinding[]; client
             <span>
               <strong>{f.message}</strong>
               <small>
-                {f.ruleId} · {f.evidence[0]?.filePath}
+                {f.ruleId} · Job {f.jobId} · {f.evidence[0]?.filePath}
               </small>
             </span>
             <span>View evidence →</span>
@@ -210,50 +211,103 @@ export function Findings({ items, client }: { items: ValidationFinding[]; client
     </>
   );
 }
-function Engineering({ client, project }: { client: DaemonClient; project: Project }) {
+function Engineering({
+  client,
+  project,
+  jobId,
+  onJobSelect,
+}: {
+  client: DaemonClient;
+  project: Project;
+  jobId: string | undefined;
+  onJobSelect: (id: string | undefined) => void;
+}) {
   const page = usePage();
-  const findings = useResource(async () => {
-    const data = await client.listFindings(project.id, page.options);
-    if (data.items.some((f) => f.projectId !== project.id))
-      throw new Error('Project scope mismatch');
-    return data;
-  }, [client, project.id, page.offset, page.revision]);
+  const [mode, setMode] = useState('Selected job');
+  const findings = useResource(
+    async () => {
+      if (mode === 'History') {
+        const data = await client.listFindings(project.id, page.options);
+        scoped(data.items, project.id);
+        return { items: data.items, job: undefined };
+      }
+      return jobId ? readJobFindings(client, project.id, jobId, page.options) : undefined;
+    },
+    [client, project.id, jobId, mode, page.offset, page.revision],
+    mode === 'History' || Boolean(jobId),
+  );
   return (
     <>
-      <div className="summary-grid">
-        <Card title="Active engineering project">
-          <h3>{project.name}</h3>
-          <code>{project.rootPath}</code>
-        </Card>
-        <Card title="Toolchain">
-          <Badge tone="warning">Detection unavailable</Badge>
-          <p className="muted">Build and artifact discovery APIs are not available.</p>
-        </Card>
-      </div>
+      <Card title="Validation job scope">
+        <JobPicker
+          client={client}
+          projectId={project.id}
+          jobId={jobId}
+          onSelect={(id) => {
+            page.reset();
+            onJobSelect(id);
+          }}
+        />
+        <p className="muted">
+          Only the selected job contributes to its findings view. Historical records are not
+          evidence of a current failure.
+        </p>
+      </Card>
+      <Tabs
+        tabs={['Selected job', 'History']}
+        selected={mode}
+        onSelect={(m) => {
+          page.reset();
+          setMode(m);
+        }}
+      />
       <Card
-        title="Validation findings"
+        title={
+          mode === 'History' ? 'Historical findings  |  all stored jobs' : 'Selected job findings'
+        }
         action={<Button onClick={findings.retry}>Refresh findings</Button>}
       >
         <Result value={findings}>
-          {(data) => (
-            <>
-              <Findings items={data.items} client={client} />
-              <PageControls page={page} count={data.items.length} />
-            </>
-          )}
+          {(data) =>
+            data ? (
+              <>
+                {mode === 'History' ? (
+                  <div className="notice">
+                    Historical records across jobs. These are not the current validation result.
+                  </div>
+                ) : (
+                  <div className="row">
+                    <Badge>Job {data.job?.id}</Badge>
+                    <Badge>Stored status: {data.job?.status}</Badge>
+                    <small>Persisted adapter result; not proof of live execution.</small>
+                  </div>
+                )}
+                <Findings
+                  key={`${mode}:${jobId ?? ''}:${page.offset}`}
+                  items={data.items}
+                  client={client}
+                />
+                <PageControls page={page} count={data.items.length} />
+                {mode !== 'History' && jobId && (
+                  <StoredJob client={client} projectId={project.id} jobId={jobId} />
+                )}
+              </>
+            ) : (
+              <EmptyState title="No validation job selected">
+                Select a recorded job UUID above. Old findings remain available under History.
+              </EmptyState>
+            )
+          }
         </Result>
       </Card>
-      <Card title="Validation & builds">
+      <Card title="Validation execution">
         <Unavailable
-          title="Validation execution is not available yet"
-          reason="Stored findings and job logs are available. Running validation, discovering toolchains and applying corrections require the engineering execution service."
+          title="Execution is not available yet"
+          reason="The validation submission endpoint remains unimplemented. You can inspect persisted job results without claiming that a new check ran."
         />
-        <div className="row">
-          <Button disabled>Run validation</Button>
-          <small>Open a finding to inspect its stored job output.</small>
-        </div>
+        <Button disabled>Run validation</Button>
         <p className="muted">
-          Artifact consistency checks do not verify physical wiring or electrical safety.
+          Configuration checks do not verify physical wiring or electrical safety.
         </p>
       </Card>
     </>
@@ -287,17 +341,22 @@ function Overview({
   client,
   project,
   navigate,
+  jobId,
 }: {
   client: DaemonClient;
   project: Project;
   navigate: (s: Screen) => void;
+  jobId: string | undefined;
 }) {
   const context = useResource(() => client.getContext(project.id, 100), [client, project.id]);
-  const findings = useResource(async () => {
-    const data = await client.listFindings(project.id, { limit: 100, offset: 0 });
-    scoped(data.items, project.id);
-    return data;
-  }, [client, project.id]);
+  const findings = useResource(
+    () =>
+      jobId
+        ? readJobFindings(client, project.id, jobId, { limit: 100, offset: 0 })
+        : Promise.resolve(undefined),
+    [client, project.id, jobId],
+    Boolean(jobId),
+  );
   const mcp = useResource(() => client.listMcpServers({ limit: 100, offset: 0 }), [client]);
   return (
     <>
@@ -322,17 +381,28 @@ function Overview({
             )}
           </Result>
         </Card>
-        <Card title="Recorded findings">
+        <Card title="Selected validation job">
           <Result value={findings}>
-            {(d) => (
-              <>
-                <strong className="metric">
-                  {d.items.filter((f) => f.status === 'open').length}
-                </strong>
-                <p className="muted">Open findings in first 100 · not a validation pass</p>
-                <Button onClick={() => navigate('Engineering')}>Review findings</Button>
-              </>
-            )}
+            {(data) =>
+              data ? (
+                <>
+                  <code>{data.job.id}</code>
+                  <p>Stored status: {data.job.status}</p>
+                  <strong className="metric">
+                    {data.items.filter((f) => f.status === 'open').length}
+                  </strong>
+                  <p className="muted">
+                    Open findings for this job (first 100). No findings alone does not establish a
+                    pass.
+                  </p>
+                  <Button onClick={() => navigate('Engineering')}>Review selected job</Button>
+                </>
+              ) : (
+                <EmptyState title="No validation job selected">
+                  <Button onClick={() => navigate('Engineering')}>Select job in Engineering</Button>
+                </EmptyState>
+              )
+            }
           </Result>
         </Card>
       </div>
@@ -438,6 +508,7 @@ export function App() {
   const health = useResource(() => client.health(), [client]);
   const projects = useResource(() => client.listProjects(), [client]);
   const [projectId, setProjectId] = useState('');
+  const [jobIds, setJobIds] = useState<Record<string, string | undefined>>({});
   const [register, setRegister] = useState(false);
   const items = projects.state.status === 'ready' ? projects.state.data.items : [];
   const project = items.find((p) => p.id === projectId);
@@ -459,6 +530,7 @@ export function App() {
       setToken(draftToken);
       setDraftToken('');
       setProjectId('');
+      setJobIds({});
     } catch {
       setSettingsError('Use an HTTP loopback origin, for example http://127.0.0.1:4317.');
     }
@@ -629,9 +701,21 @@ export function App() {
                   project ? (
                     <div key={`${url}:${project.id}`} className="screen-content">
                       {screen === 'Overview' ? (
-                        <Overview client={client} project={project} navigate={setScreen} />
+                        <Overview
+                          client={client}
+                          project={project}
+                          navigate={setScreen}
+                          jobId={jobIds[project.id]}
+                        />
                       ) : screen === 'Engineering' ? (
-                        <Engineering client={client} project={project} />
+                        <Engineering
+                          client={client}
+                          project={project}
+                          jobId={jobIds[project.id]}
+                          onJobSelect={(id) =>
+                            setJobIds((previous) => ({ ...previous, [project.id]: id }))
+                          }
+                        />
                       ) : (
                         <Context client={client} project={project} />
                       )}
