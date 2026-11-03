@@ -25,7 +25,11 @@
     "doctor": "node scripts/doctor.mjs",
     "smoke": "pnpm build && node scripts/smoke.mjs",
     "demo:verify": "pnpm build && node scripts/demo-e2e.mjs",
-    "test:mcp": "pnpm build && node scripts/verify-mcp-interop.mjs"
+    "test:mcp": "pnpm build && node scripts/verify-mcp-interop.mjs",
+    "package:extension": "pnpm build:packages && pnpm --filter @udi/vscode-extension build && node scripts/package-vsix.mjs",
+    "demo": "pnpm demo:verify",
+    "test:vscode": "node scripts/verify-vscode-runtime.mjs",
+    "test:demo-state": "node scripts/verify-demo-state.mjs"
   },
   "devDependencies": {
     "typescript": "~5.9.3",

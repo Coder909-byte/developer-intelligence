@@ -1,6 +1,6 @@
 # Deterministic end-to-end demo test plan
 
-Current runtime status: the automated real-process backend/validator/context/MCP path is executable with `pnpm demo:verify` and has passed on the Mac. See [runtime demo](RUNTIME_DEMO.md) for exact commands/results and remaining unverified GUI/host gates. The human-operated acceptance plan below remains the final product gate; its earlier pre-merge prerequisites are retained for reference. See INTEGRATION_READINESS for the reviewed branch snapshot, owners and API gaps. Never substitute synthetic storage records for real validator/MCP evidence in a product demonstration.
+Current runtime status: the actual Mac Extension Development Host and installed VSIX now pass native mismatch diagnostics, source navigation, corrected-job clearing, context and handoffs. Browser/real MCP CLI retrieve the same project state. See [final runtime](FINAL_RUNTIME.md) for the executed five-minute script, packaging, 137-test gate and exact commands. The original plan below retains earlier pre-merge prerequisites for reference. Safe source correction and commercial-agent conversation are separate, unclaimed gates; the current demo runs the existing corrected fixture. Never substitute synthetic storage records for real validator/MCP evidence.
 
 ## Gate 0 — automatic backend proof, executable now
 

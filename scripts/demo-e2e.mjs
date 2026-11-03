@@ -85,7 +85,7 @@ async function startDaemon() {
   throw new Error('Integrated daemon startup timed out');
 }
 function startMcp(projectId) {
-  const child = spawn(process.execPath, ['scripts/mcp-stdio.mjs'], {
+  const child = spawn(process.execPath, ['packages/mcp-gateway/dist/cli.js'], {
     cwd: root,
     env: { ...daemonEnv, UDI_DAEMON_URL: baseUrl, UDI_PROJECT_ID: projectId },
     stdio: ['pipe', 'pipe', 'pipe'],

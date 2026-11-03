@@ -15,11 +15,11 @@ import {
 const repoRoot = resolve(import.meta.dirname, '..');
 const roverDir = resolve(repoRoot, 'examples/rover');
 const mcpCliPath = resolve(repoRoot, 'packages/mcp-gateway/dist/cli.js');
-const opencodeBin = '/home/fev/.opencode/bin/opencode';
+const opencodeBin = process.env.OPENCODE_BIN ?? 'opencode';
 
 console.log('================================================================');
 console.log(' UNIVERSAL DEVELOPER INTELLIGENCE PLATFORM');
-console.log(' MCP Interoperability & Second-Agent Verification');
+console.log(' MCP Interoperability & Reference-Client Verification');
 console.log('================================================================\n');
 
 // 1. Setup temporary environment
@@ -37,6 +37,7 @@ await new Promise((r) => probe.once('close', r));
 
 const daemonUrl = `http://127.0.0.1:${port}`;
 let daemonProcess;
+let mcpProcess;
 
 async function startDaemon() {
   console.log(`[1/8] Starting Core Daemon on ${daemonUrl}...`);
@@ -59,7 +60,7 @@ async function startDaemon() {
       throw new Error(`Daemon exited prematurely with code ${daemonProcess.exitCode}`);
     }
     try {
-      const res = await fetch(`${daemonUrl}/api/v1/health`);
+      const res = await fetch(`${daemonUrl}/api/v1/health`, { signal: AbortSignal.timeout(1000) });
       if (res.status === 200) {
         const body = await res.json();
         console.log(`      ✓ Daemon ready. Health:`, JSON.stringify(body.data.capabilities));
@@ -95,7 +96,7 @@ try {
   const valJob = await primaryClient.requestValidation(project.id, {
     kind: 'pin_consistency',
     artifactPaths: ['rover.net', 'src/pins.h', 'engineering-map.json'],
-    requestedBy: 'primary-agent-vscode',
+    requestedBy: 'interop-reference-client',
   });
   console.log(
     `      ✓ Validation job completed: status=${valJob.status}, exitCode=${valJob.exitCode}`,
@@ -119,9 +120,9 @@ try {
   console.log('\n[4/8] Primary Agent records an architectural decision...');
   const decisionRecord = await primaryClient.createContextRecord(project.id, {
     kind: 'decision',
-    text: 'Approved: update firmware pin map to GPIO14 rather than re-spinning PCB layout',
+    text: 'Reviewed proposal: compare the corrected GPIO14 fixture; no source file was edited',
     provenance: { sourceKind: 'user_entered', actor: 'lead-engineer' },
-    evidence: [{ filePath: 'rover.net', line: 29 }],
+    evidence: [{ filePath: 'rover.net', line: 28 }],
   });
   console.log(
     `      ✓ Decision stored in backend: ID ${decisionRecord.id} (provenance: user_entered)`,
@@ -176,32 +177,43 @@ try {
   console.log('\n[6/8] Testing OpenCode CLI integration via "opencode mcp list"...');
   try {
     const opencodeCheck = await new Promise((resolveCheck) => {
-      const child = spawn(opencodeBin, ['mcp', 'list', '--print-logs'], {
+      const child = spawn(opencodeBin, ['mcp', 'list'], {
         cwd: testDir,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       let out = '';
+      const timer = setTimeout(() => {
+        child.kill();
+        resolveCheck({ code: 124 });
+      }, 5000);
       child.stdout?.on('data', (c) => (out += c.toString()));
       child.stderr?.on('data', (c) => (out += c.toString()));
-      child.on('close', (code) => resolveCheck({ code, out }));
-      child.on('error', (err) => resolveCheck({ code: -1, out: err.message }));
-      setTimeout(() => {
-        child.kill();
-        resolveCheck({ code: 124, out: 'timeout' });
-      }, 5000);
+      child.on('close', (code) => {
+        clearTimeout(timer);
+        resolveCheck({ code, connected: /connected/i.test(out) });
+      });
+      child.on('error', () => {
+        clearTimeout(timer);
+        resolveCheck({ code: -1 });
+      });
     });
-    console.log(
-      `      ✓ OpenCode CLI output:\n        ${opencodeCheck.out.trim().replace(/\n/g, '\n        ')}`,
-    );
+    if (opencodeCheck.code === -1)
+      console.log('      SKIP: OpenCode is not installed; no commercial-agent host claim.');
+    else if (opencodeCheck.code !== 0)
+      throw new Error(`OpenCode probe failed (exit ${opencodeCheck.code})`);
+    else
+      console.log(
+        `      OpenCode CLI ran; connected status: ${Boolean(opencodeCheck.connected)}. This is not an agent conversation/tool-call test.`,
+      );
   } catch (err) {
-    console.log(`      (OpenCode test skipped: ${err.message})`);
+    throw new Error(`Optional configured OpenCode host failed: ${err.message}`, { cause: err });
   }
 
-  // 7. Real Stdio MCP Communication with Second Agent
+  // 7. Real Stdio MCP Communication with Reference client
   console.log(
-    '\n[7/8] Spawning MCP Gateway Stdio process and simulating Second Agent (OpenCode/Claude)...',
+    '\n[7/8] Spawning MCP Gateway Stdio process and connecting an independent MCP reference client...',
   );
-  const mcpProcess = spawn(process.execPath, [mcpCliPath, '--project-id', project.id], {
+  mcpProcess = spawn(process.execPath, [mcpCliPath, '--project-id', project.id], {
     env: {
       ...process.env,
       UDI_DAEMON_URL: daemonUrl,
@@ -226,8 +238,9 @@ try {
       try {
         const msg = JSON.parse(trimmed);
         if (msg.id !== undefined && pendingRequests.has(msg.id)) {
-          const { resolve: reqResolve, reject: reqReject } = pendingRequests.get(msg.id);
+          const { resolve: reqResolve, reject: reqReject, timer } = pendingRequests.get(msg.id);
           pendingRequests.delete(msg.id);
+          clearTimeout(timer);
           if (msg.error) {
             reqReject(new Error(msg.error.message || JSON.stringify(msg.error)));
           } else {
@@ -243,7 +256,11 @@ try {
   function sendRpc(method, params = {}) {
     const id = messageId++;
     return new Promise((reqResolve, reqReject) => {
-      pendingRequests.set(id, { resolve: reqResolve, reject: reqReject });
+      const timer = setTimeout(() => {
+        pendingRequests.delete(id);
+        reqReject(new Error(`MCP timeout: ${method}`));
+      }, 10000);
+      pendingRequests.set(id, { resolve: reqResolve, reject: reqReject, timer });
       const payload = JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n';
       mcpProcess.stdin.write(payload);
     });
@@ -257,9 +274,9 @@ try {
   // 7a. Handshake
   console.log('      -> Sending MCP initialize handshake...');
   const initResult = await sendRpc('initialize', {
-    protocolVersion: '2024-11-05',
+    protocolVersion: '2025-11-25',
     capabilities: {},
-    clientInfo: { name: 'opencode-agent-host', version: '2.0.32' },
+    clientInfo: { name: 'udi-interop-reference-client', version: '1.0.0' },
   });
   console.log(
     `      ✓ Handshake successful: server="${initResult.serverInfo?.name}" v${initResult.serverInfo?.version}`,
@@ -267,7 +284,7 @@ try {
   sendNotification('notifications/initialized');
 
   // 7b. Discover Tools
-  console.log('      -> Second Agent discovers available tools (tools/list)...');
+  console.log('      -> Reference client discovers available tools (tools/list)...');
   const toolsResult = await sendRpc('tools/list', {});
   const toolNames = toolsResult.tools.map((t) => t.name);
   console.log(`      ✓ Discovered ${toolNames.length} MCP tools: [${toolNames.join(', ')}]`);
@@ -278,53 +295,53 @@ try {
   assert.ok(toolNames.includes('list_available_tools'));
 
   // 7c. Retrieve Project Context
-  console.log('      -> Second Agent retrieves project context (get_project_context)...');
+  console.log('      -> Reference client retrieves project context (get_project_context)...');
   const contextCall = await sendRpc('tools/call', {
     name: 'get_project_context',
     arguments: { projectId: project.id },
   });
   const contextText = contextCall.content[0].text;
-  console.log(`      ✓ Second Agent retrieved shared project memory:`);
+  console.log(`      ✓ Reference client retrieved shared project memory:`);
   console.log(`        ${contextText.split('\n').slice(0, 5).join('\n        ')}`);
-  assert.ok(contextText.includes('Approved: update firmware pin map'));
+  assert.ok(contextText.includes('Reviewed proposal: compare the corrected GPIO14 fixture'));
 
   // 7d. Retrieve Validation Results
   console.log(
-    '      -> Second Agent retrieves engineering validation findings (get_validation_results)...',
+    '      -> Reference client retrieves engineering validation findings (get_validation_results)...',
   );
   const findingsCall = await sendRpc('tools/call', {
     name: 'get_validation_results',
     arguments: { projectId: project.id },
   });
   const findingsText = findingsCall.content[0].text;
-  console.log(`      ✓ Second Agent retrieved validation diagnostics:`);
+  console.log(`      ✓ Reference client retrieved validation diagnostics:`);
   console.log(`        ${findingsText.split('\n').slice(0, 4).join('\n        ')}`);
   assert.ok(findingsText.includes('MOTOR_EN'));
   assert.ok(findingsText.includes('GPIO14'));
 
-  // 7e. Second Agent records decision through MCP gateway
-  console.log('      -> Second Agent records new decision via record_decision...');
+  // 7e. Reference client records decision through MCP gateway
+  console.log('      -> Reference client records new decision via record_decision...');
   const recordCall = await sendRpc('tools/call', {
     name: 'record_decision',
     arguments: {
       projectId: project.id,
-      text: 'Second Agent (OpenCode) applied fix to src/pins.h: MOTOR_EN now set to GPIO14',
-      actor: 'opencode-agent-2',
+      text: 'Reference client observed the GPIO mismatch; review the corrected fixture next. No source files edited.',
+      actor: 'interop-reference-client',
     },
   });
-  console.log(`      ✓ Second Agent recorded decision: ${recordCall.content[0].text}`);
+  console.log(`      ✓ Reference client recorded decision: ${recordCall.content[0].text}`);
 
-  // 7f. Verify Second Agent's decision persisted in shared context
+  // 7f. Verify Reference client's decision persisted in shared context
   console.log('      -> Re-fetching context to verify round-trip persistence...');
   const reContext = await primaryClient.getContext(project.id);
   const secondAgentRecord = reContext.records.find((r) =>
-    r.text.includes('Second Agent (OpenCode)'),
+    r.text.includes('Reference client observed the GPIO mismatch'),
   );
   assert.ok(secondAgentRecord);
   assert.equal(secondAgentRecord.provenance.sourceKind, 'agent_summary');
-  assert.equal(secondAgentRecord.provenance.actor, 'opencode-agent-2');
+  assert.equal(secondAgentRecord.provenance.actor, 'interop-reference-client');
   console.log(
-    `      ✓ Verified: Second Agent's decision is persisted and retrievable by all agents!`,
+    `      ✓ Verified: Reference client's decision is persisted and retrievable by all agents!`,
   );
 
   mcpProcess.kill('SIGTERM');
@@ -332,14 +349,12 @@ try {
   // 8. Test Error Handling and Failure Modes
   console.log('\n[8/8] Testing failure modes, authentication rejection, and unavailable tools...');
 
-  // 8a. Missing token rejection
-  const badMcpProcess = spawn(process.execPath, [mcpCliPath], {
-    env: { ...process.env, UDI_TOKEN: '', UDI_DATA_DIR: '/nonexistent-dir' },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-  const badExitCode = await new Promise((res) => badMcpProcess.on('close', res));
-  assert.equal(badExitCode, 1);
-  console.log(`      ✓ Unauthenticated MCP server launch refused with exit code 1`);
+  // No reliance on a developer's ~/.data/token fallback or a hanging child.
+  await assert.rejects(
+    () => createClient({ baseUrl: daemonUrl, token: 'incorrect-token' }).listProjects(),
+    (error) => error.code === 'UNAUTHORIZED',
+  );
+  console.log('      ✓ Unauthenticated API access rejected');
 
   // 8b. Corrected fixture passes validation
   const correctedJob = await primaryClient.requestValidation(project.id, {
@@ -356,9 +371,12 @@ try {
   console.log('\n================================================================');
   console.log(' ALL MCP INTEROPERABILITY CHECKS PASSED');
   console.log(' Core Daemon ↔ MCP Gateway ↔ Context Engine ↔ Engineering Core');
-  console.log(' Verified on Linux x86_64 with OpenCode v2.0.32');
+  console.log(
+    ` Verified on ${process.platform} ${process.arch} using an actual MCP reference client`,
+  );
   console.log('================================================================\n');
 } finally {
+  if (mcpProcess && mcpProcess.exitCode === null) mcpProcess.kill('SIGTERM');
   if (daemonProcess && daemonProcess.exitCode === null) {
     daemonProcess.kill('SIGTERM');
   }
