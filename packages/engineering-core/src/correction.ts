@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { copyFile, readFile, realpath, stat, writeFile } from 'node:fs/promises';
+import { copyFile, lstat, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import type {
   CorrectionPreview,
@@ -272,9 +272,17 @@ export async function applyCorrection(options: {
     );
   }
 
-  // Create recoverable backup snapshot
+  // Create recoverable backup snapshot with symlink escape prevention
   const backupRelPath = `${preview.targetFile}.bak`;
   const backupAbsPath = resolve(workspaceRoot, backupRelPath);
+  const backupRel = relative(workspaceRoot, backupAbsPath);
+  if (backupRel === '..' || backupRel.startsWith(`..${sep}`) || isAbsolute(backupRel)) {
+    throw new CorrectionError('VALIDATION_ERROR', 'Backup path escapes workspace boundary');
+  }
+  const backupLstat = await lstat(backupAbsPath).catch(() => null);
+  if (backupLstat?.isSymbolicLink()) {
+    throw new CorrectionError('VALIDATION_ERROR', 'Existing backup path cannot be a symbolic link');
+  }
   await copyFile(canonicalFile, backupAbsPath);
 
   // Apply the approved line modification
@@ -339,8 +347,33 @@ export async function rollbackCorrection(options: {
 }): Promise<CorrectionRollbackResult> {
   const { projectId, workspaceRoot, targetFile, backupPath, validator, artifactPaths } = options;
 
+  // Enforce firmware-only targets and matching .bak backup path
+  const allowedExts = ['.h', '.hpp', '.ino', '.c', '.cpp'];
+  if (!allowedExts.some((ext) => targetFile.endsWith(ext))) {
+    throw new CorrectionError(
+      'VALIDATION_ERROR',
+      `Only firmware source files may be rolled back, received: ${targetFile}`,
+    );
+  }
+  if (backupPath !== `${targetFile}.bak`) {
+    throw new CorrectionError(
+      'VALIDATION_ERROR',
+      `Backup path must strictly match ${targetFile}.bak, received: ${backupPath}`,
+    );
+  }
+
   const target = await validateWorkspaceFile(workspaceRoot, targetFile, true);
   const backup = await validateWorkspaceFile(workspaceRoot, backupPath, true);
+
+  // Verify neither is a symlink
+  const targetLstat = await lstat(resolve(target.canonicalWorkspace, targetFile)).catch(() => null);
+  if (targetLstat?.isSymbolicLink()) {
+    throw new CorrectionError('VALIDATION_ERROR', 'Target file cannot be a symbolic link');
+  }
+  const backupLstat = await lstat(resolve(backup.canonicalWorkspace, backupPath)).catch(() => null);
+  if (backupLstat?.isSymbolicLink()) {
+    throw new CorrectionError('VALIDATION_ERROR', 'Backup file cannot be a symbolic link');
+  }
 
   const backupContent = await readFile(backup.canonicalFile, 'utf-8');
   await writeFile(target.canonicalFile, backupContent, 'utf-8');

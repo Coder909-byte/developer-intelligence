@@ -285,4 +285,63 @@ describe('Safe Engineering Correction Flow', () => {
       await cleanup();
     }
   });
+
+  it('rejects rollback of non-firmware target or mismatched backup path', async () => {
+    const { workspace, validator, cleanup } = await createFixtureWorkspace();
+    try {
+      await expect(
+        rollbackCorrection({
+          projectId: sampleFinding.projectId,
+          workspaceRoot: workspace,
+          targetFile: 'rover.net',
+          backupPath: 'rover.net.bak',
+          validator,
+        }),
+      ).rejects.toThrow(/Only firmware source files may be rolled back/);
+
+      await expect(
+        rollbackCorrection({
+          projectId: sampleFinding.projectId,
+          workspaceRoot: workspace,
+          targetFile: 'src/pins.h',
+          backupPath: 'arbitrary_file.txt',
+          validator,
+        }),
+      ).rejects.toThrow(/Backup path must strictly match/);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('rejects apply when existing backup path is a symlink', async () => {
+    const { workspace, tempDir, validator, cleanup } = await createFixtureWorkspace();
+    try {
+      const preview = await generateCorrectionPreview({
+        projectId: sampleFinding.projectId,
+        workspaceRoot: workspace,
+        finding: sampleFinding,
+      });
+
+      // Create a malicious symlink where backup will be written
+      const outsideFile = join(tempDir, 'sensitive.txt');
+      await writeFile(outsideFile, 'secret data\n');
+      await symlink(outsideFile, join(workspace, 'src/pins.h.bak'));
+
+      await expect(
+        applyCorrection({
+          projectId: sampleFinding.projectId,
+          workspaceRoot: workspace,
+          preview,
+          userApproved: true,
+          validator,
+        }),
+      ).rejects.toThrow(/Existing backup path cannot be a symbolic link/);
+
+      // Verify outside sensitive file was NOT overwritten
+      const outsideContent = await readFile(outsideFile, 'utf-8');
+      expect(outsideContent).toBe('secret data\n');
+    } finally {
+      await cleanup();
+    }
+  });
 });
