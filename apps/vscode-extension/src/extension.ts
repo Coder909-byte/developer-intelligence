@@ -681,6 +681,7 @@ export function activate(context: vscode.ExtensionContext) {
         const tokenVal = (await context.secrets.get(`udi.token:${daemonUrl}`)) || '';
         const p = selected;
 
+        // 1. Configure .vscode/mcp.json (VS Code Native MCP)
         const vsDir = vscode.Uri.joinPath(wf.uri, '.vscode');
         await vscode.workspace.fs.createDirectory(vsDir);
 
@@ -704,6 +705,28 @@ export function activate(context: vscode.ExtensionContext) {
           Buffer.from(JSON.stringify(mcpConfig, null, 2) + '\n'),
         );
 
+        // 2. Configure .mcp.json in workspace root for Claude Code CLI & Cursor
+        const rootMcpUri = vscode.Uri.joinPath(wf.uri, '.mcp.json');
+        const rootMcpConfig = {
+          mcpServers: {
+            'developer-intelligence': {
+              type: 'stdio',
+              command: 'node',
+              args: ['packages/mcp-gateway/dist/cli.js'],
+              env: {
+                UDI_PROJECT_ID: p?.id || '',
+                UDI_TOKEN: tokenVal || '',
+                UDI_DAEMON_URL: daemonUrl,
+              },
+            },
+          },
+        };
+        await vscode.workspace.fs.writeFile(
+          rootMcpUri,
+          Buffer.from(JSON.stringify(rootMcpConfig, null, 2) + '\n'),
+        );
+
+        // 3. Configure VS Code Workspace settings for Cline & Continue
         const config = vscode.workspace.getConfiguration();
         await config.update(
           'cline.apiProvider',
@@ -716,9 +739,14 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.ConfigurationTarget.Workspace,
         );
         await config.update('cline.openAiApiKey', tokenVal, vscode.ConfigurationTarget.Workspace);
+        await config.update(
+          'cline.openAiCustomHeaders',
+          p?.id ? { 'x-project-id': p.id } : {},
+          vscode.ConfigurationTarget.Workspace,
+        );
 
         await vscode.window.showInformationMessage(
-          'Configured VS Code AI extensions (Cline, Continue, MCP) to route through Developer Intelligence.',
+          'Configured VS Code AI extensions (Cline, Continue, Roo Code, Claude Code MCP) to route through Developer Intelligence.',
         );
         return;
       }
@@ -744,18 +772,33 @@ export function activate(context: vscode.ExtensionContext) {
         const daemonUrl = origin();
         const tokenVal = (await context.secrets.get(`udi.token:${daemonUrl}`)) || '';
         const p = selected;
-        const exports = [
-          `export OPENAI_BASE_URL="${daemonUrl}/v1"`,
-          `export OPENAI_API_KEY="${tokenVal}"`,
-          `export ANTHROPIC_BASE_URL="${daemonUrl}/v1"`,
-          `export ANTHROPIC_API_KEY="${tokenVal}"`,
-          `export UDI_PROJECT_ID="${p?.id || ''}"`,
-          `export UDI_TOKEN="${tokenVal}"`,
-          `export UDI_DAEMON_URL="${daemonUrl}"`,
-        ].join('\n');
+        const isWindows = process.platform === 'win32';
+
+        const exports = isWindows
+          ? [
+              `$env:OPENAI_BASE_URL="${daemonUrl}/v1"`,
+              `$env:OPENAI_API_KEY="${tokenVal}"`,
+              `$env:ANTHROPIC_BASE_URL="${daemonUrl}/v1"`,
+              `$env:ANTHROPIC_API_KEY="${tokenVal}"`,
+              `$env:UDI_PROJECT_ID="${p?.id || ''}"`,
+              `$env:UDI_TOKEN="${tokenVal}"`,
+              `$env:UDI_DAEMON_URL="${daemonUrl}"`,
+            ].join('\n')
+          : [
+              `export OPENAI_BASE_URL="${daemonUrl}/v1"`,
+              `export OPENAI_API_KEY="${tokenVal}"`,
+              `export ANTHROPIC_BASE_URL="${daemonUrl}/v1"`,
+              `export ANTHROPIC_API_KEY="${tokenVal}"`,
+              `export UDI_PROJECT_ID="${p?.id || ''}"`,
+              `export UDI_TOKEN="${tokenVal}"`,
+              `export UDI_DAEMON_URL="${daemonUrl}"`,
+            ].join('\n');
+
         await vscode.env.clipboard.writeText(exports);
         await vscode.window.showInformationMessage(
-          'Copied agent routing environment exports to clipboard (OPENAI_BASE_URL & ANTHROPIC_BASE_URL).',
+          isWindows
+            ? 'Copied Windows PowerShell routing exports to clipboard ($env:OPENAI_BASE_URL).'
+            : 'Copied POSIX routing exports to clipboard (export OPENAI_BASE_URL for macOS & Linux).',
         );
         return;
       }

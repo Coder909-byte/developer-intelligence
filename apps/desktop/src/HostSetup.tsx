@@ -191,21 +191,49 @@ export function HostSetup({
                 Terminal Agent Environment Routing
               </h4>
               <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem' }}>
-                Source this export to route all terminal CLI agents through the proxy:
+                Source the export for your operating system to route all terminal CLI agents through
+                the proxy:
               </p>
-              <pre
-                style={{
-                  background: '#0b0d13',
-                  padding: '0.75rem',
-                  borderRadius: '4px',
-                  overflowX: 'auto',
-                }}
-              >
-                source scripts/export-env.sh
-              </pre>
-              <Button onClick={() => copyToClipboard('source scripts/export-env.sh', 'shell-cmd')}>
-                {copied === 'shell-cmd' ? 'Copied to Clipboard!' : 'Copy Shell Export'}
-              </Button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
+                    macOS & Linux (bash/zsh):
+                  </div>
+                  <pre
+                    style={{
+                      background: '#0b0d13',
+                      padding: '0.5rem',
+                      borderRadius: '4px',
+                      overflowX: 'auto',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    source scripts/export-env.sh
+                  </pre>
+                  <Button onClick={() => copyToClipboard('source scripts/export-env.sh', 'sh-cmd')}>
+                    {copied === 'sh-cmd' ? 'Copied POSIX!' : 'Copy macOS/Linux'}
+                  </Button>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.25rem' }}>
+                    Windows (PowerShell):
+                  </div>
+                  <pre
+                    style={{
+                      background: '#0b0d13',
+                      padding: '0.5rem',
+                      borderRadius: '4px',
+                      overflowX: 'auto',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    . .\scripts\export-env.ps1
+                  </pre>
+                  <Button onClick={() => copyToClipboard('. .\\scripts\\export-env.ps1', 'ps-cmd')}>
+                    {copied === 'ps-cmd' ? 'Copied PowerShell!' : 'Copy Windows (PS)'}
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
