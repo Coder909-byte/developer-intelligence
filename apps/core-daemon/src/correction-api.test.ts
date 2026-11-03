@@ -18,7 +18,7 @@ describe('Daemon safe correction API endpoints', () => {
     await cp(roverFixtureDir, workspace, { recursive: true });
 
     const token = randomBytes(32).toString('hex');
-    const app = buildApp({
+    let app = buildApp({
       databasePath: join(dataDir, 'test.sqlite'),
       token,
       logger: false,
@@ -34,17 +34,34 @@ describe('Daemon safe correction API endpoints', () => {
       token,
     });
 
+    const restart = async () => {
+      await app.close();
+      app = buildApp({
+        databasePath: join(dataDir, 'test.sqlite'),
+        token,
+        logger: false,
+        integrations: createDefaultIntegrations,
+      });
+      await app.ready();
+      const addr = await app.listen({ host: '127.0.0.1', port: 0 });
+      const u = new URL(addr);
+      return createClient({
+        baseUrl: `http://127.0.0.1:${u.port}`,
+        token,
+      });
+    };
+
     const cleanup = async () => {
       await app.close();
       await rm(dataDir, { recursive: true, force: true });
       await rm(tempWorkspace, { recursive: true, force: true });
     };
 
-    return { client, workspace, baseUrl, cleanup };
+    return { client, workspace, baseUrl, restart, cleanup };
   }
 
-  it('runs the full preview -> apply -> revalidation -> rollback workflow', async () => {
-    const { client, workspace, cleanup } = await setup();
+  it('runs the full preview -> apply -> revalidation -> rollback workflow with persistent jobs across restart', async () => {
+    const { client, workspace, restart, cleanup } = await setup();
     try {
       // 1. Create project pointing to temporary copy of rover
       const project = await client.createProject({
@@ -132,10 +149,65 @@ describe('Daemon safe correction API endpoints', () => {
 
       expect(rollbackResult.ok).toBe(true);
       expect(rollbackResult.revalidationJob.status).toBe('failed');
+      expect(rollbackResult.revalidationFindings).toBeDefined();
+      expect(rollbackResult.revalidationFindings!.length).toBeGreaterThan(0);
 
       // Verify file was restored
       const rolledBackContent = await readFile(join(workspace, 'src/pins.h'), 'utf-8');
       expect(rolledBackContent).toContain('#define MOTOR_EN GPIO26');
+
+      // 8. REGRESSION VERIFICATION: Rollback job and findings MUST be persisted in SQLite
+      const persistedRollbackJob = await client.getJob(
+        project.id,
+        rollbackResult.revalidationJob.id,
+      );
+      expect(persistedRollbackJob).toBeDefined();
+      expect(persistedRollbackJob.status).toBe('failed');
+
+      const persistedRollbackFindings = await client.listFindings(project.id, {
+        jobId: rollbackResult.revalidationJob.id,
+      });
+      expect(persistedRollbackFindings.items).toHaveLength(1);
+      expect(persistedRollbackFindings.items[0]?.ruleId).toBe('pin_consistency');
+
+      // Verify context memory reflects rollback fact
+      const memoryBeforeRestart = await client.getContext(project.id);
+      expect(
+        memoryBeforeRestart.records.some((r) => r.text.includes('Rolled back correction')),
+      ).toBe(true);
+
+      // 9. RESTART SURVIVAL: Stop and restart daemon with same database
+      const clientAfterRestart = await restart();
+
+      const jobAfterRestart = await clientAfterRestart.getJob(
+        project.id,
+        rollbackResult.revalidationJob.id,
+      );
+      expect(jobAfterRestart.id).toBe(rollbackResult.revalidationJob.id);
+      expect(jobAfterRestart.status).toBe('failed');
+
+      const findingsAfterRestart = await clientAfterRestart.listFindings(project.id, {
+        jobId: rollbackResult.revalidationJob.id,
+      });
+      expect(findingsAfterRestart.items).toHaveLength(1);
+      expect(findingsAfterRestart.items[0]?.ruleId).toBe('pin_consistency');
+
+      // 10. PROJECT ISOLATION: Querying job from another project returns 404
+      const otherWorkspace = await mkdtemp(join(tmpdir(), 'udi-other-workspace-'));
+      const otherProject = await clientAfterRestart.createProject({
+        name: 'Isolated Project',
+        rootPath: otherWorkspace,
+      });
+      await expect(
+        clientAfterRestart.getJob(otherProject.id, rollbackResult.revalidationJob.id),
+      ).rejects.toMatchObject({ status: 404 });
+
+      const otherFindings = await clientAfterRestart.listFindings(otherProject.id, {
+        jobId: rollbackResult.revalidationJob.id,
+      });
+      expect(otherFindings.items).toEqual([]);
+
+      await rm(otherWorkspace, { recursive: true, force: true });
     } finally {
       await cleanup();
     }
