@@ -16,6 +16,15 @@ import {
   McpServerUpdateSchema,
   ValidationResultSchema,
   ValidationRequestBodySchema,
+  CorrectionPreviewRequestSchema,
+  CorrectionPreviewSchema,
+  CorrectionApplyRequestSchema,
+  CorrectionApplyResultSchema,
+  CorrectionRollbackRequestSchema,
+  CorrectionRollbackResultSchema,
+  type CorrectionPreviewRequest,
+  type CorrectionApplyRequest,
+  type CorrectionRollbackRequest,
   JobSchema,
   PageQuerySchema,
   FindingQuerySchema,
@@ -285,6 +294,27 @@ export function createClient(options: ClientOptions = {}) {
         `/projects/${IdSchema.parse(projectId)}/validation-jobs`,
         JobSchema,
         ValidationRequestBodySchema.parse(input),
+      ),
+    previewCorrection: (projectId: string, input: CorrectionPreviewRequest) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/corrections/preview`,
+        CorrectionPreviewSchema,
+        CorrectionPreviewRequestSchema.parse(input),
+      ),
+    applyCorrection: (projectId: string, input: CorrectionApplyRequest) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/corrections/apply`,
+        CorrectionApplyResultSchema,
+        CorrectionApplyRequestSchema.parse(input),
+      ),
+    rollbackCorrection: (projectId: string, input: CorrectionRollbackRequest) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/corrections/rollback`,
+        CorrectionRollbackResultSchema,
+        CorrectionRollbackRequestSchema.parse(input),
       ),
   };
 }
