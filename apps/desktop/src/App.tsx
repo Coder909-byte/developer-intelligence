@@ -31,6 +31,7 @@ import {
   usePage,
   scoped,
 } from './persistence.js';
+import { ShipWorkspace } from './ShipWorkspace.js';
 import { IntegrationGuide } from './IntegrationGuide.js';
 export const screens = [
   'Overview',
@@ -656,6 +657,25 @@ export function App() {
                 </Button>
               </div>
             </header>
+            {screen === 'Overview' && (
+              <ShipWorkspace
+                projectName={project?.name}
+                engine={
+                  health.state.status === 'loading'
+                    ? 'checking'
+                    : connected
+                      ? 'connected'
+                      : 'disconnected'
+                }
+                jobId={project ? jobIds[project.id] : undefined}
+                onNavigate={(destination) => {
+                  setScreen(destination);
+                  if (destination === 'Overview')
+                    document.getElementById('overview-panels')?.scrollIntoView({ block: 'start' });
+                }}
+              />
+            )}
+            <div id="overview-panels" />
             {health.state.status === 'error' && (
               <div className="notice" role="status">
                 {health.state.title}. {health.state.message}{' '}

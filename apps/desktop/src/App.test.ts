@@ -145,6 +145,28 @@ afterEach(async () => {
   host.remove();
 });
 describe('desktop user journeys', () => {
+  it('opens real workspaces from ship compartments and keeps navigation usable offline', async () => {
+    await render();
+    expect(host.querySelector('nav[aria-label="Ship compartments"]')).not.toBeNull();
+    expect(host.textContent).toContain('Engine connected');
+    for (const [room, screen] of [
+      ['Crew quarters', 'Agent Workspace'],
+      ['Communications', 'MCP Hub'],
+      ['Engineering bay', 'Engineering'],
+      ['Device bay', 'Devices'],
+      ['Control room', 'Settings'],
+    ]) {
+      await click(`Open ${room}`);
+      expect(host.querySelector('h1')?.textContent).toBe(screen);
+      await click('Overview');
+    }
+    expect(host.textContent).toContain('No validation job selected');
+    api.health.mockRejectedValue(new DaemonClientError('CONNECTION_ERROR', 'offline'));
+    await click('Refresh');
+    expect(host.textContent).toContain('Engine disconnected');
+    await click('Open Control room');
+    expect(host.querySelector('h1')?.textContent).toBe('Settings');
+  });
   it('reviews validation paths and clears the old scope before using an actual returned job', async () => {
     const onStart = vi.fn(),
       onJob = vi.fn();

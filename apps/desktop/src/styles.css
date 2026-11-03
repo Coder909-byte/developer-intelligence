@@ -669,3 +669,368 @@ summary {
   font-size: 12px;
   margin: 16px 0;
 }
+/* Interactive vessel home: schematic decoration never carries live status. */
+.ship-workspace {
+  margin-bottom: 32px;
+  border: 1px solid var(--border);
+  background: #0e1216;
+}
+.ship-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px 18px;
+}
+.ship-heading h2 {
+  font-size: 20px;
+  letter-spacing: -0.5px;
+  font-weight: 500;
+}
+.ship-heading .eyebrow {
+  font-size: 10px;
+  letter-spacing: 2px;
+  margin: 0 0 10px;
+}
+.ship-engine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.ship-engine > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9299a5;
+}
+.ship-engine-connected > span {
+  background: var(--accent);
+}
+.ship-engine-disconnected > span {
+  background: #e5b66b;
+}
+.ship-manifest {
+  margin: 0 26px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.ship-manifest > span {
+  font:
+    9px 'Cascadia Code',
+    Consolas,
+    monospace;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.ship-manifest > span:last-child {
+  margin-left: auto;
+}
+.ship-manifest strong {
+  font-size: 12px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.ship-chart {
+  position: relative;
+  padding: 55px 44px 60px 62px;
+  isolation: isolate;
+  background-image: radial-gradient(#283039 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.ship-hull {
+  position: absolute;
+  inset: 24px 12px 30px 28px;
+  z-index: -1;
+  background: #28343b;
+  clip-path: polygon(0 13%, 6% 0, 86% 0, 100% 27%, 100% 73%, 86% 100%, 6% 100%, 0 87%);
+}
+.ship-hull::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: #12191e;
+  clip-path: polygon(0 13%, 6% 0, 86% 0, 100% 27%, 100% 73%, 86% 100%, 6% 100%, 0 87%);
+}
+.ship-deck {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-rows: 150px 62px 150px;
+  gap: 12px;
+}
+.ship-room {
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 15px;
+  border: 1px solid #364149;
+  border-radius: 4px;
+  background: #192229;
+  color: var(--text);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.ship-room:hover {
+  background: #202e32;
+  border-color: var(--accent);
+}
+.ship-room:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  z-index: 2;
+}
+.ship-room::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 3px;
+  background: #758b8b;
+  bottom: -2px;
+  left: calc(50% - 12px);
+}
+.ship-room-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  font:
+    8px 'Cascadia Code',
+    Consolas,
+    monospace;
+  letter-spacing: 0.4px;
+  color: #a5b3bb;
+}
+.ship-room-meta > span:last-child {
+  font-size: 14px;
+}
+.ship-room-icon {
+  display: block;
+  color: #8dd8bc;
+  margin: 13px 0 8px;
+}
+.ship-room-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.ship-room strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.ship-room-description {
+  color: #a8b2bd;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 5px;
+}
+.ship-room-note {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #39444b;
+  font-size: 10px;
+  color: #e5b66b;
+  line-height: 1.6;
+}
+.ship-room-engineering {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  justify-content: center;
+  border-top: 2px solid #b69c75;
+}
+.ship-room-engineering .ship-room-meta {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  right: 15px;
+}
+.ship-room-engineering .ship-room-icon {
+  color: #e5b66b;
+}
+.ship-room-agents {
+  grid-column: 2;
+  grid-row: 1;
+}
+.ship-room-mcp {
+  grid-column: 3;
+  grid-row: 1;
+}
+.ship-room-settings {
+  grid-column: 2;
+  grid-row: 3;
+}
+.ship-room-devices {
+  grid-column: 3;
+  grid-row: 3;
+}
+.ship-room-settings::after,
+.ship-room-devices::after {
+  top: -2px;
+  bottom: auto;
+}
+.ship-room-bridge {
+  grid-column: 4;
+  grid-row: 1 / 4;
+  justify-content: center;
+  background: #1b2c2c;
+  border-color: #52756b;
+  border-radius: 4px 38px 38px 4px;
+}
+.ship-room-bridge .ship-room-meta {
+  position: absolute;
+  top: 28px;
+  left: 15px;
+  right: 20px;
+}
+.ship-room-bridge::after {
+  top: calc(50% - 12px);
+  left: -2px;
+  width: 3px;
+  height: 24px;
+}
+.ship-corridor {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #7e9398;
+  font:
+    8px 'Cascadia Code',
+    Consolas,
+    monospace;
+  letter-spacing: 1px;
+  text-align: center;
+}
+.ship-corridor > span:first-child,
+.ship-corridor > span:last-child {
+  flex: 1;
+  height: 1px;
+  background: #46575b;
+}
+.ship-thrusters {
+  position: absolute;
+  left: 18px;
+  top: 30%;
+  bottom: 30%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.ship-thrusters i {
+  width: 12px;
+  height: 32px;
+  background: repeating-linear-gradient(0deg, #37464b 0 2px, #10161b 2px 6px);
+  border: 1px solid #46575b;
+}
+.ship-orientation {
+  position: absolute;
+  bottom: 12px;
+  left: 62px;
+  right: 44px;
+  display: flex;
+  justify-content: space-between;
+  color: #819098;
+  font:
+    8px 'Cascadia Code',
+    Consolas,
+    monospace;
+  letter-spacing: 2px;
+}
+.ship-legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 26px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
+#overview-panels {
+  scroll-margin-top: 24px;
+}
+@media (max-width: 1100px) {
+  .ship-chart {
+    padding: 45px 24px 50px 40px;
+  }
+  .ship-deck {
+    gap: 8px;
+  }
+  .ship-room {
+    padding: 10px;
+  }
+  .ship-room-meta {
+    font-size: 7px;
+  }
+  .ship-room strong {
+    font-size: 12px;
+  }
+  .ship-room-description {
+    font-size: 10px;
+  }
+  .ship-legend {
+    flex-direction: column;
+  }
+}
+@media (max-width: 760px) {
+  .ship-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 20px;
+  }
+  .ship-manifest {
+    margin: 0 20px;
+    flex-wrap: wrap;
+  }
+  .ship-manifest > span:last-child {
+    display: none;
+  }
+  .ship-chart {
+    padding: 28px 20px;
+  }
+  .ship-hull,
+  .ship-thrusters,
+  .ship-orientation,
+  .ship-corridor {
+    display: none;
+  }
+  .ship-deck {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: none;
+    gap: 12px;
+  }
+  .ship-room {
+    grid-column: auto;
+    grid-row: auto;
+    min-height: 180px;
+    padding: 14px;
+    border-radius: 4px;
+    justify-content: flex-start;
+  }
+  .ship-room .ship-room-meta {
+    position: static;
+    font-size: 8px;
+  }
+  .ship-room strong {
+    font-size: 14px;
+  }
+  .ship-room-description {
+    font-size: 12px;
+  }
+  .ship-room::after {
+    display: none;
+  }
+  .ship-room-note {
+    margin-top: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ship-room {
+    transition: none;
+  }
+}
