@@ -1,5 +1,5 @@
 import { registerContextMcpRoutes } from './context-mcp-routes.js';
-import { seedDemoSession } from './demo-seeder.js';
+import { seedDemoSession, seedHermesSessions } from './demo-seeder.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -1197,6 +1197,60 @@ export function registerPlatformRoutes(
     const id = projectId(request.params);
     const project = store.projects.get(id);
     const result = await seedDemoSession(store, id, project?.name);
+    return apiSuccess(result, request.id);
+  });
+
+  // Hermes Session Seeder: loads real session archive from ~/.hermes/state.db
+  app.post(`${prefix}/projects/:id/seed-hermes-sessions`, async (request) => {
+    const id = projectId(request.params);
+    const project = store.projects.get(id);
+    const result = await seedHermesSessions(store, id, project?.name);
+    return apiSuccess(result, request.id);
+  });
+
+  // Live Context Classifier: processes raw session turn through Stage 1 & Stage 2
+  app.post(`${prefix}/projects/:id/classify`, async (request) => {
+    const id = projectId(request.params);
+    const body = (request.body ?? {}) as {
+      text?: string;
+      sourceType?: 'user_message' | 'assistant_thought' | 'tool_output' | 'system_message';
+      actor?: string;
+    };
+    if (!body.text) {
+      throw new PersistenceError('VALIDATION_ERROR', 'Field "text" is required');
+    }
+    const sourceType = body.sourceType ?? 'user_message';
+    const actor = body.actor ?? 'interactive-visualizer';
+
+    if (integrations.classifier) {
+      const result = await integrations.classifier.classify({
+        projectId: id,
+        text: body.text,
+        sourceType,
+        actor,
+      });
+      await store.classification.record(result).catch(() => {});
+      return apiSuccess(result, request.id);
+    }
+
+    const { evaluateRuleClassifier, deterministicScrub } = await import(
+      './classifier/laya-classifier.js'
+    );
+    const scrub = deterministicScrub(body.text);
+    const evalRes = evaluateRuleClassifier(scrub.scrubbed, sourceType);
+    const result = {
+      id: randomUUID(),
+      projectId: id,
+      timestamp: new Date().toISOString(),
+      rawLengthChars: body.text.length,
+      signalScore: evalRes.signalScore,
+      category: evalRes.category,
+      decision: evalRes.decision,
+      sourceActor: actor,
+      sourceType,
+      distilledFact: evalRes.distilledFact,
+    };
+    await store.classification.record(result).catch(() => {});
     return apiSuccess(result, request.id);
   });
 

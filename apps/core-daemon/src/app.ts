@@ -16,6 +16,7 @@ import { openDatabase, PersistenceError } from '@udi/event-store';
 import { registerPlatformRoutes, type IntegrationFactory } from './platform-routes.js';
 import { apiSuccess as success, responseMeta as meta } from './responses.js';
 import { registerCodexContextRoutes } from './codex-context.js';
+import { registerHttpMcpRoutes } from './mcp-http.js';
 export interface AppOptions {
   databasePath: string;
   token: string;
@@ -72,21 +73,33 @@ export function buildApp(options: AppOptions) {
         )
         .code(204)
         .send();
-    if (request.method === 'GET' && request.url.split('?')[0] === `${API_PREFIX}/health`) return;
+    const urlPath = request.url.split('?')[0];
+    if (
+      request.method === 'GET' &&
+      (urlPath === `${API_PREFIX}/health` ||
+        urlPath === '/mcp' ||
+        urlPath === `${API_PREFIX}/mcp`)
+    ) {
+      return;
+    }
 
     const authHeader = request.headers.authorization ?? '';
     const xApiKey = (request.headers['x-api-key'] ?? request.headers['api-key'] ?? '') as string;
+    const queryToken = ((request.query as Record<string, string | undefined>)?.token ?? '') as string;
     const suppliedAuth = Buffer.from(authHeader);
     const expectedAuth = Buffer.from(`Bearer ${options.token}`);
     const suppliedKey = Buffer.from(xApiKey);
+    const suppliedQueryToken = Buffer.from(queryToken);
     const expectedKey = Buffer.from(options.token);
 
     const isBearerValid =
       suppliedAuth.length === expectedAuth.length && timingSafeEqual(suppliedAuth, expectedAuth);
     const isApiKeyValid =
       suppliedKey.length === expectedKey.length && timingSafeEqual(suppliedKey, expectedKey);
+    const isQueryTokenValid =
+      suppliedQueryToken.length === expectedKey.length && timingSafeEqual(suppliedQueryToken, expectedKey);
 
-    if (!isBearerValid && !isApiKeyValid)
+    if (!isBearerValid && !isApiKeyValid && !isQueryTokenValid)
       return reply.code(401).send({
         ok: false,
         error: fail('UNAUTHORIZED', 'A valid local daemon token is required'),
@@ -246,5 +259,6 @@ export function buildApp(options: AppOptions) {
   });
   registerPlatformRoutes(app, store, integrations);
   registerCodexContextRoutes(app, store, options.codexHome ?? process.env.UDI_CODEX_HOME);
+  registerHttpMcpRoutes(app, store, integrations);
   return app;
 }

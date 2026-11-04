@@ -38,6 +38,8 @@ import { HostSetup } from './HostSetup.js';
 import { IntegrationGuide } from './IntegrationGuide.js';
 import { Library } from './Library.js';
 import { ContextBridge } from './ContextBridge.js';
+import { AgentMcpConfigModal } from './AgentMcpConfigModal.js';
+import { ClassificationVisualizer } from './ClassificationVisualizer.js';
 export const screens = [
   'Overview',
   'MCP Hub',
@@ -143,13 +145,15 @@ export function McpList({ items }: { items: McpServer[] }) {
     </>
   );
 }
-function Mcp({
+export function Mcp({
   client,
   project,
   tab,
   onTab,
   onSettings,
   source,
+  token = '',
+  baseUrl = 'http://127.0.0.1:4317',
 }: {
   client: DaemonClient;
   project: Project | undefined;
@@ -157,6 +161,8 @@ function Mcp({
   onTab: (tab: string) => void;
   onSettings: () => void;
   source: MissionControlSource | undefined;
+  token?: string;
+  baseUrl?: string;
 }) {
   const page = usePage();
   const servers = useResource(
@@ -164,6 +170,7 @@ function Mcp({
     [client, page.offset, page.revision],
   );
   const [search, setSearch] = useState('');
+  const [showMcpModal, setShowMcpModal] = useState(false);
   return (
     <>
       <div className="hub-section-intro">
@@ -187,7 +194,14 @@ function Mcp({
           </div>
           <Card
             title="MCP registry"
-            action={<Button onClick={servers.retry}>Refresh inventory</Button>}
+            action={
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <Button variant="primary" onClick={() => setShowMcpModal(true)}>
+                  ✦ Antigravity MCP Config (JSON)
+                </Button>
+                <Button onClick={servers.retry}>Refresh inventory</Button>
+              </div>
+            }
           >
             <RegistryControls client={client} onChanged={page.refresh} />
             <Field label="Search loaded servers">
@@ -226,6 +240,15 @@ function Mcp({
               MCP tool compatibility. Secret references are never displayed.
             </p>
           </Card>
+          <ClassificationVisualizer client={client} projectId={project?.id} />
+          {showMcpModal && (
+            <AgentMcpConfigModal
+              token={token}
+              baseUrl={baseUrl}
+              projectId={project?.id}
+              onClose={() => setShowMcpModal(false)}
+            />
+          )}
         </>
       ) : tab === 'Tools' ? (
         <ToolHubScreen
@@ -920,6 +943,8 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
                 onTab={setMcpTab}
                 onSettings={() => setScreen('Settings')}
                 source={missionSource}
+                token={token}
+                baseUrl={url}
               />
             ) : screen === 'Library' ? (
               <>

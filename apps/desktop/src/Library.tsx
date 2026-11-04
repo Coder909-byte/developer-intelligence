@@ -101,6 +101,7 @@ export function Library({
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const [loadingHermes, setLoadingHermes] = useState(false);
   const list = useResource(
     async () => {
       if (!projectId) return { items: [] };
@@ -159,6 +160,22 @@ export function Library({
           <small className="library-note">Each book holds a saved project handoff.</small>
         </div>
         <div className="library-actions">
+          <Button
+            variant="secondary"
+            disabled={!projectId || loadingHermes}
+            onClick={async () => {
+              if (!projectId) return;
+              setLoadingHermes(true);
+              try {
+                await client.seedHermesSessions(projectId);
+                await list.retry();
+              } finally {
+                setLoadingHermes(false);
+              }
+            }}
+          >
+            {loadingHermes ? 'Stacking…' : '📚 Stack Hermes Archive'}
+          </Button>
           <Button
             variant="primary"
             disabled={!projectId}
