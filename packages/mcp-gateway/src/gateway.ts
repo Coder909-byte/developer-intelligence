@@ -592,7 +592,7 @@ export class DefaultMcpGateway implements McpGateway {
           this.serverFingerprints.delete(id);
         }
       }
-      for (const server of servers.filter((s) => s.enabled && s.transport.type === 'stdio')) {
+      for (const server of servers.filter((s) => s.enabled)) {
         if (this.serverFingerprints.has(server.id)) continue;
         // Never recursively launch another copy of our own gateway.
         if (

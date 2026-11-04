@@ -36,9 +36,9 @@ if (!token) {
   await chmod(tokenPath, 0o600);
 }
 const integrations =
-  process.env.UDI_INTEGRATIONS === 'true' || process.env.UDI_ENABLE_INTEGRATIONS === '1'
-    ? createDefaultIntegrations
-    : undefined;
+  process.env.UDI_INTEGRATIONS === 'false' || process.env.UDI_ENABLE_INTEGRATIONS === '0'
+    ? undefined
+    : createDefaultIntegrations;
 const app = buildApp({
   databasePath: join(dataDir, 'platform.sqlite'),
   token,

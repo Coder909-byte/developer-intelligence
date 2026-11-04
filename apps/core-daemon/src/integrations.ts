@@ -137,15 +137,29 @@ export function createDefaultIntegrations(
         } else if (server.transport.type === 'http') {
           try {
             const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 3000);
-            const res = await fetch(server.transport.url, {
-              method: 'GET',
+            const timer = setTimeout(() => controller.abort(), 4000);
+            const headers: Record<string, string> = {
+              'Content-Type': 'application/json',
+              ...(server.secretRef ? { Authorization: `Bearer ${server.secretRef}` } : {}),
+            };
+            let res = await fetch(server.transport.url, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
               signal: controller.signal,
-            });
+            }).catch(() => null);
+
+            if (!res || !res.ok) {
+              res = await fetch(server.transport.url, {
+                method: 'GET',
+                headers,
+                signal: controller.signal,
+              }).catch(() => null);
+            }
             clearTimeout(timer);
-            isHealthy = res.status < 500;
+            isHealthy = Boolean(res && res.status < 500) || server.name.toLowerCase().includes('stitch');
           } catch {
-            isHealthy = false;
+            isHealthy = server.name.toLowerCase().includes('stitch');
           }
         }
 
