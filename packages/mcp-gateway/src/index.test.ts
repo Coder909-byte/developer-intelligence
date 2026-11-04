@@ -175,6 +175,18 @@ describe('DefaultMcpGateway via MCP SDK v2', () => {
       listSnapshots: vi.fn(async () => ({ items: [] })),
       getSnapshot: vi.fn(),
       seedDemoSession: vi.fn(async () => ({ handoffsCount: 4, eventsCount: 7, classificationsCount: 6 })),
+      seedHermesSessions: vi.fn(async () => ({ addedHandoffs: 12, totalHandoffs: 12, hermesSessionsLoaded: 12 })),
+      classifyText: vi.fn(async () => ({
+        id: randomUUID(),
+        projectId,
+        timestamp: new Date().toISOString(),
+        rawLengthChars: 100,
+        signalScore: 0.95,
+        category: 'HARDWARE_SPEC' as const,
+        decision: 'preserve' as const,
+        sourceActor: 'test',
+        sourceType: 'user_message' as const,
+      })),
       seedAllSessions: vi.fn(async () => ({ seededProjects: 1, results: {} })),
     };
   }

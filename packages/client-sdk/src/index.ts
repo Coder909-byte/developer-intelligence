@@ -44,6 +44,7 @@ import {
   ChatCompletionRequestSchema,
   ChatCompletionResponseSchema,
   CompressionMetricsSchema,
+  LayaClassificationResultSchema,
   LayaClassificationListSchema,
   ContextSnapshotSchema,
   ContextSnapshotCreateSchema,
@@ -549,6 +550,26 @@ export function createClient(options: ClientOptions = {}) {
         'POST',
         `/projects/${IdSchema.parse(projectId)}/seed-demo-session`,
         z.record(z.string(), z.unknown()),
+      ),
+    seedHermesSessions: (projectId: string) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/seed-hermes-sessions`,
+        z.record(z.string(), z.unknown()),
+      ),
+    classifyText: (
+      projectId: string,
+      input: {
+        text: string;
+        sourceType?: 'user_message' | 'assistant_thought' | 'tool_output' | 'system_message';
+        actor?: string;
+      },
+    ) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/classify`,
+        LayaClassificationResultSchema,
+        input,
       ),
     seedAllSessions: () =>
       request('POST', '/demo/seed-all', z.record(z.string(), z.unknown())),

@@ -23,6 +23,10 @@ const api = vi.hoisted(() => ({
   requestValidation: vi.fn(),
   checkMcpServerHealth: vi.fn(),
   listIntegrations: vi.fn(),
+  listClassifierStream: vi.fn(),
+  classifyText: vi.fn(),
+  seedHermesSessions: vi.fn(),
+  seedDemoSession: vi.fn(),
 }));
 vi.mock('@udi/client-sdk', async (original) => ({
   ...(await original<typeof import('@udi/client-sdk')>()),
@@ -136,6 +140,9 @@ beforeEach(() => {
   api.listHandoffs.mockResolvedValue({ items: [] });
   api.listFindings.mockResolvedValue({ items: [finding] });
   api.listMcpServers.mockResolvedValue({ items: [] });
+  api.listClassifierStream.mockResolvedValue({ items: [] });
+  api.seedHermesSessions.mockResolvedValue({ addedHandoffs: 0, totalHandoffs: 0, hermesSessionsLoaded: 0 });
+  api.seedDemoSession.mockResolvedValue({ handoffsCount: 0, eventsCount: 0, classificationsCount: 0 });
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
