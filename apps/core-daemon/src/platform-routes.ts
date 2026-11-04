@@ -1,4 +1,5 @@
 import { registerContextMcpRoutes } from './context-mcp-routes.js';
+import { seedDemoSession } from './demo-seeder.js';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -219,17 +220,18 @@ export function registerPlatformRoutes(
     return apiSuccess(context, request.id);
   });
 
-  app.get(`${prefix}/projects/:id/handoffs`, async (request) =>
-    apiSuccess(
-      {
-        items: await store.handoffs.list(
-          projectId(request.params),
-          PageQuerySchema.parse(request.query),
-        ),
-      },
-      request.id,
-    ),
-  );
+  app.get(`${prefix}/projects/:id/handoffs`, async (request) => {
+    const id = projectId(request.params);
+    const query = PageQuerySchema.parse(request.query);
+    const rawQuery = (request.query ?? {}) as { autoSeed?: string };
+    let items = await store.handoffs.list(id, query);
+    if (items.length === 0 && (rawQuery.autoSeed === 'true' || rawQuery.autoSeed === '1')) {
+      const proj = store.projects.get(id);
+      await seedDemoSession(store, id, proj?.name);
+      items = await store.handoffs.list(id, query);
+    }
+    return apiSuccess({ items }, request.id);
+  });
   app.post(`${prefix}/projects/:id/handoffs`, async (request, reply) => {
     const id = projectId(request.params);
     const handoff = { ...HandoffCreateSchema.parse(request.body), ...entity(), projectId: id };
@@ -1188,5 +1190,22 @@ export function registerPlatformRoutes(
       });
     }
     return apiSuccess(snapshot, request.id);
+  });
+
+  // Demo Session Seeder: appends recent Codex session traces, tool calls, and game save slots
+  app.post(`${prefix}/projects/:id/seed-demo-session`, async (request) => {
+    const id = projectId(request.params);
+    const project = store.projects.get(id);
+    const result = await seedDemoSession(store, id, project?.name);
+    return apiSuccess(result, request.id);
+  });
+
+  app.post(`${prefix}/demo/seed-all`, async (request) => {
+    const projects = store.projects.list();
+    const results: Record<string, unknown> = {};
+    for (const proj of projects) {
+      results[proj.id] = await seedDemoSession(store, proj.id, proj.name);
+    }
+    return apiSuccess({ seededProjects: projects.length, results }, request.id);
   });
 }

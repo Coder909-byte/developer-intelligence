@@ -26,10 +26,12 @@ async function main(): Promise<void> {
 
   // Attempt to read token from disk if not provided in environment
   if (!token) {
+    const metaDir = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+
     const searchDirs = [
       process.env.UDI_DATA_DIR,
       resolve(process.cwd(), '.data'),
-      resolve(import.meta.dirname, '../../../.data'),
+      resolve(metaDir, '../../../.data'),
     ].filter((d): d is string => Boolean(d));
 
     for (const dir of searchDirs) {

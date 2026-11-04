@@ -95,9 +95,21 @@ function host(
       getConfiguration: () => ({ inspect: () => undefined }),
       onDidChangeWorkspaceFolders: () => disposable,
       onDidChangeConfiguration: () => disposable,
+      fs: {
+        createDirectory: vi.fn(async () => undefined),
+        writeFile: vi.fn(async () => undefined),
+        readFile: vi.fn(async () => Buffer.from('{}')),
+        stat: vi.fn(async () => ({})),
+      },
     },
     env: { openExternal: vi.fn(async () => true) },
-    Uri: { parse: (v: string) => v, file: (fsPath: string) => ({ fsPath }) },
+    Uri: {
+      parse: (v: string) => v,
+      file: (fsPath: string) => ({ fsPath }),
+      joinPath: (base: { fsPath?: string }, ...parts: string[]) => ({
+        fsPath: path.join(base.fsPath ?? '', ...parts),
+      }),
+    },
   };
   let savedHandoff: AgentHandoff | undefined;
   const record = project
@@ -196,11 +208,13 @@ function host(
     setInterval,
     clearInterval,
     console,
+    Buffer,
   });
   const subscriptions: { dispose: () => void }[] = [];
   const context = {
     subscriptions,
     secrets,
+    asAbsolutePath: vi.fn((rel: string) => path.join('/mock/extension', rel)),
     workspaceState: {
       get: (key: string) => state.get(key),
       update: vi.fn(async (key: string, value: unknown) => {
@@ -457,5 +471,26 @@ describe('extension activation in mocked VS Code host', () => {
     expect(h.error).toHaveBeenCalled();
     expect(h.info).not.toHaveBeenCalled();
     for (const d of h.subscriptions) d.dispose();
+  });
+  it('configures AI extensions without error and writes native MCP and settings', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'udi-auto-config-'));
+    const id = '61d626eb-26fa-4bae-bbe7-64dc03fb921b';
+    const createdAt = '2026-11-03T13:00:00Z';
+    const h = host(
+      false,
+      { id, name: 'Rover', rootPath: directory, description: '', createdAt, updatedAt: createdAt },
+      [],
+      null,
+    );
+    try {
+      await vi.waitFor(() => expect(h.getRows()?.some((r) => r.label === 'Rover')).toBe(true));
+      await h.callbacks.get('udi.configureAiExtensions')!();
+      expect(h.info).toHaveBeenCalledWith(
+        'Configured VS Code AI extensions (Cline, Continue, Roo Code, Claude Code MCP) to route through Developer Intelligence.',
+      );
+    } finally {
+      for (const d of h.subscriptions) d.dispose();
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });

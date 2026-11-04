@@ -544,6 +544,14 @@ export function createClient(options: ClientOptions = {}) {
         `/projects/${IdSchema.parse(projectId)}/snapshots/${encodeURIComponent(nameOrId)}`,
         ContextSnapshotSchema,
       ),
+    seedDemoSession: (projectId: string) =>
+      request(
+        'POST',
+        `/projects/${IdSchema.parse(projectId)}/seed-demo-session`,
+        z.record(z.string(), z.unknown()),
+      ),
+    seedAllSessions: () =>
+      request('POST', '/demo/seed-all', z.record(z.string(), z.unknown())),
   };
 }
 export type DaemonClient = ReturnType<typeof createClient>;

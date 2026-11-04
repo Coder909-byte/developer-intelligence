@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import type { McpServer, DiscoveredTool, IntegrationItem } from '@udi/contracts';
+import type { McpServer, DiscoveredTool, IntegrationItem, JsonValue } from '@udi/contracts';
 
 export class McpRoutingError extends Error {
   constructor(
@@ -28,13 +28,55 @@ export async function discoverServerTools(
   server: McpServer,
   timeoutMs = 5000,
 ): Promise<DiscoveredTool[]> {
+  if (server.transport.type === 'http') {
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(server.secretRef ? { Authorization: `Bearer ${server.secretRef}` } : {}),
+      };
+      const res = await fetch(server.transport.url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!res.ok) return [];
+      const json = (await res.json()) as {
+        result?: { tools?: Array<{ name: string; description?: string; inputSchema?: unknown }> };
+        tools?: Array<{ name: string; description?: string; inputSchema?: unknown }>;
+      };
+      const rawTools = json.result?.tools ?? json.tools ?? [];
+      return rawTools.map((t) => ({
+        serverId: server.id,
+        serverName: server.name,
+        name: t.name,
+        description: t.description ?? '',
+        inputSchema: t.inputSchema as JsonValue,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
   if (server.transport.type !== 'stdio') {
-    // For HTTP servers, can be extended if endpoint supports JSON-RPC
     return [];
   }
 
   const exe = server.transport.executableId;
   const args = server.transport.args;
+
+  const childEnv = {
+    ...process.env,
+    ...(server.secretRef
+      ? {
+          API_KEY: server.secretRef,
+          AUTH_TOKEN: server.secretRef,
+          STITCH_API_KEY: server.secretRef,
+          MCP_API_KEY: server.secretRef,
+          BEARER_TOKEN: server.secretRef,
+        }
+      : {}),
+  };
 
   return new Promise<DiscoveredTool[]>((resolveDiscovery, rejectDiscovery) => {
     let child: ReturnType<typeof spawn>;
@@ -42,6 +84,7 @@ export async function discoverServerTools(
       child = spawn(exe, args, {
         shell: false,
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: childEnv,
       });
     } catch (err) {
       return rejectDiscovery(
@@ -178,8 +221,47 @@ export async function routeToolCall(
   args: Record<string, unknown>,
   options: { timeoutMs?: number; signal?: AbortSignal } = {},
 ): Promise<{ result: unknown; durationMs: number }> {
+  if (server.transport.type === 'http') {
+    const startTime = Date.now();
+    const timeoutMs = options.timeoutMs ?? 30000;
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(server.secretRef ? { Authorization: `Bearer ${server.secretRef}` } : {}),
+      };
+      const res = await fetch(server.transport.url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/call',
+          params: { name: toolName, arguments: args },
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!res.ok) {
+        throw new McpRoutingError(
+          'EXECUTION_FAILED',
+          `HTTP server returned status ${res.status}: ${res.statusText}`,
+        );
+      }
+      const json = (await res.json()) as { result?: unknown; error?: { message?: string } };
+      if (json.error) {
+        throw new McpRoutingError('EXECUTION_FAILED', json.error.message ?? 'HTTP MCP tool error');
+      }
+      return { result: json.result ?? json, durationMs: Date.now() - startTime };
+    } catch (err) {
+      if (err instanceof McpRoutingError) throw err;
+      throw new McpRoutingError(
+        'UNREACHABLE',
+        `HTTP MCP request failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   if (server.transport.type !== 'stdio') {
-    throw new McpRoutingError('UNREACHABLE', 'HTTP tool routing is not configured');
+    throw new McpRoutingError('UNREACHABLE', 'Unsupported transport type');
   }
 
   const startTime = Date.now();
@@ -187,12 +269,26 @@ export async function routeToolCall(
   const exe = server.transport.executableId;
   const serverArgs = server.transport.args;
 
+  const childEnv = {
+    ...process.env,
+    ...(server.secretRef
+      ? {
+          API_KEY: server.secretRef,
+          AUTH_TOKEN: server.secretRef,
+          STITCH_API_KEY: server.secretRef,
+          MCP_API_KEY: server.secretRef,
+          BEARER_TOKEN: server.secretRef,
+        }
+      : {}),
+  };
+
   return new Promise<{ result: unknown; durationMs: number }>((resolveCall, rejectCall) => {
     let child: ReturnType<typeof spawn>;
     try {
       child = spawn(exe, serverArgs, {
         shell: false,
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: childEnv,
       });
     } catch (err) {
       return rejectCall(
