@@ -36,12 +36,26 @@ export async function discoverServerTools(
   const exe = server.transport.executableId;
   const args = server.transport.args;
 
+  const childEnv = {
+    ...process.env,
+    ...(server.secretRef
+      ? {
+          API_KEY: server.secretRef,
+          AUTH_TOKEN: server.secretRef,
+          STITCH_API_KEY: server.secretRef,
+          MCP_API_KEY: server.secretRef,
+          BEARER_TOKEN: server.secretRef,
+        }
+      : {}),
+  };
+
   return new Promise<DiscoveredTool[]>((resolveDiscovery, rejectDiscovery) => {
     let child: ReturnType<typeof spawn>;
     try {
       child = spawn(exe, args, {
         shell: false,
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: childEnv,
       });
     } catch (err) {
       return rejectDiscovery(
@@ -187,12 +201,26 @@ export async function routeToolCall(
   const exe = server.transport.executableId;
   const serverArgs = server.transport.args;
 
+  const childEnv = {
+    ...process.env,
+    ...(server.secretRef
+      ? {
+          API_KEY: server.secretRef,
+          AUTH_TOKEN: server.secretRef,
+          STITCH_API_KEY: server.secretRef,
+          MCP_API_KEY: server.secretRef,
+          BEARER_TOKEN: server.secretRef,
+        }
+      : {}),
+  };
+
   return new Promise<{ result: unknown; durationMs: number }>((resolveCall, rejectCall) => {
     let child: ReturnType<typeof spawn>;
     try {
       child = spawn(exe, serverArgs, {
         shell: false,
         stdio: ['pipe', 'pipe', 'pipe'],
+        env: childEnv,
       });
     } catch (err) {
       return rejectCall(

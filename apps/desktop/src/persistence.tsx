@@ -793,6 +793,7 @@ function McpForm({
   const [args, setArgs] = useState(
     existing?.transport.type === 'stdio' ? existing.transport.args.join('\n') : '',
   );
+  const [secretRef, setSecretRef] = useState(existing?.secretRef ?? '');
   const [enabled, setEnabled] = useState(existing?.enabled ?? false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -811,7 +812,7 @@ function McpForm({
               args: args.split('\n').filter(Boolean),
             },
       enabled,
-      ...(existing?.secretRef ? { secretRef: existing.secretRef } : {}),
+      ...(secretRef.trim() ? { secretRef: secretRef.trim() } : {}),
     };
     const parsed = existing
       ? McpServerUpdateSchema.safeParse({ ...input, status: enabled ? 'unknown' : 'disabled' })
@@ -842,7 +843,7 @@ function McpForm({
         }}
       >
         <Field label="Server name">
-          <input required value={name} onChange={(e) => setName(e.target.value)} />
+          <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. google-stitch" />
         </Field>
         <Field label="Transport">
           <select
@@ -853,25 +854,45 @@ function McpForm({
               setArgs('');
             }}
           >
-            <option value="stdio">stdio</option>
-            <option value="http">HTTP</option>
+            <option value="stdio">stdio (CLI Process)</option>
+            <option value="http">HTTP (SSE / Endpoint)</option>
           </select>
         </Field>
-        <Field label={transport === 'http' ? 'Server URL' : 'Allowlisted executable ID'}>
-          <input required value={endpoint} onChange={(e) => setEndpoint(e.target.value)} />
+        <Field label={transport === 'http' ? 'Server Base URL' : 'Executable ID'}>
+          <input
+            required
+            value={endpoint}
+            onChange={(e) => setEndpoint(e.target.value)}
+            placeholder={transport === 'http' ? 'https://... or http://127.0.0.1:8080' : 'e.g. npx, node, python'}
+          />
         </Field>
         {transport === 'stdio' && (
           <Field label="Arguments (one per line)">
-            <textarea value={args} onChange={(e) => setArgs(e.target.value)} />
+            <textarea
+              value={args}
+              onChange={(e) => setArgs(e.target.value)}
+              placeholder="-y&#10;@google/stitch-mcp"
+            />
           </Field>
         )}
+        <Field
+          label="API Key / Secret Token (optional)"
+          hint="Passed securely to the MCP server as API_KEY, STITCH_API_KEY, and AUTH_TOKEN."
+        >
+          <input
+            type="password"
+            autoComplete="off"
+            value={secretRef}
+            onChange={(e) => setSecretRef(e.target.value)}
+            placeholder="e.g. your Google Stitch API Key"
+          />
+        </Field>
         <label className="record-choice">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
           Enabled in inventory
         </label>
         <p className="muted">
-          Saving does not execute or test a server. Configuration changes reset status to
-          unknown/disabled. Existing secret references are preserved without displaying credentials.
+          Saving stores the configuration in SQLite. When enabled, the daemon connects and discovers all tools automatically.
         </p>
         {error && <p role="alert">{error}</p>}
         <Button disabled={saving} type="submit" variant="primary">
