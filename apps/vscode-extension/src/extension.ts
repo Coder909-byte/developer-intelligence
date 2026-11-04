@@ -664,23 +664,47 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
       case 'openDashboard': {
-        const url = new URL(setting('dashboardUrl', 'http://127.0.0.1:5173'));
+        const baseDashboardUrl = setting('dashboardUrl', 'http://127.0.0.1:5173');
+        const url = new URL(baseDashboardUrl);
         if (
           url.protocol !== 'http:' ||
           !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) ||
           url.username ||
-          url.password ||
-          url.search ||
-          url.hash
+          url.password
         )
           throw new Error('Dashboard must be local HTTP');
 
         // Automatically append and synchronize recent Codex session traces, tool calls, and game save slots
+        let targetProjectId = selected?.id;
+        let tokenVal = (await context.secrets.get(`udi.token:${origin()}`)) || '';
+        if (!tokenVal) {
+          for (const folder of vscode.workspace.workspaceFolders ?? []) {
+            try {
+              const tokenUri = vscode.Uri.joinPath(folder.uri, '.data', 'token');
+              const bytes = await vscode.workspace.fs.readFile(tokenUri);
+              tokenVal = Buffer.from(bytes).toString('utf8').trim();
+              if (tokenVal) break;
+            } catch {}
+          }
+        }
+        if (!tokenVal && process.env.UDI_TOKEN) {
+          tokenVal = process.env.UDI_TOKEN;
+        }
+
         try {
-          const api = await client();
-          const p = selected;
+          const api = createClient({ baseUrl: origin(), ...(tokenVal ? { token: tokenVal } : {}) });
+          let p = selected;
+          if (!p) {
+            const list = await api.listProjects().catch(() => ({ items: [] }));
+            if (list.items.length > 0) {
+              p = list.items[0];
+              selected = p;
+            }
+          }
           if (p) {
+            targetProjectId = p.id;
             await api.seedDemoSession(p.id).catch(() => {});
+            await api.seedHermesSessions(p.id).catch(() => {});
           } else {
             await api.seedAllSessions().catch(() => {});
           }
@@ -688,7 +712,12 @@ export function activate(context: vscode.ExtensionContext) {
           // Non-blocking
         }
 
-        if (!(await vscode.env.openExternal(vscode.Uri.parse(url.toString()))))
+        const targetUrl = new URL(url.toString());
+        targetUrl.searchParams.set('screen', 'Library');
+        if (targetProjectId) targetUrl.searchParams.set('projectId', targetProjectId);
+        if (tokenVal) targetUrl.searchParams.set('token', tokenVal);
+
+        if (!(await vscode.env.openExternal(vscode.Uri.parse(targetUrl.toString()))))
           await vscode.window.showWarningMessage('Start pnpm dev:desktop to open dashboard.');
         return;
       }

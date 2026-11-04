@@ -1255,7 +1255,20 @@ export function registerPlatformRoutes(
   });
 
   app.post(`${prefix}/demo/seed-all`, async (request) => {
-    const projects = store.projects.list();
+    let projects = store.projects.list();
+    if (projects.length === 0) {
+      try {
+        const { resolve } = await import('node:path');
+        const defaultRoverPath = resolve(process.cwd(), 'examples/rover');
+        const proj = store.projects.create({
+          name: 'Rover Autonomous Unit',
+          rootPath: defaultRoverPath,
+        });
+        projects = [proj];
+      } catch {
+        // Fallback
+      }
+    }
     const results: Record<string, unknown> = {};
     for (const proj of projects) {
       results[proj.id] = await seedDemoSession(store, proj.id, proj.name);

@@ -675,7 +675,16 @@ function RegisterProject({
   );
 }
 export function App({ missionControl }: { missionControl?: MissionControlFactory } = {}) {
-  const [screen, setScreen] = useState<Screen>('Overview');
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const initialScreen = urlParams?.get('screen') as Screen | null;
+  const initialToken = urlParams?.get('token') ?? '';
+  const initialProjectId = urlParams?.get('projectId') ?? '';
+
+  const [screen, setScreen] = useState<Screen>(
+    initialScreen && (screens as readonly string[]).includes(initialScreen)
+      ? initialScreen
+      : 'Overview',
+  );
   const [mcpTab, setMcpTab] = useState('Registry');
   const [fullscreen, setFullscreen] = useState(false);
   useEffect(() => {
@@ -694,7 +703,7 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
     return () => window.removeEventListener('keydown', exit);
   }, [fullscreen]);
   const [url, setUrl] = useState(import.meta.env.VITE_UDI_URL ?? 'http://127.0.0.1:4317');
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(initialToken);
   const [draftUrl, setDraftUrl] = useState(url);
   const [draftToken, setDraftToken] = useState('');
   const [settingsError, setSettingsError] = useState('');
@@ -702,7 +711,7 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
   const missionSource = useMemo(() => missionControl?.(client), [missionControl, client]);
   const health = useResource(() => client.health(), [client]);
   const projects = useResource(() => client.listProjects(), [client]);
-  const [projectId, setProjectId] = useState('');
+  const [projectId, setProjectId] = useState(initialProjectId);
   const [jobIds, setJobIds] = useState<Record<string, string | undefined>>({});
   const [register, setRegister] = useState(false);
   const items = projects.state.status === 'ready' ? projects.state.data.items : [];
@@ -980,9 +989,14 @@ export function App({ missionControl }: { missionControl?: MissionControlFactory
                   </p>
                 )}
                 <Library
-                  key={`${url}:${project?.id ?? 'unscoped'}`}
+                  key={`${url}:${project?.id ?? initialProjectId ?? items[0]?.id ?? 'unscoped'}`}
                   client={client}
-                  projectId={project?.id}
+                  projectId={
+                    project?.id ??
+                    (initialProjectId && items.some((p) => p.id === initialProjectId)
+                      ? initialProjectId
+                      : items[0]?.id)
+                  }
                   onConnect={() => setScreen('Settings')}
                 />
               </>

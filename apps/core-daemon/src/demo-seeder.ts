@@ -65,6 +65,18 @@ export async function seedDemoSession(
     for (let i = 0; i < slots.length; i++) {
       const slot = slots[i]!;
       const createdAt = iso((4 - i) * 3600000);
+      const recordId = slot.recordIds[0] ?? randomUUID();
+      await store.context.append({
+        id: recordId,
+        projectId,
+        kind: 'decision',
+        text: `[SLOT CHECKPOINT: ${slot.summary}] Verified hardware invariants locked. Next: ${slot.nextSteps[0]}`,
+        provenance: slot.provenance,
+        evidence: [{ filePath: 'rover.net', line: 28 }],
+        createdAt,
+        updatedAt: createdAt,
+      }).catch(() => {});
+
       const handoff: AgentHandoff = {
         id: randomUUID(),
         createdAt,
@@ -72,7 +84,7 @@ export async function seedDemoSession(
         projectId,
         fromAgentId: slot.fromAgentId,
         summary: slot.summary,
-        recordIds: slot.recordIds,
+        recordIds: [recordId],
         nextSteps: slot.nextSteps,
         provenance: slot.provenance,
       };
@@ -84,6 +96,18 @@ export async function seedDemoSession(
   // Always append a fresh latest session book timestamped right now
   const latestSlotNum = handoffsCount + 1;
   const recentCreatedAt = iso(0);
+  const latestRecordId = randomUUID();
+  await store.context.append({
+    id: latestRecordId,
+    projectId,
+    kind: 'decision',
+    text: `[ACTIVE SLOT ${latestSlotNum}] Live Codex session trace recorded. Autonomous loop active, GPIO14 verified, MitM proxy streaming.`,
+    provenance: { sourceKind: 'observed_tool', actor: 'codex-agent-live' },
+    evidence: [{ filePath: 'src/pins.h', line: 7 }],
+    createdAt: recentCreatedAt,
+    updatedAt: recentCreatedAt,
+  }).catch(() => {});
+
   const latestBook: AgentHandoff = {
     id: randomUUID(),
     createdAt: recentCreatedAt,
@@ -91,7 +115,7 @@ export async function seedDemoSession(
     projectId,
     fromAgentId: randomUUID(),
     summary: `Slot ${latestSlotNum}: Live Codex Session · Verified GPIO14 Active`,
-    recordIds: [randomUUID()],
+    recordIds: [latestRecordId],
     nextSteps: [
       'Autonomous rover navigation loop active with verified GPIO14',
       'Telemetry stream listening on stdio MCP gateway bridge',
@@ -101,6 +125,16 @@ export async function seedDemoSession(
   };
   await store.handoffs.append(latestBook);
   handoffsCount++;
+
+  // Also seed Hermes sessions so the library shelves are fully stacked with rich sessions
+  if (handoffsCount < 10) {
+    try {
+      const hermesRes = await seedHermesSessions(store, projectId, projectName);
+      handoffsCount += hermesRes.addedHandoffs;
+    } catch {
+      // Non-blocking
+    }
+  }
 
   // 2. Append Realistic Codex Activity Events (Tool Calls, Responses, Decisions)
   const events: ActivityEvent[] = [
